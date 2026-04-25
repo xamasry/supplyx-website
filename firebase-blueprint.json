@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "Request": {
+      "title": "Purchase Request",
+      "description": "A request from a buyer for specific goods",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string", "description": "UID of the buyer" },
+        "buyerName": { "type": "string", "description": "Name of the buyer/restaurant" },
+        "productName": { "type": "string", "description": "Name of the product requested" },
+        "quantity": { "type": "string", "description": "Amount requested (e.g. 10 cartons)" },
+        "unit": { "type": "string", "description": "Unit of measurement (e.g. cartons)" },
+        "category": { "type": "string", "description": "Category of the goods" },
+        "status": { "type": "string", "enum": ["active", "accepted", "preparing", "shipped", "delivered", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "deadline": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "coordinates": { 
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "notes": { "type": "string" },
+        "acceptedBidId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "price": { "type": "number" },
+        "deliveryTime": { "type": "number" }
+      },
+      "required": ["buyerId", "productName", "quantity", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notifications for events like bid acceptance",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID of the notification recipient" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["bid_accepted", "new_bid", "system"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "link": { "type": "string", "description": "Target path for navigation" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Bid": {
+      "title": "Supplier Bid",
+      "description": "A price offer from a supplier for a specific request",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string", "description": "ID of the request being bid on" },
+        "supplierId": { "type": "string", "description": "UID of the supplier" },
+        "supplierName": { "type": "string", "description": "Name of the supplier" },
+        "price": { "type": "number", "description": "Total price offered" },
+        "deliveryTime": { "type": "number", "description": "Delivery time in minutes" },
+        "notes": { "type": "string" },
+        "coordinates": { 
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] }
+      },
+      "required": ["requestId", "supplierId", "price", "deliveryTime", "status", "createdAt"]
+    },
+    "Offer": {
+      "title": "Promotional Offer",
+      "description": "A promotional discount offer created by a supplier",
+      "type": "object",
+      "properties": {
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "title": { "type": "string" },
+        "originalPrice": { "type": "number" },
+        "offerPrice": { "type": "number" },
+        "discount": { "type": "string" },
+        "image": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "expired"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "views": { "type": "number" },
+        "orders": { "type": "number" }
+      },
+      "required": ["supplierId", "title", "originalPrice", "offerPrice"]
+    }
+  },
+  "firestore": {
+    "/requests/{requestId}": {
+      "schema": "Request",
+      "description": "All purchase requests"
+    },
+    "/requests/{requestId}/bids/{bidId}": {
+      "schema": "Bid",
+      "description": "Bids for a specific request"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/offers/{offerId}": {
+      "schema": "Offer",
+      "description": "Promotional offers created by suppliers"
+    }
+  }
+}

@@ -1,0 +1,69 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/auth/LoginPage';
+import BuyerRegister from './pages/auth/BuyerRegister';
+import SupplierRegister from './pages/auth/SupplierRegister';
+import BuyerHome from './pages/buyer/BuyerHome';
+import SupplierHome from './pages/supplier/SupplierHome';
+import NewRequest from './pages/buyer/NewRequest';
+import RequestDetail from './pages/buyer/RequestDetail';
+import BuyerLayout from './components/layout/BuyerLayout';
+import SupplierLayout from './components/layout/SupplierLayout';
+import BuyerOrders from './pages/buyer/BuyerOrders';
+import BuyerOffers from './pages/buyer/BuyerOffers';
+import BuyerProfile from './pages/buyer/BuyerProfile';
+import SupplierRequestDetail from './pages/supplier/SupplierRequestDetail';
+import SupplierOrders from './pages/supplier/SupplierOrders';
+import SupplierOffers from './pages/supplier/SupplierOffers';
+import NewSupplierOffer from './pages/supplier/NewSupplierOffer';
+import SupplierAnalytics from './pages/supplier/SupplierAnalytics';
+import SupplierProfile from './pages/supplier/SupplierProfile';
+import Notifications from './pages/Notifications';
+import OrderTracking from './pages/OrderTracking';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        
+        {/* Auth */}
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/register/buyer" element={<BuyerRegister />} />
+        <Route path="/auth/register/supplier" element={<SupplierRegister />} />
+        
+        {/* Buyer Routes - Wrapped in Layout */}
+        <Route element={<BuyerLayout />}>
+          <Route path="/buyer/home" element={<BuyerHome />} />
+          <Route path="/buyer/request/new" element={<NewRequest />} />
+          <Route path="/buyer/request/:id" element={<RequestDetail />} />
+          <Route path="/buyer/orders" element={<BuyerOrders />} />
+          <Route path="/buyer/orders/:id" element={<OrderTracking />} />
+          <Route path="/buyer/offers" element={<BuyerOffers />} />
+          <Route path="/buyer/profile" element={<BuyerProfile />} />
+          <Route path="/buyer/notifications" element={<Notifications />} />
+        </Route>
+        
+        {/* Supplier Routes - Wrapped in Layout */}
+        <Route element={<SupplierLayout />}>
+          <Route path="/supplier/home" element={<SupplierHome />} />
+          <Route path="/supplier/request/:id" element={<SupplierRequestDetail />} />
+          <Route path="/supplier/orders" element={<SupplierOrders />} />
+          <Route path="/supplier/orders/:id" element={<OrderTracking />} />
+          <Route path="/supplier/offers" element={<SupplierOffers />} />
+          <Route path="/supplier/offers/new" element={<NewSupplierOffer />} />
+          <Route path="/supplier/analytics" element={<SupplierAnalytics />} />
+          <Route path="/supplier/profile" element={<SupplierProfile />} />
+          <Route path="/supplier/notifications" element={<Notifications />} />
+        </Route>
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

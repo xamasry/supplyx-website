@@ -1,0 +1,6 @@
+{
+  "name": "supplyX",
+  "description": "Smart B2B Marketplace for Restaurants, Cafes, and Suppliers. Faster orders, better prices, and verified trust.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": []
+}
