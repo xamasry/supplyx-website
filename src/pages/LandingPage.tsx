@@ -187,6 +187,7 @@ export default function LandingPage() {
            <Logo size="md" />
            <p className="text-slate-400 font-bold text-sm">supplyX &copy; {new Date().getFullYear()} - الربط الذكي لكل ما يحتاجه مطعمك.</p>
            <div className="flex items-center gap-6">
+              <Link to="/admin/login" className="text-slate-300 hover:text-[#22C55E] transition-colors font-bold text-xs ml-4">الإدارة</Link>
               <Link to="#" className="text-slate-400 hover:text-[#22C55E] transition-colors font-bold text-sm">سياسة الخصوصية</Link>
               <Link to="#" className="text-slate-400 hover:text-[#22C55E] transition-colors font-bold text-sm">الشروط والأحكام</Link>
            </div>

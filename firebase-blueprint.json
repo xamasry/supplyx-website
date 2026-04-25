@@ -117,9 +117,36 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "cardHolder", "cardNumber", "expiryDate"]
+    },
+    "AppSetting": {
+      "title": "Application Setting",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "commissionRate": { "type": "number", "description": "Platform commission percentage (0-100)" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["commissionRate"]
+    },
+    "Admin": {
+      "title": "Platform Admin",
+      "description": "User with full administrative access",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Platform administrators"
+    },
+    "/settings/{settingId}": {
+      "schema": "AppSetting",
+      "description": "Global app settings"
+    },
     "/users/{userId}": {
       "schema": "UserProfile",
       "description": "Extended user profile data"

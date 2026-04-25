@@ -25,6 +25,8 @@ import SupplierAnalytics from './pages/supplier/SupplierAnalytics';
 import SupplierProfile from './pages/supplier/SupplierProfile';
 import Notifications from './pages/Notifications';
 import OrderTracking from './pages/OrderTracking';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminLogin from './pages/admin/AdminLogin';
 
 export default function App() {
   return (
@@ -61,6 +63,10 @@ export default function App() {
           <Route path="/supplier/profile" element={<SupplierProfile />} />
           <Route path="/supplier/notifications" element={<Notifications />} />
         </Route>
+        
+        {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

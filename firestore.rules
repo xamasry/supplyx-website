@@ -11,8 +11,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return (isSignedIn() && request.auth.uid == userId) || isAdmin();
     }
 
     function isValidId(id) {
@@ -73,8 +77,19 @@ service cloud.firestore {
     }
 
     // Phase 4: Match Blocks
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.token.email == 'masriboro@gmail.com' && adminId == request.auth.uid;
+      allow delete, update: if false;
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow get: if isSignedIn();
+      allow list, get: if isSignedIn();
       allow create, update: if isOwner(userId) && isValidUserProfile(incoming());
       
       match /payment_methods/{methodId} {
@@ -85,12 +100,12 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && incoming().supplierId == request.auth.uid && isValidOffer(incoming());
-      allow update: if isSignedIn() && (
+      allow update: if isAdmin() || (isSignedIn() && (
         (resource.data.supplierId == request.auth.uid && isValidOffer(incoming())
          && (incoming().diff(existing()).affectedKeys().hasOnly(['title', 'originalPrice', 'offerPrice', 'discount', 'status', 'updatedAt', 'image']))) ||
         (isValidOffer(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['orders', 'updatedAt', 'views']))
-      );
-      allow delete: if isSignedIn() && resource.data.supplierId == request.auth.uid;
+      ));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.supplierId == request.auth.uid);
     }
 
     match /notifications/{notificationId} {
@@ -103,16 +118,16 @@ service cloud.firestore {
     }
     match /requests/{requestId} {
       // 8. Secure List Queries (Query Enforcer)
-      allow list: if isSignedIn() && (
+      allow list: if isAdmin() || (isSignedIn() && (
         resource.data.status == 'active' || 
         resource.data.buyerId == request.auth.uid ||
         resource.data.supplierId == request.auth.uid
-      );
+      ));
       allow get: if isSignedIn();
       
       allow create: if isSignedIn() && incoming().buyerId == request.auth.uid && isValidRequest(incoming());
 
-      allow update: if isSignedIn() && (
+      allow update: if isAdmin() || (isSignedIn() && (
         // Action: Buyer accepts a bid
         (existing().buyerId == request.auth.uid && 
          incoming().status == 'accepted' && 
@@ -130,7 +145,7 @@ service cloud.firestore {
          incoming().status == 'cancelled' &&
          isValidRequest(incoming()) &&
          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
-      );
+      ));
 
       match /bids/{bidId} {
         allow list: if isSignedIn() && (
