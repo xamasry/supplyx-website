@@ -89,9 +89,45 @@
         "orders": { "type": "number" }
       },
       "required": ["supplierId", "title", "originalPrice", "offerPrice"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended profile information for buyers or suppliers",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "businessName": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "role": { "type": "string", "enum": ["buyer", "supplier"] },
+        "avatarUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "PaymentMethod": {
+      "title": "Payment Method",
+      "description": "Saved payment card information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "cardHolder": { "type": "string" },
+        "cardNumber": { "type": "string", "description": "Obfuscated card number" },
+        "expiryDate": { "type": "string" },
+        "type": { "type": "string", "enum": ["visa", "mastercard"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "cardHolder", "cardNumber", "expiryDate"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Extended user profile data"
+    },
+    "/users/{userId}/payment_methods/{methodId}": {
+      "schema": "PaymentMethod",
+      "description": "Saved payment methods for the user"
+    },
     "/requests/{requestId}": {
       "schema": "Request",
       "description": "All purchase requests"

@@ -1,8 +1,55 @@
-import { BarChart, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { BarChart, TrendingUp, DollarSign, Package, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function SupplierAnalytics() {
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    completionRate: 0,
+    completedOrders: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+
+    const q = query(
+      collection(db, 'requests'),
+      where('supplierId', '==', auth.currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const orders = snapshot.docs.map(doc => doc.data());
+      const completed = orders.filter(o => o.status === 'delivered');
+      const totalRevenue = completed.reduce((acc, curr) => acc + (curr.price || 0), 0);
+      const completionRate = orders.length > 0 ? (completed.length / orders.length) * 100 : 0;
+
+      setStats({
+        totalRevenue,
+        completedOrders: completed.length,
+        completionRate: Math.round(completionRate)
+      });
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'requests');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
+        <Loader2 className="w-10 h-10 animate-spin mb-2" />
+        <p className="font-bold text-sm">جاري تحليل البيانات...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 md:pb-0 px-2 sm:px-0 font-sans">
+    <div className="space-y-6 md:pb-0 px-2 sm:px-0 font-sans text-right">
       <header className="mb-6">
         <h1 className="text-2xl font-bold font-display text-slate-900">التقارير المتقدمة</h1>
         <p className="text-slate-500 text-sm mt-1">نظرة عامة على أداء مبيعاتك وأرباحك</p>
@@ -11,29 +58,29 @@ export default function SupplierAnalytics() {
       {/* Grid Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm col-span-2 flex justify-between items-center bg-gradient-to-l from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white">
-          <div>
-            <p className="text-white/80 text-xs font-bold mb-1">إجمالي الإيرادات (هذا الشهر)</p>
-            <p className="text-3xl font-display font-bold">45,200 <span className="text-sm font-normal">ج.م</span></p>
+          <div className="text-right">
+            <p className="text-white/80 text-xs font-bold mb-1">إجمالي الإيرادات (المحققة)</p>
+            <p className="text-3xl font-display font-bold">{stats.totalRevenue.toLocaleString('ar-EG')} <span className="text-sm font-normal">ج.م</span></p>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
             <DollarSign className="w-6 h-6" />
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-2">
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-2 items-end">
           <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center">
             <TrendingUp className="w-4 h-4" />
           </div>
-          <p className="text-[10px] text-slate-500 font-bold">نسبة القبول</p>
-          <p className="text-xl font-bold text-slate-900">85%</p>
+          <p className="text-[10px] text-slate-500 font-bold">نسبة الإكمال</p>
+          <p className="text-xl font-bold text-slate-900">{stats.completionRate}%</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-2">
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-2 items-end">
           <div className="w-8 h-8 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center">
             <Package className="w-4 h-4" />
           </div>
           <p className="text-[10px] text-slate-500 font-bold">طلبات مكتملة</p>
-          <p className="text-xl font-bold text-slate-900">124</p>
+          <p className="text-xl font-bold text-slate-900">{stats.completedOrders}</p>
         </div>
       </div>
 
