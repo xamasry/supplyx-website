@@ -39,7 +39,11 @@ export default function SupplierRegister() {
       navigate('/supplier/home');
     } catch (error: any) {
       console.error("Registration failed", error);
-      alert(`فشل التسجيل: ${error.message}`);
+      if (error.code === 'auth/operation-not-allowed') {
+        alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل. يرجى تفعيله من لوحة تحكم Firebase (Authentication -> Sign-in method -> Email/Password).');
+      } else {
+        alert(`فشل التسجيل: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }

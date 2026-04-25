@@ -43,7 +43,11 @@ export default function LoginPage() {
       else navigate('/buyer/home');
     } catch (error: any) {
       console.error("Login failed", error);
-      alert('فشل تسجيل الدخول: يرجى التأكد من البيانات أو استخدام تسجيل دخول جوجل');
+      if (error.code === 'auth/operation-not-allowed') {
+        alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل. يرجى تفعيله من لوحة تحكم Firebase (Authentication -> Sign-in method -> Email/Password).');
+      } else {
+        alert('فشل تسجيل الدخول: يرجى التأكد من البيانات أو استخدام تسجيل دخول جوجل');
+      }
     } finally {
       setLoading(false);
     }
