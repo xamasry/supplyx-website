@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2 } from 'lucide-react';
+import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft } from 'lucide-react';
 import { cn, calculateDistance } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -11,6 +11,7 @@ export default function SupplierHome() {
   const [activeTab, setActiveTab] = useState<'new'|'bids'>('new');
   const [requests, setRequests] = useState<any[]>([]);
   const [myBids, setMyBids] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { location: supplierLocation, loading: geoLoading, error: geoError, getLocation } = useGeolocation();
 
@@ -20,20 +21,20 @@ export default function SupplierHome() {
 
   useEffect(() => {
     let unsubRequests: (() => void) | null = null;
-    let unsubBids: (() => void) | null = null;
+    let unsubOrders: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (unsubRequests) unsubRequests();
-      if (unsubBids) unsubBids();
+      if (unsubOrders) unsubOrders();
 
       if (!user) {
         setRequests([]);
-        setMyBids([]);
+        setOrders([]);
         setLoading(false);
         return;
       }
 
-      // Fetch active requests
+      // Query 1: Fetch active requests (to bid on)
       const qReq = query(collection(db, 'requests'), where('status', '==', 'active'));
       unsubRequests = onSnapshot(qReq, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
@@ -55,25 +56,28 @@ export default function SupplierHome() {
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests');
-        setLoading(false);
       });
 
-      // Fetch supplier's bids - We need to iterate over requests or use a collection group query
-      // But for simplicity in this sandbox, we'll use a collection group query if enabled, 
-      // or we can just fetch notifications or a dedicated bids collection if we had one.
-      // Wait, bids are subcollections: /requests/{id}/bids/{bidId}
-      // Firestore doesn't support easy querying of subcollections across all documents without collection groups.
-      // Let's check if I have a top-level bids collection. No.
-      
-      // I will skip implementation of 'my bids' logic for now or use a different approach if the user persists.
-      // Actually, let's keep it simple.
+      // Query 2: Fetch supplier's own orders (accepted, preparing, etc.)
+      const qOrders = query(collection(db, 'requests'), where('supplierId', '==', user.uid));
+      unsubOrders = onSnapshot(qOrders, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        data.sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+        setOrders(data);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'requests_supplier_orders');
+      });
     });
 
     return () => {
       unsubAuth();
       if (unsubRequests) unsubRequests();
+      if (unsubOrders) unsubOrders();
     };
   }, [supplierLocation]);
+
+  // Active orders for the supplier
+  const activeOrders = orders.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status));
 
   return (
     <div className="space-y-6 pb-6 font-sans">
@@ -183,9 +187,33 @@ export default function SupplierHome() {
       )}
 
       {activeTab === 'bids' && (
-        <div className="text-center py-12 text-slate-500 flex flex-col items-center">
-          <Search className="w-12 h-12 text-slate-300 mb-3" />
-          <p className="font-semibold text-sm">لا توجد عروض قيد الانتظار حالياً.</p>
+        <div className="space-y-3">
+          {activeOrders.map(req => (
+            <Link key={req.id} to={`/supplier/orders/${req.id}`} className="block bg-white rounded-2xl shadow-sm border border-slate-200 p-4 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-1.5 bg-[var(--color-success)] h-full"></div>
+               <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-slate-900 group-hover:text-[var(--color-primary)] transition-colors">{req.productName}</h3>
+                  <span className={cn(
+                    "font-bold text-xs",
+                    req.status === 'accepted' ? "text-[var(--color-accent)] animate-pulse" : "text-[var(--color-success)]"
+                  )}>
+                    {req.status === 'accepted' ? 'بانتظار التحضير' : req.status === 'preparing' ? 'جاري التحضير' : 'في الطريق'}
+                  </span>
+               </div>
+               <p className="text-xs text-slate-500 font-semibold mb-3">الكمية: {req.quantity} | السعر: {req.price} ج.م</p>
+               <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">#{req.id.slice(0,8)}</span>
+                 <span className="text-[10px] font-bold text-[var(--color-primary)] flex items-center">متابعة التوصيل <ChevronLeft className="w-3 h-3" /></span>
+               </div>
+            </Link>
+          ))}
+          {activeOrders.length === 0 && (
+            <div className="text-center py-12 text-slate-500 flex flex-col items-center">
+              <Search className="w-12 h-12 text-slate-300 mb-3" />
+              <p className="font-semibold text-sm">ليس لديك عروض مقبولة حالياً.</p>
+              <p className="text-xs text-slate-400 mt-1 italic leading-relaxed px-4">ملاحظة: تظهر هنا العروض التي تم اختيارها من قبل المشترين فقط. لمتابعة العروض قيد الانتظار، يرجى مراجعة سجل الإشعارات.</p>
+            </div>
+          )}
         </div>
       )}
 

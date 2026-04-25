@@ -58,7 +58,8 @@ export default function BuyerOrders() {
     };
   }, []);
 
-  const activeOrders = requests.filter(r => r.status === 'accepted');
+  const activeStatuses = ['accepted', 'preparing', 'shipped'];
+  const activeOrders = requests.filter(r => activeStatuses.includes(r.status));
   const historyOrders = requests.filter(r => r.status === 'delivered' || r.status === 'cancelled');
   const pendingRequests = requests.filter(r => r.status === 'active');
 
@@ -67,7 +68,9 @@ export default function BuyerOrders() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'active': return 'بانتظار العروض';
-      case 'accepted': return 'جاري التوصيل';
+      case 'accepted': return 'تم قبول العرض';
+      case 'preparing': return 'جاري التجهيز';
+      case 'shipped': return 'في الطريق';
       case 'delivered': return 'تم التوصيل';
       case 'cancelled': return 'ملغي';
       default: return status;

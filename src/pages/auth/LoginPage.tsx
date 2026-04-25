@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Store, User, Lock, ArrowRight, Truck, Chrome } from 'lucide-react';
+import { Store, User, Lock, ArrowRight, Truck, Chrome, Loader2 } from 'lucide-react';
 import { auth, googleProvider } from '../../lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
 
 import Logo from '../../components/ui/Logo';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -31,11 +31,22 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Hardware mock redirect for presentation
-    if (phone === '01000000001') navigate('/supplier/home');
-    else navigate('/buyer/home');
+    setLoading(true);
+    try {
+      // If user enters a phone-like number, we map it to our internal email format for Firebase Auth
+      const loginEmail = email.includes('@') ? email : `${email}@supplyx.com`;
+      await signInWithEmailAndPassword(auth, loginEmail, password);
+      // Determine destination based on email or user metadata (for now just use simple check)
+      if (loginEmail.includes('supplier')) navigate('/supplier/home');
+      else navigate('/buyer/home');
+    } catch (error: any) {
+      console.error("Login failed", error);
+      alert('فشل تسجيل الدخول: يرجى التأكد من البيانات أو استخدام تسجيل دخول جوجل');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -92,18 +103,18 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-6 bg-white">
           <div className="space-y-2 text-right">
-            <label className="text-sm font-black text-[#0B1D2A]">رقم الهاتف</label>
+            <label className="text-sm font-black text-[#0B1D2A]">البريد الإلكتروني أو الهاتف</label>
             <div className="relative group">
               <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-300 group-focus-within:text-[#22C55E] transition-colors">
                 <User className="h-5 w-5" />
               </div>
               <input 
-                type="tel"
-                placeholder="01XXXXXXXXX"
+                type="text"
+                placeholder="example@mail.com"
                 dir="ltr"
                 className="w-full pl-4 pr-12 py-4 bg-[#F8FAFC] border border-slate-100 rounded-2xl focus:ring-2 focus:ring-[#22C55E]/20 focus:border-[#22C55E] outline-none transition-all font-bold"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -130,7 +141,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button type="submit" className="w-full py-5 bg-[#22C55E] text-white rounded-2xl font-black text-lg hover:shadow-xl hover:shadow-[#22C55E]/20 transition-all mt-4">
+          <button type="submit" disabled={loading} className="w-full py-5 bg-[#22C55E] text-white rounded-2xl font-black text-lg hover:shadow-xl hover:shadow-[#22C55E]/20 transition-all mt-4 disabled:opacity-50 flex items-center justify-center gap-2">
+            {loading && <Loader2 className="w-5 h-5 animate-spin" />}
             تسجيل الدخول
           </button>
         </form>

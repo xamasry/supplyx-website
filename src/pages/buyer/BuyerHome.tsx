@@ -3,8 +3,9 @@ import { Search, Flame, Clock, ChevronLeft, Package, Loader2 } from 'lucide-reac
 import { cn } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 const CATEGORIES = [
   { id: '1', name: 'مشروبات', icon: '🥤' },
@@ -19,54 +20,117 @@ const CATEGORIES = [
 
 export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubSnapshot: (() => void) | null = null;
+    let unsubOffers: (() => void) | null = null;
     
     const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (unsubSnapshot) {
-        unsubSnapshot();
-        unsubSnapshot = null;
-      }
+      if (unsubSnapshot) unsubSnapshot();
+      if (unsubOffers) unsubOffers();
 
       if (!user) {
         setRequests([]);
+        setOffers([]);
         setLoading(false);
         return;
       }
 
+      // Fetch Requests
       const q = query(
         collection(db, 'requests'),
         where('buyerId', '==', user.uid)
       );
 
       unsubSnapshot = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as any[];
-
-        // Sort in memory
-        data.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis?.() || 0;
-          const timeB = b.createdAt?.toMillis?.() || 0;
-          return timeB - timeA;
-        });
-
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
         setRequests(data);
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests');
-        setLoading(false);
+      });
+
+      // Fetch Offers
+      const qOffers = query(collection(db, 'offers'), where('status', '==', 'active'), orderBy('createdAt', 'desc'));
+      unsubOffers = onSnapshot(qOffers, (snapshot) => {
+        setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (error) => {
+        console.error('Error fetching offers:', error);
       });
     });
 
     return () => {
       unsubAuth();
       if (unsubSnapshot) unsubSnapshot();
+      if (unsubOffers) unsubOffers();
     };
   }, []);
+
+  const navigate = useNavigate();
+  const [isOrdering, setIsOrdering] = useState<string | null>(null);
+
+  const handleOrder = async (offer: any) => {
+    console.log('handleOrder triggered for offer:', offer.id);
+    if (!auth.currentUser) {
+      alert('يرجى تسجيل الدخول أولاً');
+      return;
+    }
+
+    setIsOrdering(offer.id);
+    try {
+      console.log('Starting order process for user:', auth.currentUser.uid);
+      const orderRef = collection(db, 'requests');
+      const newOrder = {
+        buyerId: auth.currentUser.uid,
+        buyerName: auth.currentUser.displayName || 'مشتري بنها',
+        productName: offer.title,
+        quantity: '1',
+        unit: 'وحدة',
+        category: 'عروض خاصة',
+        status: 'accepted',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        supplierId: offer.supplierId,
+        supplierName: offer.supplierName,
+        price: offer.offerPrice,
+        deliveryTime: 45,
+        notes: `طلب مباشر من العرض: ${offer.title}`,
+        offerId: offer.id
+      };
+
+      const docRef = await addDoc(orderRef, newOrder);
+      console.log('Order created successfully:', docRef.id);
+      
+      // Update offer stats
+      if (offer.id) {
+        await updateDoc(doc(db, 'offers', offer.id), {
+          orders: increment(1),
+          updatedAt: serverTimestamp()
+        }).catch(err => console.error('Error updating offer stats:', err));
+      }
+      
+      await addDoc(collection(db, 'notifications'), {
+        userId: offer.supplierId,
+        title: 'طلب جديد من عرضك!',
+        message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء عرضك "${offer.title}".`,
+        type: 'bid_accepted',
+        read: false,
+        createdAt: serverTimestamp(),
+        link: `/supplier/orders`
+      }).catch(err => console.error('Error creating notification:', err));
+
+      alert('تم إرسال الطلب بنجاح!');
+      navigate('/buyer/orders');
+    } catch (error) {
+      console.error('Error creating order:', error);
+      handleFirestoreError(error, OperationType.CREATE, 'requests');
+    } finally {
+      setIsOrdering(null);
+    }
+  };
 
   const activeRequests = requests.filter(r => r.status === 'active');
 
@@ -194,25 +258,38 @@ export default function BuyerHome() {
         </div>
         
         <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
-          {[1,2,3].map(i => (
-            <div key={i} className="min-w-[280px] md:min-w-[320px] bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl p-3 flex gap-3 snap-start hover:border-[var(--color-primary)] transition-colors">
+          {offers.map(offer => (
+            <div key={offer.id} className="min-w-[280px] md:min-w-[320px] bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl p-3 flex gap-3 snap-start hover:border-[var(--color-primary)] transition-colors">
               <div className="w-20 h-20 bg-slate-200 rounded-xl relative overflow-hidden shrink-0">
-                <img src={`https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&q=80`} alt="Offer image" className="w-full h-full object-cover" />
-                <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl">خصم 20%</div>
+                <img src={offer.image} alt={offer.title} className="w-full h-full object-cover" />
+                <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl">خصم {offer.discount}</div>
               </div>
-              <div className="flex-1 flex flex-col justify-between">
-                <p className="text-sm font-bold text-slate-900 line-clamp-1 leading-tight">زيت قلي 20 لتر ممتاز</p>
-                <p className="text-xs text-slate-500 font-medium">المورد: شركة التوريدات</p>
+              <div className="flex-1 flex flex-col justify-between text-right">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 line-clamp-1 leading-tight">{offer.title}</p>
+                  <p className="text-xs text-slate-500 font-medium">المورد: {offer.supplierName}</p>
+                </div>
                 <div className="flex justify-between items-end mt-1">
-                  <div className="flex gap-2 items-center">
-                     <span className="text-[var(--color-danger)] font-bold">850 ج.م</span>
-                     <span className="text-[10px] text-slate-400 line-through">1050 ج</span>
+                  <div className="flex flex-col">
+                     <span className="text-[var(--color-danger)] font-bold">{offer.offerPrice} ج.م</span>
+                     <span className="text-[10px] text-slate-400 line-through">{offer.originalPrice} ج</span>
                   </div>
-                  <span className="text-[10px] bg-[var(--color-success)] text-white px-2 py-0.5 rounded-full font-bold">لأول طلب</span>
+                  <button 
+                    onClick={() => handleOrder(offer)}
+                    disabled={!!isOrdering}
+                    className="text-[10px] bg-[var(--color-primary)] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
+                  >
+                    {isOrdering === offer.id ? 'جاري...' : 'اطلب الآن'}
+                  </button>
                 </div>
               </div>
             </div>
           ))}
+          {offers.length === 0 && (
+            <div className="w-full text-center py-6 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 italic">
+               لا توجد عروض ترويجية نشطة حالياً من الموردين
+            </div>
+          )}
         </div>
       </section>
 

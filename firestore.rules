@@ -33,7 +33,7 @@ service cloud.firestore {
         && data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled']
         && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
         && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == resource.data.updatedAt))
-        && data.productName is string && data.productName.size() <= 100;
+        && data.productName is string && data.productName.size() <= 200;
     }
 
     function isValidBid(data) {
@@ -41,7 +41,9 @@ service cloud.firestore {
         && data.status in ['pending', 'accepted', 'rejected']
         && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
         && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == resource.data.updatedAt))
-        && data.price is number && data.price >= 0;
+        && data.price is number && data.price >= 0
+        && (data.deliveryTime == null || data.deliveryTime is number)
+        && (data.supplierName == null || data.supplierName is string);
     }
 
     function isValidNotification(data) {
@@ -55,10 +57,14 @@ service cloud.firestore {
       return data.supplierId is string
         && data.status in ['active', 'expired']
         && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
-        && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == resource.data.updatedAt))
+        && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == request.time))
         && data.originalPrice is number && data.offerPrice is number
         && data.title is string && data.title.size() <= 200
-        && data.discount is string && data.discount.size() <= 10;
+        && data.discount is string && data.discount.size() <= 10
+        && (data.image == null || data.image is string)
+        && (data.supplierName == null || data.supplierName is string)
+        && (data.views == null || data.views is number)
+        && (data.orders == null || data.orders is number);
     }
 
     function isValidUserProfile(data) {
@@ -79,18 +85,21 @@ service cloud.firestore {
     match /offers/{offerId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && incoming().supplierId == request.auth.uid && isValidOffer(incoming());
-      allow update: if isSignedIn() && resource.data.supplierId == request.auth.uid && isValidOffer(incoming())
-                     && (incoming().diff(existing()).affectedKeys().hasOnly(['title', 'originalPrice', 'offerPrice', 'discount', 'status', 'updatedAt', 'image']));
+      allow update: if isSignedIn() && (
+        (resource.data.supplierId == request.auth.uid && isValidOffer(incoming())
+         && (incoming().diff(existing()).affectedKeys().hasOnly(['title', 'originalPrice', 'offerPrice', 'discount', 'status', 'updatedAt', 'image']))) ||
+        (isValidOffer(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['orders', 'updatedAt', 'views']))
+      );
       allow delete: if isSignedIn() && resource.data.supplierId == request.auth.uid;
     }
 
     match /notifications/{notificationId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid 
+      allow list: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
+      allow get: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
+      allow create: if isSignedIn() && isValidNotification(incoming());
+      allow update: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid 
                      && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.get('userId', '') == request.auth.uid;
     }
     match /requests/{requestId} {
       // 8. Secure List Queries (Query Enforcer)

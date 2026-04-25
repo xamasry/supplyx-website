@@ -18,6 +18,12 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+
+      if (unsubNotifs) {
+        unsubNotifs();
+        unsubNotifs = null;
+      }
+
       if (u) {
         const q = query(
           collection(db, 'notifications'),
@@ -26,7 +32,7 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         );
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
-        });
+        }, (err) => console.error("BuyerLayout Notif error:", err));
       } else {
         setUnreadCount(0);
       }

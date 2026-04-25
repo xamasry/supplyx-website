@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { calculateDistance } from '../../lib/utils';
 
@@ -16,6 +16,7 @@ export default function SupplierRequestDetail() {
   const [price, setPrice] = useState('0');
   const [deliveryTime, setDeliveryTime] = useState('30');
   const [notes, setNotes] = useState('');
+  const [existingBid, setExistingBid] = useState<any>(null);
   const { location: supplierLocation, getLocation } = useGeolocation();
 
   useEffect(() => {
@@ -30,6 +31,21 @@ export default function SupplierRequestDetail() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setRequest({ id: docSnap.id, ...docSnap.data() });
+          
+          // Check for existing bid
+          if (auth.currentUser) {
+            const bidsRef = collection(db, `requests/${id}/bids`);
+            const q = query(bidsRef, where('supplierId', '==', auth.currentUser.uid));
+            onSnapshot(q, (snapshot) => {
+              if (!snapshot.empty) {
+                const b = snapshot.docs[0];
+                setExistingBid({ id: b.id, ...b.data() });
+                setPrice(b.data().price.toString());
+                setDeliveryTime(b.data().deliveryTime.toString());
+                setNotes(b.data().notes || '');
+              }
+            });
+          }
         } else {
           alert("الطلب غير موجود");
           navigate('/supplier/home');
@@ -52,36 +68,49 @@ export default function SupplierRequestDetail() {
     }
 
     setSubmitting(true);
-    const path = `requests/${id}/bids`;
+    const bidsCollectionPath = `requests/${id}/bids`;
     try {
-      await addDoc(collection(db, path), {
-        requestId: id,
-        supplierId: auth.currentUser.uid,
-        supplierName: auth.currentUser.displayName || 'مورد بنها',
-        price: Number(price),
-        deliveryTime: Number(deliveryTime),
-        notes,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
-      });
+      if (existingBid) {
+        // Update existing bid
+        await updateDoc(doc(db, `requests/${id}/bids`, existingBid.id), {
+          price: Number(price),
+          deliveryTime: Number(deliveryTime),
+          notes,
+          updatedAt: serverTimestamp(),
+          coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
+        });
+        alert('تم تحديث عرضك بنجاح');
+      } else {
+        // Create new bid
+        await addDoc(collection(db, bidsCollectionPath), {
+          requestId: id,
+          supplierId: auth.currentUser.uid,
+          supplierName: auth.currentUser.displayName || 'مورد بنها',
+          price: Number(price),
+          deliveryTime: Number(deliveryTime),
+          notes,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
+        });
 
-      // Create notification for buyer
-      await addDoc(collection(db, 'notifications'), {
-        userId: request.buyerId,
-        title: 'عرض جديد!',
-        message: `تلقيت عرضاً جديداً لطلبك "${request.productName}" بقيمة ${price} ج.م.`,
-        type: 'new_bid',
-        read: false,
-        createdAt: serverTimestamp(),
-        link: `/buyer/request/${id}`
-      });
+        // Create notification for buyer
+        await addDoc(collection(db, 'notifications'), {
+          userId: request.buyerId,
+          title: 'عرض جديد!',
+          message: `تلقيت عرضاً جديداً لطلبك "${request.productName}" بقيمة ${price} ج.م.`,
+          type: 'new_bid',
+          read: false,
+          createdAt: serverTimestamp(),
+          link: `/buyer/request/${id}`
+        });
 
-      alert('تم إرسال العرض بنجاح! سيتم إشعارك فور رد المشتري.');
+        alert('تم إرسال العرض بنجاح! سيتم إشعارك فور رد المشتري.');
+      }
       navigate('/supplier/home');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      handleFirestoreError(error, OperationType.CREATE, bidsCollectionPath);
     } finally {
       setSubmitting(false);
     }
@@ -150,7 +179,7 @@ export default function SupplierRequestDetail() {
       {/* Bid Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 shadow-sm border border-[var(--color-primary)]/20">
         <h3 className="font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
-           <Send className="w-5 h-5 text-[var(--color-primary)]" /> تفاصيل عرضك
+           <Send className="w-5 h-5 text-[var(--color-primary)]" /> {existingBid ? 'تحديث عرضك' : 'تفاصيل عرضك'}
         </h3>
         
         <div className="space-y-5">
@@ -199,7 +228,7 @@ export default function SupplierRequestDetail() {
           className="w-full mt-8 py-4 bg-[var(--color-primary)] text-white rounded-2xl font-bold text-lg hover:bg-[var(--color-primary-hover)] transition-all shadow-[0_4px_14px_0_rgba(31,78,121,0.39)] disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {submitting ? 'جاري الإرسال...' : 'إرسال العرض الآن'}
+          {submitting ? 'جاري الإرسال...' : (existingBid ? 'تحديث العرض الآن' : 'إرسال العرض الآن')}
         </button>
       </form>
     </div>

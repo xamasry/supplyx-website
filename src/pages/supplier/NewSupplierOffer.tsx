@@ -20,32 +20,57 @@ export default function NewSupplierOffer() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const origPrice = Number(originalPrice);
+    const offPrice = Number(offerPrice);
+
     if (!auth.currentUser) {
       alert('يرجى تسجيل الدخول أولاً');
       return;
     }
 
+    if (isNaN(origPrice) || isNaN(offPrice) || origPrice <= 0 || offPrice <= 0) {
+      alert('يرجى إدخال أسعار صحيحة');
+      return;
+    }
+
+    if (offPrice >= origPrice) {
+      alert('سعر العرض يجب أن يكون أقل من السعر الأصلي');
+      return;
+    }
+
+    if (!title.trim()) {
+      alert('يرجى إدخال عنوان للعرض');
+      return;
+    }
+
     setLoading(true);
     try {
-      const discountVal = calcDiscount();
-      await addDoc(collection(db, 'offers'), {
+      const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
+      
+      const offerData = {
         supplierId: auth.currentUser.uid,
         supplierName: auth.currentUser.displayName || 'مورد بنها',
-        title,
-        originalPrice: Number(originalPrice),
-        offerPrice: Number(offerPrice),
-        discount: discountVal > 0 ? `${discountVal}%` : '0%',
+        title: title.trim(),
+        originalPrice: origPrice,
+        offerPrice: offPrice,
+        discount: `${discountVal}%`,
         image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&q=80',
         status: 'active',
         views: 0,
         orders: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      console.log('Submitting offer:', offerData);
+      
+      await addDoc(collection(db, 'offers'), offerData);
 
       alert('تم نشر العرض بنجاح');
       navigate('/supplier/offers');
     } catch (error) {
+      console.error('Error adding offer:', error);
       handleFirestoreError(error, OperationType.CREATE, 'offers');
     } finally {
       setLoading(false);

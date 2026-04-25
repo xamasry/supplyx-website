@@ -22,7 +22,14 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let unsubscribeNotifs: (() => void) | null = null;
+
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (unsubscribeNotifs) {
+        unsubscribeNotifs();
+        unsubscribeNotifs = null;
+      }
+
       if (!user) {
         setNotifications([]);
         setLoading(false);
@@ -35,7 +42,7 @@ export default function Notifications() {
         orderBy('createdAt', 'desc')
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      unsubscribeNotifs = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
@@ -43,14 +50,16 @@ export default function Notifications() {
         setNotifications(data);
         setLoading(false);
       }, (error) => {
+        console.error("Notifications list error:", error);
         handleFirestoreError(error, OperationType.LIST, 'notifications');
         setLoading(false);
       });
-
-      return () => unsubscribe();
     });
 
-    return () => unsubAuth();
+    return () => {
+      unsubAuth();
+      if (unsubscribeNotifs) unsubscribeNotifs();
+    };
   }, []);
 
   const markAsRead = async (id: string) => {

@@ -209,7 +209,10 @@ export default function OrderTracking() {
              </div>
           )}
           {!isSupplier && statusLevel === 4 && (
-            <button className="w-full py-5 bg-[var(--color-success)] text-white rounded-2xl font-black text-lg shadow-lg shadow-[var(--color-success)]/20 hover:scale-[1.01] transition-transform">
+            <button 
+              onClick={() => updateStatus('delivered')} // Re-affirming delivery is same status but buyer confirmed
+              className="w-full py-5 bg-[var(--color-success)] text-white rounded-2xl font-black text-lg shadow-lg shadow-[var(--color-success)]/20 hover:scale-[1.01] transition-transform"
+            >
               تقييم التجربة وتأكيد الاستلام
             </button>
           )}

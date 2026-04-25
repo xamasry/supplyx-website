@@ -19,6 +19,12 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      
+      if (unsubNotifs) {
+        unsubNotifs();
+        unsubNotifs = null;
+      }
+
       if (u) {
         const q = query(
           collection(db, 'notifications'),
@@ -27,7 +33,7 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
         );
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
-        }, (err) => console.error("Notif error", err));
+        }, (err) => console.error("SupplierLayout Notif error:", err));
       } else {
         setUnreadCount(0);
       }
