@@ -11,15 +11,14 @@ export default function LandingPage() {
         <Logo size="md" />
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
           <Link to="/" className="text-[#22C55E]">الرئيسية</Link>
-          <Link to="/supplier/home" className="hover:text-[#22C55E] transition-colors">للموردين</Link>
-          <Link to="/buyer/home" className="hover:text-[#22C55E] transition-colors">للمطاعم</Link>
-          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">تسجيل دخول</Link>
+          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">تسجيل دخول للموردين</Link>
+          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">تسجيل دخول للمطاعم</Link>
         </nav>
         <Link 
-          to="/auth/register/buyer" 
+          to="/auth/login" 
           className="px-6 py-2.5 bg-[#22C55E] text-white rounded-full font-bold text-sm shadow-lg shadow-[#22C55E]/30 hover:scale-105 active:scale-95 transition-all"
         >
-          انضم الآن
+          تسجيل الدخول
         </Link>
       </header>
 
@@ -47,11 +46,8 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4">
-                <Link to="/auth/register/buyer" className="w-full sm:w-auto px-10 py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all">
-                  ابدأ الآن
-                </Link>
-                <Link to="/auth/login" className="w-full sm:w-auto px-10 py-5 bg-white text-[#0B1D2A] border border-slate-200 rounded-2xl font-bold text-lg hover:bg-slate-50 transition-all">
-                  اعرف المزيد
+                <Link to="/auth/login" className="w-full sm:w-auto px-10 py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all">
+                  تسجيل الدخول المستفيدين
                 </Link>
               </div>
 

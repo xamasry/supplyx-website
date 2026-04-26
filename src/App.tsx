@@ -6,8 +6,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
-import BuyerRegister from './pages/auth/BuyerRegister';
-import SupplierRegister from './pages/auth/SupplierRegister';
 import BuyerHome from './pages/buyer/BuyerHome';
 import SupplierHome from './pages/supplier/SupplierHome';
 import NewRequest from './pages/buyer/NewRequest';
@@ -36,8 +34,6 @@ export default function App() {
         
         {/* Auth */}
         <Route path="/auth/login" element={<LoginPage />} />
-        <Route path="/auth/register/buyer" element={<BuyerRegister />} />
-        <Route path="/auth/register/supplier" element={<SupplierRegister />} />
         
         {/* Buyer Routes - Wrapped in Layout */}
         <Route element={<BuyerLayout />}>

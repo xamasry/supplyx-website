@@ -2,9 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider 
+  signInWithEmailAndPassword
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
@@ -44,21 +42,6 @@ export default function AdminLogin() {
     } catch (err) {
       console.error("Admin verification error:", err);
       setError('حدث خطأ أثناء التحقق من صلاحيات الإدارة');
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError('');
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      await handleAdminSuccess(result.user);
-    } catch (err: any) {
-      console.error("Google login error:", err);
-      setError('فشل تسجيل الدخول بواسطة Google');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -107,22 +90,6 @@ export default function AdminLogin() {
         )}
 
         <div className="space-y-4">
-          {/* Main Owner Quick Login */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full bg-white text-slate-900 font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3 group disabled:opacity-50"
-          >
-            <Chrome className="w-5 h-5" />
-            <span>الدخول كصاحب المشروع (Google)</span>
-          </button>
-
-          <div className="flex items-center gap-4 py-2">
-            <div className="h-px bg-slate-800 flex-1"></div>
-            <span className="text-slate-600 text-xs font-bold uppercase">أو بالبريد</span>
-            <div className="h-px bg-slate-800 flex-1"></div>
-          </div>
-
           <form onSubmit={handleEmailLogin} className="space-y-5">
             <div>
               <label className="block text-slate-400 text-sm font-bold mb-2 mr-1">البريد الإلكتروني</label>

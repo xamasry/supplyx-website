@@ -10,6 +10,9 @@ import {
   deleteDoc,
   updateDoc
 } from 'firebase/firestore';
+import { initializeApp } from 'firebase/app';
+import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../lib/firebase';
 import { 
@@ -78,6 +81,9 @@ export default function AdminDashboard() {
   const [commissionRate, setCommissionRate] = useState(10);
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '' });
+  const [isAddingUser, setIsAddingUser] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -144,10 +150,23 @@ export default function AdminDashboard() {
         const d = new Date();
         d.setDate(d.getDate() - (6 - i));
         
-        const dayRevenue = Math.floor(Math.random() * 2000) + 500;
+        // Find real requests for this day
+        const dayStr = d.toLocaleDateString('ar-EG', { weekday: 'short' });
+        const startOfDay = new Date(d.setHours(0,0,0,0)).getTime();
+        const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
+        
+        let dayRevenue = 0;
+        data.forEach((r: any) => {
+           if (r.status === 'delivered' && r.updatedAt) {
+              const rTime = new Date(r.updatedAt).getTime();
+              if (rTime >= startOfDay && rTime <= endOfDay) {
+                 dayRevenue += (r.price || 0);
+              }
+           }
+        });
 
         return {
-          name: d.toLocaleDateString('ar-EG', { weekday: 'short' }),
+          name: dayStr,
           revenue: dayRevenue,
           profit: dayRevenue * (commissionRate / 100)
         };
@@ -193,6 +212,46 @@ export default function AdminDashboard() {
       await deleteDoc(doc(db, collectionName, id));
     } catch (err) {
       alert('فشل الحذف');
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.email || !newUser.password || !newUser.name) return;
+    setIsAddingUser(true);
+    
+    try {
+      // Create secondary app
+      const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
+      const secondaryAuth = getSecondaryAuth(secondaryApp);
+      
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth, 
+        newUser.email.includes('@') ? newUser.email : `${newUser.email}@supplyx.com`, 
+        newUser.password
+      );
+      
+      const newUid = userCredential.user.uid;
+      
+      await setDoc(doc(db, 'users', newUid), {
+        name: newUser.name,
+        email: newUser.email.includes('@') ? newUser.email : `${newUser.email}@supplyx.com`,
+        phone: newUser.phone,
+        role: newUser.role,
+        disabled: false,
+        createdAt: new Date().toISOString()
+      });
+      
+      await secondaryAuth.signOut();
+      
+      setShowAddUserModal(false);
+      setNewUser({ name: '', email: '', password: '', role: 'buyer', phone: '' });
+      alert('تم إنشاء المستخدم بنجاح');
+    } catch (err: any) {
+      console.error("Error creating user:", err);
+      alert(`فشل إنشاء المستخدم: ${err.message}`);
+    } finally {
+      setIsAddingUser(false);
     }
   };
 
@@ -428,7 +487,13 @@ export default function AdminDashboard() {
                       <button className="px-4 py-1.5 text-xs font-bold bg-primary-500 text-white rounded-md">الكل</button>
                     </div>
                   </div>
-                  <button className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-bold">تصدير المستخدمين</button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setShowAddUserModal(true)} className="bg-emerald-600 hover:bg-emerald-500 transition text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                       <Users className="w-4 h-4" />
+                       إضافة مستخدم جديد
+                    </button>
+                    <button className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold">تصدير المستخدمين</button>
+                  </div>
                 </div>
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
@@ -579,6 +644,103 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Add User Modal */}
+          <AnimatePresence>
+            {showAddUserModal && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+              >
+                <motion.div
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.95 }}
+                  className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold text-white">إضافة مستخدم للشركة</h3>
+                    <button onClick={() => setShowAddUserModal(false)} className="text-slate-400 hover:text-white">
+                      <XCircle className="w-6 h-6" />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleAddUser} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">اسم المطعم / المورد</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newUser.name}
+                        onChange={e => setNewUser({...newUser, name: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                        placeholder="الاسم"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">البريد الإلكتروني للإدارة</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newUser.email}
+                        onChange={e => setNewUser({...newUser, email: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                        placeholder="example@supplyx.com"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">رقم الهاتف</label>
+                      <input 
+                        type="tel" 
+                        value={newUser.phone}
+                        onChange={e => setNewUser({...newUser, phone: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                        placeholder="01xxxxxxxxx"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">كلمة المرور المؤقتة</label>
+                      <input 
+                        type="password" 
+                        required
+                        minLength={6}
+                        value={newUser.password}
+                        onChange={e => setNewUser({...newUser, password: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                        placeholder="••••••••"
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-2">نوع الحساب</label>
+                      <div className="grid grid-cols-2 gap-4">
+                         <label className={`flex items-center justify-center p-3 rounded-xl border cursor-pointer transition ${newUser.role === 'buyer' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                           <input type="radio" name="role" value="buyer" className="hidden" checked={newUser.role === 'buyer'} onChange={() => setNewUser({...newUser, role: 'buyer'})} />
+                           <span className="font-bold">مشتري (مطعم)</span>
+                         </label>
+                         <label className={`flex items-center justify-center p-3 rounded-xl border cursor-pointer transition ${newUser.role === 'supplier' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                           <input type="radio" name="role" value="supplier" className="hidden" checked={newUser.role === 'supplier'} onChange={() => setNewUser({...newUser, role: 'supplier'})} />
+                           <span className="font-bold">مورد</span>
+                         </label>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      type="submit" 
+                      disabled={isAddingUser}
+                      className="w-full py-4 mt-4 bg-primary-600 hover:bg-primary-500 text-white font-bold rounded-xl disabled:opacity-50 transition"
+                    >
+                      {isAddingUser ? 'جاري الإنشاء...' : 'إنشاء وحفظ الحساب'}
+                    </button>
+                  </form>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>

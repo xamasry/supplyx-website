@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Store, User, Lock, ArrowRight, Truck, Chrome, Loader2 } from 'lucide-react';
-import { auth, googleProvider } from '../../lib/firebase';
-import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 import Logo from '../../components/ui/Logo';
 
@@ -12,41 +14,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleGoogleLogin = async (role: 'buyer' | 'supplier') => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      await signInWithPopup(auth, googleProvider);
-      if (role === 'supplier') navigate('/supplier/home');
-      else navigate('/buyer/home');
-    } catch (error: any) {
-      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-        console.log("Popup was closed by user or cancelled");
-      } else {
-        console.error("Login failed", error);
-        alert(`فشل تسجيل الدخول: ${error.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // If user enters a phone-like number, we map it to our internal email format for Firebase Auth
       const loginEmail = email.includes('@') ? email : `${email}@supplyx.com`;
-      await signInWithEmailAndPassword(auth, loginEmail, password);
-      // Determine destination based on email or user metadata (for now just use simple check)
-      if (loginEmail.includes('supplier')) navigate('/supplier/home');
-      else navigate('/buyer/home');
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+      
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.disabled) {
+           alert('حسابك محظور. يرجى مراجعة الإدارة.');
+           auth.signOut();
+           return;
+        }
+        if (userData.role === 'supplier') {
+          navigate('/supplier/home');
+        } else {
+          navigate('/buyer/home');
+        }
+      } else {
+        // Fallback or handle admins trying to login here?
+        // Admins should login via admin login but let's just default to buyer or handle gracefully
+        navigate('/buyer/home');
+      }
+      
     } catch (error: any) {
       console.error("Login failed", error);
       if (error.code === 'auth/operation-not-allowed') {
-        alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل. يرجى تفعيله من لوحة تحكم Firebase (Authentication -> Sign-in method -> Email/Password).');
+        alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل.');
       } else {
-        alert('فشل تسجيل الدخول: يرجى التأكد من البيانات أو استخدام تسجيل دخول جوجل');
+        alert('فشل تسجيل الدخول: البريد الإلكتروني أو كلمة المرور غير صحيحة.');
       }
     } finally {
       setLoading(false);
@@ -67,42 +66,6 @@ export default function LoginPage() {
           <Logo size="lg" className="justify-center mb-6" />
           <h1 className="text-3xl font-black text-[#0B1D2A]">مرحباً بعودتك</h1>
           <p className="text-slate-500 mt-2 font-medium">سجل دخولك لمتابعة أعمالك</p>
-        </div>
-
-        {/* Quick Demo Login */}
-        <div className="bg-[#E6ECEF]/30 border border-slate-100 rounded-[2rem] p-6 mb-8 shadow-sm">
-          <h2 className="text-sm font-black text-[#0B1D2A] mb-4 flex items-center gap-2 uppercase tracking-tighter">
-            🚀 دخول سريع للتجربة
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              type="button"
-              onClick={() => handleGoogleLogin('buyer')}
-              className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-[#22C55E] hover:shadow-md transition-all group"
-            >
-              <div className="w-12 h-12 bg-[#22C55E]/10 text-[#22C55E] rounded-xl flex items-center justify-center group-hover:bg-[#22C55E] group-hover:text-white transition-colors">
-                <Store className="w-6 h-6" />
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-black text-[#0B1D2A]">تجربة كمطعم</p>
-                <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">buyer</p>
-              </div>
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => handleGoogleLogin('supplier')}
-              className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:border-[#22C55E] hover:shadow-md transition-all group"
-            >
-              <div className="w-12 h-12 bg-[#22C55E]/10 text-[#22C55E] rounded-xl flex items-center justify-center group-hover:bg-[#22C55E] group-hover:text-white transition-colors">
-                <Truck className="w-6 h-6" />
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-black text-[#0B1D2A]">تجربة كمورد</p>
-                <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase">supplier</p>
-              </div>
-            </button>
-          </div>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6 bg-white">
@@ -150,18 +113,6 @@ export default function LoginPage() {
             تسجيل الدخول
           </button>
         </form>
-
-        <div className="mt-12 text-center">
-          <p className="text-slate-400 font-bold mb-6 text-sm italic">ليس لديك حساب؟</p>
-          <div className="grid grid-cols-2 gap-4">
-             <Link to="/auth/register/buyer" className="py-4 bg-white border border-slate-100 text-[#0B1D2A] rounded-2xl font-black text-xs hover:bg-[#F8FAFC] transition-all flex flex-col items-center gap-2">
-               <span>حساب مطعم</span>
-            </Link>
-            <Link to="/auth/register/supplier" className="py-4 bg-white border border-slate-100 text-[#0B1D2A] rounded-2xl font-black text-xs hover:bg-[#F8FAFC] transition-all flex flex-col items-center gap-2">
-               <span>حساب مورد</span>
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   );
