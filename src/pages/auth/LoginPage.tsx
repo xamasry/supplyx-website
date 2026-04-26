@@ -44,8 +44,10 @@ export default function LoginPage() {
       console.error("Login failed", error);
       if (error.code === 'auth/operation-not-allowed') {
         alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل.');
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        alert('بيانات الدخول غير صحيحة. تأكد من البريد الإلكتروني وكلمة المرور.');
       } else {
-        alert('فشل تسجيل الدخول: البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+        alert(`فشل تسجيل الدخول: ${error.message}`);
       }
     } finally {
       setLoading(false);

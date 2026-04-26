@@ -44,6 +44,8 @@ export default function SupplierRequestDetail() {
                 setDeliveryTime(b.data().deliveryTime.toString());
                 setNotes(b.data().notes || '');
               }
+            }, (error) => {
+              console.error("Supplier Request Bids Error:", error);
             });
           }
         } else {

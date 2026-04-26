@@ -56,12 +56,16 @@ export default function SupplierProfile() {
               updatedAt: serverTimestamp()
             });
           }
+        }, (error) => {
+          console.error("Supplier Profile error:", error);
         });
 
         // Fetch Payment Methods
         const paymentsRef = collection(db, 'users', currentUser.uid, 'payment_methods');
         unsubPayments = onSnapshot(paymentsRef, (snapshot) => {
           setPaymentMethods(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }, (error) => {
+          console.error("Supplier Payments error:", error);
         });
 
       } else {

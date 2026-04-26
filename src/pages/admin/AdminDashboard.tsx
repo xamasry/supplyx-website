@@ -8,9 +8,10 @@ import {
   setDoc, 
   onSnapshot, 
   deleteDoc,
-  updateDoc
+  updateDoc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link, useNavigate } from 'react-router-dom';
@@ -81,8 +82,9 @@ export default function AdminDashboard() {
   const [commissionRate, setCommissionRate] = useState(10);
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'buyer' | 'supplier'>('all');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
   const [isAddingUser, setIsAddingUser] = useState(false);
   const navigate = useNavigate();
 
@@ -172,6 +174,8 @@ export default function AdminDashboard() {
         };
       });
       setChartData(last7Days);
+    }, (error) => {
+      console.error("Admin Requests Snapshot Error:", error);
     });
 
     // 2. Users Stream
@@ -183,11 +187,15 @@ export default function AdminDashboard() {
         suppliersCount: data.filter((u: any) => u.role === 'supplier').length,
         buyersCount: data.filter((u: any) => u.role === 'buyer').length
       }));
+    }, (error) => {
+      console.error("Admin Users Snapshot Error:", error);
     });
 
     // 3. Offers Stream
     const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
       setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error("Admin Offers Snapshot Error:", error);
     });
 
     // 4. Settings Stream
@@ -195,6 +203,8 @@ export default function AdminDashboard() {
       if (doc.exists()) {
         setCommissionRate(doc.data().commissionRate);
       }
+    }, (error) => {
+      console.error("Admin Settings Snapshot Error:", error);
     });
 
     setLoading(false);
@@ -221,8 +231,7 @@ export default function AdminDashboard() {
     setIsAddingUser(true);
     
     try {
-      // Create secondary app
-      const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp');
+      const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(firebaseConfig, 'SecondaryApp');
       const secondaryAuth = getSecondaryAuth(secondaryApp);
       
       const userCredential = await createUserWithEmailAndPassword(
@@ -237,15 +246,18 @@ export default function AdminDashboard() {
         name: newUser.name,
         email: newUser.email.includes('@') ? newUser.email : `${newUser.email}@supplyx.com`,
         phone: newUser.phone,
+        businessName: newUser.businessName,
+        address: newUser.address,
         role: newUser.role,
         disabled: false,
-        createdAt: new Date().toISOString()
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
       
       await secondaryAuth.signOut();
       
       setShowAddUserModal(false);
-      setNewUser({ name: '', email: '', password: '', role: 'buyer', phone: '' });
+      setNewUser({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
       alert('تم إنشاء المستخدم بنجاح');
     } catch (err: any) {
       console.error("Error creating user:", err);
@@ -344,6 +356,23 @@ export default function AdminDashboard() {
                 className="bg-slate-800 border border-slate-700 rounded-lg pr-10 pl-4 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 outline-none w-64"
               />
             </div>
+            
+            <button 
+              onClick={() => auth.signOut().then(() => navigate('/'))}
+              className="lg:hidden flex items-center justify-center p-2 text-slate-400 hover:text-red-500 bg-slate-800 rounded-lg transition-colors"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+
+            <button
+               onClick={() => auth.signOut().then(() => navigate('/'))}
+               className="hidden lg:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>خروج</span>
+            </button>
+
             <div className="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center font-bold text-white uppercase">
               {auth.currentUser?.email?.[0]}
             </div>
@@ -435,7 +464,10 @@ export default function AdminDashboard() {
                 {/* Recent Activity Mini Tables */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <h3 className="font-bold text-white mb-4">أحدث المستخدمين</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-white">أحدث المستخدمين</h3>
+                      <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-primary-500 hover:text-primary-400 bg-primary-500/10 px-3 py-1.5 rounded-lg transition-colors">جميع العملاء</button>
+                    </div>
                     <div className="space-y-4">
                       {users.slice(0, 4).map((user: any) => (
                         <div key={user.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
@@ -484,7 +516,9 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between bg-slate-900 p-4 border border-slate-800 rounded-2xl">
                   <div className="flex items-center gap-4">
                     <div className="flex rounded-lg bg-slate-800 p-1">
-                      <button className="px-4 py-1.5 text-xs font-bold bg-primary-500 text-white rounded-md">الكل</button>
+                      <button onClick={() => setRoleFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'all' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>الكل</button>
+                      <button onClick={() => setRoleFilter('buyer')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'buyer' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>المشترين</button>
+                      <button onClick={() => setRoleFilter('supplier')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'supplier' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>الموردين</button>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -500,15 +534,20 @@ export default function AdminDashboard() {
                   <table className="w-full text-right border-collapse">
                     <thead>
                       <tr className="bg-slate-800/50 text-slate-400 text-[10px] uppercase tracking-wider">
-                        <th className="px-6 py-4">الاسم / البريد</th>
+                        <th className="px-6 py-4">المسؤول / البريد</th>
+                        <th className="px-6 py-4">النشاط التجاري / الهاتف</th>
                         <th className="px-6 py-4">الدور</th>
+                        <th className="px-6 py-4 whitespace-nowrap">التاريخ</th>
                         <th className="px-6 py-4">الحالة</th>
-                        <th className="px-6 py-4">التاريخ</th>
                         <th className="px-6 py-4">العمليات</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                      {users.filter(u => (u.name || '').includes(searchQuery) || (u.email || '').includes(searchQuery)).map((user: any) => (
+                      {users.filter(u => {
+                        const matchSearch = (u.name || '').includes(searchQuery) || (u.email || '').includes(searchQuery) || (u.businessName || '').includes(searchQuery);
+                        const matchRole = roleFilter === 'all' || u.role === roleFilter;
+                        return matchSearch && matchRole;
+                      }).map((user: any) => (
                         <tr key={user.id} className="hover:bg-slate-800/30 transition">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -516,24 +555,29 @@ export default function AdminDashboard() {
                                 {user.name?.[0] || 'U'}
                               </div>
                               <div>
-                                <p className="text-sm font-bold text-white">{user.name}</p>
+                                <p className="text-sm font-bold text-white whitespace-nowrap">{user.name}</p>
                                 <p className="text-[10px] text-slate-500">{user.email}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
+                            <p className="text-sm font-bold text-white whitespace-nowrap">{user.businessName || '-'}</p>
+                            <p className="text-[10px] text-slate-500">{user.phone || '-'}</p>
+                          </td>
+                          <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${user.role === 'supplier' ? 'bg-purple-500/10 text-purple-500' : 'bg-blue-500/10 text-blue-500'}`}>
                               {user.role === 'supplier' ? 'مورد' : 'مشتري'}
                             </span>
+                            {user.address && <p className="text-[10px] text-slate-400 mt-1 max-w-[150px] truncate" title={user.address}>{user.address}</p>}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-500 italic whitespace-nowrap">
+                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '-'}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-2 h-2 rounded-full ${user.disabled ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
                               <span className="text-xs">{user.disabled ? 'محظور' : 'نشط'}</span>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 text-xs text-slate-500 italic">
-                            {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '-'}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
@@ -671,16 +715,29 @@ export default function AdminDashboard() {
                   </div>
                   
                   <form onSubmit={handleAddUser} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-400 mb-1">اسم المطعم / المورد</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={newUser.name}
-                        onChange={e => setNewUser({...newUser, name: e.target.value})}
-                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
-                        placeholder="الاسم"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-1">اسم المسؤول</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={newUser.name}
+                          onChange={e => setNewUser({...newUser, name: e.target.value})}
+                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                          placeholder="الاسم"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-1">اسم النشاط التجاري</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={newUser.businessName}
+                          onChange={e => setNewUser({...newUser, businessName: e.target.value})}
+                          className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                          placeholder="اسم المطعم أو الشركة"
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-slate-400 mb-1">البريد الإلكتروني للإدارة</label>
@@ -698,11 +755,23 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-bold text-slate-400 mb-1">رقم الهاتف</label>
                       <input 
                         type="tel" 
+                        required
                         value={newUser.phone}
                         onChange={e => setNewUser({...newUser, phone: e.target.value})}
                         className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
                         placeholder="01xxxxxxxxx"
                         dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">العنوان بالتفصيل</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newUser.address}
+                        onChange={e => setNewUser({...newUser, address: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
+                        placeholder="مثال: القاهرة، مدينة نصر، شارع مكرم عبيد"
                       />
                     </div>
                     <div>

@@ -55,12 +55,16 @@ export default function BuyerProfile() {
               updatedAt: serverTimestamp()
             });
           }
+        }, (error) => {
+          console.error("Buyer Profile error:", error);
         });
 
         // Fetch Payment Methods
         const paymentsRef = collection(db, 'users', currentUser.uid, 'payment_methods');
         unsubPayments = onSnapshot(paymentsRef, (snapshot) => {
           setPaymentMethods(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        }, (error) => {
+          console.error("Buyer Payments error:", error);
         });
 
       } else {
