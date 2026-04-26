@@ -19,10 +19,15 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
       if (user) {
         setIsAuthenticated(true);
         try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserRole(docSnap.data().role);
+          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+          if (adminDoc.exists()) {
+            setUserRole('admin');
+          } else {
+            const docRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              setUserRole(docSnap.data().role);
+            }
           }
         } catch (error) {
           console.error("Error fetching user role", error);

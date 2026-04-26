@@ -21,6 +21,24 @@ export default function LoginPage() {
       const loginEmail = email.includes('@') ? email : `${email}@supplyx.com`;
       const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
       
+      const adminDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
+      if (adminDoc.exists()) {
+        navigate('/admin/dashboard');
+        return;
+      }
+
+      // Auto-bootstrap for the specific owner email if they arrived via ordinary login
+      if (userCredential.user.email === 'masriboro@gmail.com') {
+        const { setDoc } = await import('firebase/firestore');
+        await setDoc(doc(db, 'admins', userCredential.user.uid), {
+          email: userCredential.user.email,
+          addedAt: new Date().toISOString(),
+          isSuperAdmin: true
+        });
+        navigate('/admin/dashboard');
+        return;
+      }
+
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
@@ -31,6 +49,8 @@ export default function LoginPage() {
         }
         if (userData.role === 'supplier') {
           navigate('/supplier/home');
+        } else if (userData.role === 'admin') {
+          navigate('/admin/dashboard');
         } else {
           navigate('/buyer/home');
         }
