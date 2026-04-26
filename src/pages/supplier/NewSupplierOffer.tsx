@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Upload, Percent, Loader2 } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 export default function NewSupplierOffer() {
   const navigate = useNavigate();
@@ -25,22 +26,22 @@ export default function NewSupplierOffer() {
     const offPrice = Number(offerPrice);
 
     if (!auth.currentUser) {
-      alert('يرجى تسجيل الدخول أولاً');
+      toast.error('يرجى تسجيل الدخول أولاً');
       return;
     }
 
     if (isNaN(origPrice) || isNaN(offPrice) || origPrice <= 0 || offPrice <= 0) {
-      alert('يرجى إدخال أسعار صحيحة');
+      toast.error('يرجى إدخال أسعار صحيحة');
       return;
     }
 
     if (offPrice >= origPrice) {
-      alert('سعر العرض يجب أن يكون أقل من السعر الأصلي');
+      toast.error('سعر العرض يجب أن يكون أقل من السعر الأصلي');
       return;
     }
 
     if (!title.trim()) {
-      alert('يرجى إدخال عنوان للعرض');
+      toast.error('يرجى إدخال عنوان للعرض');
       return;
     }
 
@@ -67,7 +68,7 @@ export default function NewSupplierOffer() {
       
       await addDoc(collection(db, 'offers'), offerData);
 
-      alert('تم نشر العرض بنجاح');
+      toast.success('تم نشر العرض بنجاح');
       navigate('/supplier/offers');
     } catch (error) {
       console.error('Error adding offer:', error);

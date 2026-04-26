@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { calculateDistance } from '../../lib/utils';
 
@@ -49,7 +50,7 @@ export default function SupplierRequestDetail() {
             });
           }
         } else {
-          alert("الطلب غير موجود");
+          toast.error("الطلب غير موجود");
           navigate('/supplier/home');
         }
       } catch (error) {
@@ -64,7 +65,7 @@ export default function SupplierRequestDetail() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) {
-      alert("يرجى تسجيل الدخول أولاً");
+      toast.error("يرجى تسجيل الدخول أولاً");
       navigate('/auth/login');
       return;
     }
@@ -81,7 +82,7 @@ export default function SupplierRequestDetail() {
           updatedAt: serverTimestamp(),
           coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
         });
-        alert('تم تحديث عرضك بنجاح');
+        toast.success('تم تحديث عرضك بنجاح');
       } else {
         // Create new bid
         await addDoc(collection(db, bidsCollectionPath), {
@@ -108,7 +109,7 @@ export default function SupplierRequestDetail() {
           link: `/buyer/request/${id}`
         });
 
-        alert('تم إرسال العرض بنجاح! سيتم إشعارك فور رد المشتري.');
+        toast.success('تم إرسال العرض بنجاح! سيتم إشعارك فور رد المشتري.');
       }
       navigate('/supplier/home');
     } catch (error) {

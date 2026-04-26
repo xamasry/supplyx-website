@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Flame, Tag, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
+import toast from 'react-hot-toast';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment } from 'firebase/firestore';
 
 export default function BuyerOffers() {
@@ -42,7 +43,7 @@ export default function BuyerOffers() {
   const handleOrder = async (offer: any) => {
     console.log('handleOrder (BuyerOffers) triggered for offer:', offer.id);
     if (!auth.currentUser) {
-      alert('يرجى تسجيل الدخول أولاً');
+      toast.error('يرجى تسجيل الدخول أولاً');
       return;
     }
 
@@ -90,7 +91,7 @@ export default function BuyerOffers() {
         link: `/supplier/orders`
       }).catch(err => console.error('Error creating notification in BuyerOffers:', err));
 
-      alert('تم إرسال الطلب بنجاح! يمكنك متابعة التوصيل من صفحة طلباتي.');
+      toast.success('تم إرسال الطلب بنجاح! يمكنك متابعة التوصيل من صفحة طلباتي.');
     } catch (error) {
       console.error('Error creating order from offer in BuyerOffers:', error);
       handleFirestoreError(error, OperationType.CREATE, 'requests');

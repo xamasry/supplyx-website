@@ -4,6 +4,7 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
 import BuyerHome from './pages/buyer/BuyerHome';
@@ -25,10 +26,12 @@ import Notifications from './pages/Notifications';
 import OrderTracking from './pages/OrderTracking';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/admin/AdminLogin';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-center" />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         
@@ -36,7 +39,11 @@ export default function App() {
         <Route path="/auth/login" element={<LoginPage />} />
         
         {/* Buyer Routes - Wrapped in Layout */}
-        <Route element={<BuyerLayout />}>
+        <Route element={
+          <ProtectedRoute allowedRole="buyer">
+            <BuyerLayout />
+          </ProtectedRoute>
+        }>
           <Route path="/buyer/home" element={<BuyerHome />} />
           <Route path="/buyer/request/new" element={<NewRequest />} />
           <Route path="/buyer/request/:id" element={<RequestDetail />} />
@@ -48,7 +55,11 @@ export default function App() {
         </Route>
         
         {/* Supplier Routes - Wrapped in Layout */}
-        <Route element={<SupplierLayout />}>
+        <Route element={
+          <ProtectedRoute allowedRole="supplier">
+            <SupplierLayout />
+          </ProtectedRoute>
+        }>
           <Route path="/supplier/home" element={<SupplierHome />} />
           <Route path="/supplier/request/:id" element={<SupplierRequestDetail />} />
           <Route path="/supplier/orders" element={<SupplierOrders />} />
@@ -62,7 +73,12 @@ export default function App() {
         
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

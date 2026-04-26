@@ -4,6 +4,7 @@ import { ChevronRight, Clock, Star, MapPin, CheckCircle2, AlertTriangle, Loader2
 import { cn, calculateDistance } from '../../lib/utils';
 import { db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { doc, getDoc, collection, query, onSnapshot, orderBy, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
 export default function RequestDetail() {
@@ -27,7 +28,7 @@ export default function RequestDetail() {
       if (snapshot.exists()) {
         setRequest({ id: snapshot.id, ...snapshot.data() });
       } else {
-        alert("الطلب غير موجود");
+        toast.error("الطلب غير موجود");
         navigate('/buyer/home');
       }
       setLoading(false);

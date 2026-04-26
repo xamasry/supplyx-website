@@ -25,7 +25,7 @@ export default function LoginPage() {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         if (userData.disabled) {
-           alert('حسابك محظور. يرجى مراجعة الإدارة.');
+           toast.error('حسابك محظور. يرجى مراجعة الإدارة.');
            auth.signOut();
            return;
         }
@@ -43,11 +43,11 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Login failed", error);
       if (error.code === 'auth/operation-not-allowed') {
-        alert('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل.');
+        toast.error('حدث خطأ في إعدادات الخادم: تسجيل الدخول بالبريد/كلمة المرور غير مفعل.');
       } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        alert('بيانات الدخول غير صحيحة. تأكد من البريد الإلكتروني وكلمة المرور.');
+        toast.error('بيانات الدخول غير صحيحة. تأكد من البريد الإلكتروني وكلمة المرور.');
       } else {
-        alert(`فشل تسجيل الدخول: ${error.message}`);
+        toast.error(`فشل تسجيل الدخول: ${error.message}`);
       }
     } finally {
       setLoading(false);

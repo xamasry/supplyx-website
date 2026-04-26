@@ -6,16 +6,27 @@ import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebas
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 const CATEGORIES = [
   { id: '1', name: 'مشروبات', icon: '🥤' },
   { id: '2', name: 'لحوم ودواجن', icon: '🥩' },
   { id: '3', name: 'ألبان وأجبان', icon: '🥛' },
-  { id: '4', name: 'زيوت وتوابل', icon: '🛢️' },
-  { id: '5', name: 'ورقيات', icon: '📄' },
-  { id: '6', name: 'خضار وفاكهة', icon: '🥬' },
-  { id: '7', name: 'مجمدات', icon: '🧊' },
-  { id: '8', name: 'طلب مخصوص', icon: '✨' },
+  { id: '4', name: 'خضار وفاكهة', icon: '🥬' },
+  { id: '5', name: 'مجمدات', icon: '🧊' },
+  { id: '6', name: 'حبوب وبقوليات', icon: '🍚' },
+  { id: '7', name: 'زيوت وتوابل', icon: '🛢️' },
+  { id: '8', name: 'مخبوزات', icon: '🥖' },
+  { id: '9', name: 'قهوة وشاي', icon: '☕' },
+  { id: '10', name: 'عصائر ومركزات', icon: '🧃' },
+  { id: '11', name: 'حلويات', icon: '🍫' },
+  { id: '12', name: 'بهارات وصوصات', icon: '🧂' },
+  { id: '13', name: 'ورقيات', icon: '📄' },
+  { id: '14', name: 'أكواب وأدوات', icon: '🥤' },
+  { id: '15', name: 'عبوات وتغليف', icon: '🫙' },
+  { id: '16', name: 'مواد تنظيف', icon: '🧴' },
+  { id: '17', name: 'معدات وأدوات', icon: '🔌' },
+  { id: '18', name: 'طلب مخصوص', icon: '✨' },
 ];
 
 export default function BuyerHome() {
@@ -75,7 +86,7 @@ export default function BuyerHome() {
   const handleOrder = async (offer: any) => {
     console.log('handleOrder triggered for offer:', offer.id);
     if (!auth.currentUser) {
-      alert('يرجى تسجيل الدخول أولاً');
+      toast.error('يرجى تسجيل الدخول أولاً');
       return;
     }
 
@@ -122,7 +133,7 @@ export default function BuyerHome() {
         link: `/supplier/orders`
       }).catch(err => console.error('Error creating notification:', err));
 
-      alert('تم إرسال الطلب بنجاح!');
+      toast.success('تم إرسال الطلب بنجاح!');
       navigate('/buyer/orders');
     } catch (error) {
       console.error('Error creating order:', error);

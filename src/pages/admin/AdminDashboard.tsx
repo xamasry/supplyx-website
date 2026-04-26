@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { 
   collection, 
   query, 
@@ -221,7 +222,7 @@ export default function AdminDashboard() {
     try {
       await deleteDoc(doc(db, collectionName, id));
     } catch (err) {
-      alert('فشل الحذف');
+      toast.error('فشل الحذف');
     }
   };
 
@@ -258,10 +259,10 @@ export default function AdminDashboard() {
       
       setShowAddUserModal(false);
       setNewUser({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
-      alert('تم إنشاء المستخدم بنجاح');
+      toast.success('تم إنشاء المستخدم بنجاح');
     } catch (err: any) {
       console.error("Error creating user:", err);
-      alert(`فشل إنشاء المستخدم: ${err.message}`);
+      toast.error(`فشل إنشاء المستخدم: ${err.message}`);
     } finally {
       setIsAddingUser(false);
     }
@@ -273,9 +274,9 @@ export default function AdminDashboard() {
         commissionRate: val,
         updatedAt: new Date().toISOString()
       }, { merge: true });
-      alert('تم تحديث نسبة العمولة');
+      toast.success('تم تحديث نسبة العمولة');
     } catch (err) {
-      alert('فشل التحديث');
+      toast.error('فشل التحديث');
     }
   };
 

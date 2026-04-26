@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, getDocFromCache, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+import toast from 'react-hot-toast';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -53,9 +54,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   if (errInfo.error.includes('permissions')) {
-    alert("عذراً، لا نملك صلاحية تنفيذ هذه العملية. يرجى محاولة تسجيل الدخول مرة أخرى.");
+    toast.error("عذراً، لا نملك صلاحية تنفيذ هذه العملية. يرجى محاولة تسجيل الدخول مرة أخرى.");
   } else {
-    alert("حدث خطأ أثناء التواصل مع قاعدة البيانات. يرجى المحاولة لاحقاً.");
+    toast.error("حدث خطأ أثناء التواصل مع قاعدة البيانات. يرجى المحاولة لاحقاً.");
   }
   throw new Error(JSON.stringify(errInfo));
 }
