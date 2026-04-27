@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 
 async function startServer() {
   const app = express();
@@ -104,9 +105,16 @@ async function startServer() {
     });
     app.use(vite.middlewares);
 
-    // Fallback for SPA in dev mode
-    app.use('*', (req, res, next) => {
-      vite.middlewares(req, res, next);
+    app.get('*', async (req, res, next) => {
+      const url = req.originalUrl;
+      try {
+        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
     });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
