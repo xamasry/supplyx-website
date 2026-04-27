@@ -189,85 +189,68 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Categories Preview - Compact Auto-Scroll */}
-        <section className="py-20 px-0 bg-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 text-center mb-12">
+        {/* Categories Preview - Floating Cloud Grid */}
+        <section className="py-16 px-6 bg-white overflow-hidden">
+          <div className="max-w-7xl mx-auto text-center mb-12">
             <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="space-y-3"
+              className="space-y-4"
             >
-              <h2 className="text-3xl md:text-4xl font-black text-[#0B1D2A] tracking-tight">غطينا لك كل احتياجاتك</h2>
-              <p className="text-slate-400 max-w-2xl mx-auto text-base font-medium">
+              <h2 className="text-3xl md:text-5xl font-black text-[#0B1D2A] tracking-tight">غطينا لك كل احتياجاتك</h2>
+              <p className="text-slate-400 max-w-2xl mx-auto text-lg font-medium leading-relaxed">
                 اكثر من 18 تصنيف متخصص لجميع مستلزمات المطاعم، المقاهي، وخدمات التغذية.
               </p>
             </motion.div>
           </div>
 
-          <div className="relative flex flex-col gap-8">
-            {/* Seamless Scrollable Container (First Row) */}
-            <div className="flex overflow-hidden group py-2">
-              <motion.div 
-                className="flex gap-4 px-2"
-                animate={{ x: ["0%", "-33.333%"] }}
-                transition={{ 
-                  duration: 20, 
-                  repeat: Infinity, 
-                  ease: "linear",
-                  repeatType: "loop"
-                }}
-                style={{ width: 'max-content' }}
-              >
-                {[...CATEGORIES, ...CATEGORIES, ...CATEGORIES].map((cat, idx) => (
-                  <div 
-                    key={`${cat.id}-${idx}`}
-                    className="bg-slate-50 border border-slate-100 px-8 h-16 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default min-w-[180px]"
-                  >
-                    <span className="text-2xl">{cat.icon}</span>
-                    <span className="font-extrabold text-slate-700 text-sm">{cat.name}</span>
-                  </div>
-                ))}
-              </motion.div>
+          <div className="max-w-[1400px] mx-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-4">
+              {CATEGORIES.slice(0, 18).map((cat, idx) => (
+                <motion.div 
+                  key={cat.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.05 }}
+                  animate={{ 
+                    y: [0, -6, 0],
+                    rotate: [0, idx % 2 === 0 ? 0.5 : -0.5, 0]
+                  }}
+                  whileHover={{ 
+                    scale: 1.05, 
+                    y: -10,
+                    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05)"
+                  }}
+                  transition={{
+                    y: {
+                      duration: 3 + (idx % 3),
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: idx * 0.1
+                    },
+                    rotate: {
+                      duration: 4 + (idx % 2),
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }
+                  }}
+                  className="bg-slate-50/50 relative border border-slate-100 p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 group cursor-default transition-all hover:bg-white hover:border-[#22C55E]/20"
+                >
+                  <span className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                    {cat.icon}
+                  </span>
+                  <span className="font-black text-slate-800 text-sm whitespace-nowrap">{cat.name}</span>
+                </motion.div>
+              ))}
             </div>
-
-            {/* Seamless Scrollable Container (Second Row - Opposite Direction) */}
-            <div className="flex overflow-hidden group py-2">
-              <motion.div 
-                className="flex gap-4 px-2"
-                animate={{ x: ["-33.333%", "0%"] }}
-                transition={{ 
-                  duration: 25, 
-                  repeat: Infinity, 
-                  ease: "linear",
-                  repeatType: "loop"
-                }}
-                style={{ width: 'max-content' }}
-              >
-                {[...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse()].map((cat, idx) => (
-                  <div 
-                    key={`${cat.id}-${idx}-rev`}
-                    className="bg-slate-50 border border-slate-100 px-8 h-16 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default min-w-[180px]"
-                  >
-                    <span className="text-2xl">{cat.icon}</span>
-                    <span className="font-extrabold text-slate-700 text-sm">{cat.name}</span>
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-            
-            {/* Edge Fading Masks */}
-            <div className="absolute inset-y-0 left-0 w-32 md:w-64 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-10" />
-            <div className="absolute inset-y-0 right-0 w-32 md:w-64 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10" />
           </div>
 
-          <div className="text-center mt-12 px-6">
-             <Link 
-               to="/auth/signup" 
-               className="inline-flex items-center gap-2 text-[#22C55E] font-bold hover:underline group"
-             >
-               <span>استكشف جميع التصنيفات</span>
-               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <div className="max-w-7xl mx-auto text-center pt-16 px-6">
+             <Link to="/auth/signup" className="inline-flex items-center gap-3 px-8 py-4 bg-[#22C55E] text-white rounded-2xl font-black hover:bg-[#16a34a] transition-all hover:shadow-lg hover:shadow-[#22C55E]/20 group">
+               <span>ابدأ استكشاف جميع المنتجات</span>
+               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
              </Link>
           </div>
         </section>
