@@ -133,7 +133,7 @@ export default function BuyerHome() {
     }
   };
 
-  const activeRequests = requests.filter(r => r.status === 'active');
+  const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status));
 
   return (
     <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-4 pb-6 md:pb-0 relative">
@@ -214,11 +214,22 @@ export default function BuyerHome() {
                     )}
                   </div>
                 </div>
-                <div className="text-center bg-[var(--color-accent)]/10 px-4 py-2 rounded-xl text-[var(--color-accent)]">
-                  <span className="block text-xl font-bold leading-none">
-                    {req.bidsCount || 0}
-                  </span>
-                  <span className="block text-[10px] font-bold mt-1">عروض</span>
+                <div className="text-center bg-[var(--color-accent)]/10 px-4 py-2 rounded-xl text-[var(--color-accent)] min-w-[70px]">
+                  {req.status === 'active' ? (
+                    <>
+                      <span className="block text-xl font-bold leading-none">
+                        {req.bidsCount || 0}
+                      </span>
+                      <span className="block text-[10px] font-bold mt-1">عروض</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="block text-[10px] font-black leading-tight">
+                        {req.status === 'accepted' ? 'تم القبول' : req.status === 'preparing' ? 'جاري التحضير' : 'في الطريق'}
+                      </span>
+                      <Clock className="w-4 h-4 mx-auto mt-1" />
+                    </>
+                  )}
                 </div>
               </Link>
             ))

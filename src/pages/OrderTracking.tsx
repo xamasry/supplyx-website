@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Chat from '../components/Chat';
+import toast from 'react-hot-toast';
 
 export default function OrderTracking() {
   const navigate = useNavigate();
@@ -367,6 +368,24 @@ export default function OrderTracking() {
                  </div>
                )}
                <p className="text-sm font-bold text-[var(--color-success)] bg-[var(--color-success)]/10 py-3 rounded-xl">مكتمل ✓</p>
+            </div>
+          )}
+
+          {/* Cancellation Button */}
+          {statusLevel < 3 && statusLevel >= 1 && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <button 
+                onClick={async () => {
+                  if (window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟')) {
+                    await updateStatus('cancelled');
+                    toast.success('تم إلغاء الطلب بنجاح');
+                    navigate(isSupplier ? '/supplier/orders' : '/buyer/orders');
+                  }
+                }}
+                className="w-full py-3 text-xs font-bold text-red-500 hover:text-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                {!isSupplier ? 'إلغاء الطلب وسحب المستحقات' : 'الاعتذار عن تنفيذ الطلب وإلغائه'}
+              </button>
             </div>
           )}
         </div>

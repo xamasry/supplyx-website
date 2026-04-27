@@ -153,9 +153,28 @@ export default function RequestDetail() {
             <h1 className="font-display font-bold text-xl text-slate-900">{request.productName}</h1>
             <p className="font-semibold text-slate-700 mt-1">الكمية: {request.quantity}</p>
           </div>
-          <div className="bg-[var(--color-brand-bg)] p-2 rounded-xl text-center border border-slate-100">
-            <span className="block text-2xl font-bold text-[var(--color-accent)] leading-none">{bids.length}</span>
-            <span className="block text-[10px] font-bold text-slate-500 mt-1">عروض</span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-[var(--color-brand-bg)] p-2 rounded-xl text-center border border-slate-100">
+              <span className="block text-2xl font-bold text-[var(--color-accent)] leading-none">{bids.length}</span>
+              <span className="block text-[10px] font-bold text-slate-500 mt-1">عروض</span>
+            </div>
+            {request.status === 'active' && (
+              <button 
+                onClick={async () => {
+                   if(window.confirm('هل أنت متأكد من رغبتك في سحب وإلغاء هذا الطلب؟')) {
+                     await updateDoc(doc(db, 'requests', id as string), { 
+                       status: 'cancelled',
+                       updatedAt: serverTimestamp()
+                     });
+                     toast.success('تم إلغاء الطلب');
+                     navigate('/buyer/home');
+                   }
+                }}
+                className="text-[10px] font-bold text-red-500 hover:underline"
+              >
+                إلغاء الطلب
+              </button>
+            )}
           </div>
         </div>
       </div>
