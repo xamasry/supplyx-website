@@ -136,6 +136,18 @@
         "email": { "type": "string" },
         "addedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A message sent in the real-time chat between buyer and supplier",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "senderId", "createdAt"]
     }
   },
   "firestore": {
@@ -162,6 +174,10 @@
     "/requests/{requestId}/bids/{bidId}": {
       "schema": "Bid",
       "description": "Bids for a specific request"
+    },
+    "/requests/{requestId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages for a request"
     },
     "/notifications/{notificationId}": {
       "schema": "Notification",

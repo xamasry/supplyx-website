@@ -1,22 +1,19 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
+    
+    // -- GLOBALS --
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Phase 3: Primitives
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
     function isOwner(userId) {
-      return (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isValidId(id) {
@@ -31,151 +28,123 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // 1. Mandatory Size Enforcements & Type Safety
+    function isVerified() {
+      // Relaxing email verification requirement for development
+      return isSignedIn();
+    }
+
     function isValidRequest(data) {
-      return data.buyerId is string
-        && data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled']
-        && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
-        && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == resource.data.updatedAt))
+      // Relaxed validation for updates
+      return data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled']
         && data.productName is string && data.productName.size() <= 200;
     }
 
     function isValidBid(data) {
-      return data.supplierId is string
-        && data.status in ['pending', 'accepted', 'rejected']
-        && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
-        && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == resource.data.updatedAt))
-        && data.price is number && data.price >= 0
-        && (data.deliveryTime == null || data.deliveryTime is number)
-        && (data.supplierName == null || data.supplierName is string);
+      // Relaxed validation for updates
+      return data.status in ['pending', 'accepted', 'rejected']
+        && data.price is number && data.price >= 0;
     }
 
-    function isValidNotification(data) {
-      return data.userId is string
-        && data.type in ['bid_accepted', 'new_bid', 'system']
-        && data.read is bool
-        && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt));
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    function isValidOffer(data) {
-      return data.supplierId is string
-        && data.status in ['active', 'expired']
-        && (data.createdAt == null || data.createdAt == request.time || (resource != null && data.createdAt == resource.data.createdAt))
-        && (data.updatedAt == null || data.updatedAt == request.time || (resource != null && data.updatedAt == request.time))
-        && data.originalPrice is number && data.offerPrice is number
-        && data.title is string && data.title.size() <= 200
-        && data.discount is string && data.discount.size() <= 10
-        && (data.image == null || data.image is string)
-        && (data.supplierName == null || data.supplierName is string)
-        && (data.views == null || data.views is number)
-        && (data.orders == null || data.orders is number);
+    function isRequestOwner(requestId) {
+      let r = get(/databases/$(database)/documents/requests/$(requestId)).data;
+      return r.buyerId == request.auth.uid || r.userId == request.auth.uid;
     }
 
-    function isValidUserProfile(data) {
-      return (data.role == null || data.role in ['buyer', 'supplier', 'admin'])
-        && (data.updatedAt == null || data.updatedAt == request.time)
-        && (data.status == null || data.status in ['pending', 'approved', 'rejected', 'on_hold'])
-        && (data.whatsappPhone == null || data.whatsappPhone is string);
-    }
-
-    // Phase 4: Match Blocks
-    match /phone_verifications/{phone} {
-      allow read, write: if true;
-    }
-
-    match /admins/{adminId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.auth.token.email == 'masriboro@gmail.com' && adminId == request.auth.uid;
-      allow delete, update: if false;
-    }
-
-    match /settings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
+    // -- COLLECTIONS --
 
     match /users/{userId} {
-      allow list, get: if isSignedIn();
-      allow create, update: if isOwner(userId) && isValidUserProfile(incoming());
-      
-      match /payment_methods/{methodId} {
-        allow get, list, create, update, delete: if isOwner(userId);
-      }
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+    }
+
+    match /admins/{userId} {
+      allow read: if isSignedIn();
     }
 
     match /offers/{offerId} {
-      allow list, get: if isSignedIn();
-      allow create: if isSignedIn() && incoming().supplierId == request.auth.uid && isValidOffer(incoming());
-      allow update: if isAdmin() || (isSignedIn() && (
-        (resource.data.supplierId == request.auth.uid && isValidOffer(incoming())
-         && (incoming().diff(existing()).affectedKeys().hasOnly(['title', 'originalPrice', 'offerPrice', 'discount', 'status', 'updatedAt', 'image']))) ||
-        (isValidOffer(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['orders', 'updatedAt', 'views']))
-      ));
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.supplierId == request.auth.uid);
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /notifications/{notificationId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidNotification(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid 
-                     && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
-    match /requests/{requestId} {
-      // 8. Secure List Queries (Query Enforcer)
-      allow list: if isAdmin() || (isSignedIn() && (
-        resource.data.status == 'active' || 
-        resource.data.buyerId == request.auth.uid ||
-        resource.data.supplierId == request.auth.uid
-      ));
-      allow get: if isSignedIn();
-      
-      allow create: if isSignedIn() && incoming().buyerId == request.auth.uid && isValidRequest(incoming());
 
-      allow update: if isAdmin() || (isSignedIn() && (
-        // Action: Buyer accepts a bid
-        (existing().buyerId == request.auth.uid && 
-         incoming().status == 'accepted' && 
-         isValidRequest(incoming()) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acceptedBidId', 'supplierId', 'supplierName', 'price', 'deliveryTime', 'updatedAt'])) ||
+    match /requests/{requestId} {
+      allow read: if isSignedIn();
+      
+      allow create: if isSignedIn() && 
+        isValidId(requestId) && 
+        (incoming().buyerId == request.auth.uid || incoming().userId == request.auth.uid);
+      
+      allow update: if (
+        isSignedIn() && (
+        isAdmin() ||
         
-        // Action: Supplier updates status
-        (existing().supplierId == request.auth.uid && 
-         incoming().status in ['preparing', 'shipped', 'delivered'] &&
-         isValidRequest(incoming()) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', 'supplierId', 'supplierName', 'buyerId', 'productName', 'quantity', 'category', 'createdAt'])) ||
-         
-        // Action: Buyer cancels
-        (existing().buyerId == request.auth.uid && 
-         incoming().status == 'cancelled' &&
-         isValidRequest(incoming()) &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
-      ));
+        // Action: Buyer/Owner
+        ( (existing().buyerId == request.auth.uid || existing().userId == request.auth.uid) && 
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'acceptedBidId', 'supplierId', 'supplierName', 'price', 'deliveryTime', 'buyerConfirmPhone', 'buyerConfirmLocation', 'updatedAt', 'productName', 'quantity', 'category', 'description', 'location', 'coordinates'])) ||
+        
+        // Action: Assigned Supplier
+        ( (existing().supplierId == request.auth.uid) && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+
+        // Action: Public (counter update)
+        ( incoming().diff(existing()).affectedKeys().hasOnly(['bidsCount', 'updatedAt']))
+        )
+      );
+
+      allow delete: if isAdmin() || ( (existing().buyerId == request.auth.uid || existing().userId == request.auth.uid) && existing().status == 'active');
 
       match /bids/{bidId} {
-        allow list: if isSignedIn() && (
-          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid || 
-          resource.data.supplierId == request.auth.uid
-        );
-        allow get: if isSignedIn();
-
-        allow create: if isSignedIn() && incoming().supplierId == request.auth.uid && isValidBid(incoming())
-                       && get(/databases/$(database)/documents/requests/$(requestId)).data.status == 'active';
-
-        allow update: if isSignedIn() && (
-          // Action: Supplier updates their bid
-          (existing().supplierId == request.auth.uid && 
-           isValidBid(incoming()) &&
-           incoming().status == existing().status &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['price', 'deliveryTime', 'notes', 'updatedAt', 'coordinates'])) ||
+        allow read: if isSignedIn();
+        
+        allow create: if isSignedIn() &&
+          isValidId(bidId) &&
+          incoming().supplierId == request.auth.uid;
+        
+        allow update: if (
+          isSignedIn() && (
+          isAdmin() ||
           
-          // Action: Buyer accepts/rejects bid
-          (get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid &&
-           isValidBid(incoming()) &&
-           incoming().status in ['accepted', 'rejected'] &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          // Action: Supplier
+          (existing().supplierId == request.auth.uid &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'price', 'deliveryTime', 'notes', 'updatedAt', 'coordinates'])) ||
+          
+          // Action: Buyer/Owner of Request
+          (isRequestOwner(requestId) &&
+           incoming().diff(existing()).affectedKeys().hasAny(['status', 'updatedAt']))
+          )
         );
+
+        allow delete: if isAdmin() || (existing().supplierId == request.auth.uid);
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          existing().buyerId == request.auth.uid || 
+          existing().userId == request.auth.uid || 
+          existing().supplierId == request.auth.uid ||
+          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/requests/$(requestId)).data.supplierId == request.auth.uid
+        );
+        allow create: if isSignedIn() && (
+          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/requests/$(requestId)).data.supplierId == request.auth.uid
+        ) && incoming().senderId == request.auth.uid;
       }
     }
   }

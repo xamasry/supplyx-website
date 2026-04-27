@@ -1,9 +1,10 @@
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Package, Clock, CheckCircle2, ChevronRight, MessageCircle, MapPin, Upload, Loader2 } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronRight, MessageCircle, MapPin, Upload, Loader2, Phone } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import Chat from '../components/Chat';
 
 export default function OrderTracking() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function OrderTracking() {
   
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showChat, setShowChat] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -71,9 +73,34 @@ export default function OrderTracking() {
   };
 
   const statusLevel = getNumericStatus(request.status);
+  const mapUrl = request.buyerConfirmLocation 
+    ? `https://www.google.com/maps?q=${request.buyerConfirmLocation.lat},${request.buyerConfirmLocation.lng}`
+    : null;
 
   return (
     <div className="space-y-6 pb-6 font-sans">
+      {/* Chat Component Overlay */}
+      {showChat && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="font-bold font-display text-slate-900">المحادثة الفورية</h3>
+                <button 
+                  onClick={() => setShowChat(false)}
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 rotate-90" />
+                </button>
+              </div>
+              <Chat 
+                requestId={id!} 
+                receiverId={isSupplier ? request.buyerId : request.supplierId} 
+                receiverName={isSupplier ? request.buyerName : request.supplierName} 
+              />
+           </div>
+        </div>
+      )}
+
       <header className="flex items-center">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700">
           <ChevronRight className="w-6 h-6" />
@@ -83,13 +110,27 @@ export default function OrderTracking() {
 
       {/* Map Placeholder */}
       <div className="h-48 bg-slate-200 rounded-3xl border border-slate-300 overflow-hidden relative shadow-sm">
-        <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80" alt="Map" className="w-full h-full object-cover opacity-60" />
-        <div className="absolute inset-0 flex items-center justify-center">
-           <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2">
-             <div className="w-3 h-3 bg-[var(--color-success)] rounded-full animate-pulse"></div>
-             <span className="font-bold text-sm text-slate-800">جاري التتبع الحي...</span>
-           </div>
-        </div>
+        {mapUrl ? (
+          <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full group">
+            <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80" alt="Map" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-white/95 backdrop-blur-sm px-4 py-3 rounded-2xl shadow-xl border border-slate-200 flex flex-col items-center gap-1 group-hover:scale-105 transition-transform">
+                <MapPin className="w-6 h-6 text-blue-600" />
+                <span className="font-bold text-xs text-slate-800">اضغط لفتح الموقع في خرائط Google</span>
+              </div>
+            </div>
+          </a>
+        ) : (
+          <>
+            <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80" alt="Map" className="w-full h-full object-cover opacity-60" />
+            <div className="absolute inset-0 flex items-center justify-center">
+               <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2">
+                 <div className="w-3 h-3 bg-[var(--color-success)] rounded-full animate-pulse"></div>
+                 <span className="font-bold text-sm text-slate-800">جاري التتبع الحي...</span>
+               </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tracking Timeline */}
@@ -136,6 +177,27 @@ export default function OrderTracking() {
 
       {/* Info Card */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+        <h4 className="font-bold text-slate-900 mb-4 font-display">تفاصيل الأطراف</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-[10px] text-slate-500 font-bold mb-1">المشتري</p>
+            <p className="font-bold text-slate-900">{request.buyerName}</p>
+            <a href={`tel:${request.buyerConfirmPhone}`} className="text-xs text-[var(--color-primary)] font-black mt-2 flex items-center gap-1">
+              <Phone className="w-3 h-3" /> {request.buyerConfirmPhone || 'غير متوفر'}
+            </a>
+          </div>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <p className="text-[10px] text-slate-500 font-bold mb-1">المورد</p>
+            <p className="font-bold text-slate-900">{request.supplierName}</p>
+            <a href={`tel:${request.supplierPhone}`} className="text-xs text-[var(--color-primary)] font-black mt-2 flex items-center gap-1">
+              <Phone className="w-3 h-3" /> {request.supplierPhone || 'غير متوفر'}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
         <h4 className="font-bold text-slate-900 mb-4 font-display">تفاصيل الطلبية</h4>
         <div className="space-y-3">
           <div className="flex justify-between items-center text-sm">
@@ -162,11 +224,22 @@ export default function OrderTracking() {
              </div>
              <div>
                <h4 className="font-bold text-sm text-slate-900">{isSupplier ? request.buyerName : request.supplierName}</h4>
-               <p className="text-[10px] text-slate-500 flex items-center gap-1 font-bold"><MapPin className="w-3 h-3" /> {request.location || 'بنها، القليوبية'}</p>
+               <p className="text-[10px] text-slate-500 flex items-center gap-1 font-bold">
+                 <MapPin className="w-3 h-3" /> {(isSupplier && request.buyerConfirmPhone) ? `الهاتف: ${request.buyerConfirmPhone}` : (request.location || 'بنها، القليوبية')}
+               </p>
+               {isSupplier && request.buyerConfirmPhone && (
+                 <a href={`tel:${request.buyerConfirmPhone}`} className="text-[10px] text-[var(--color-primary)] font-black mt-1 inline-block bg-[var(--color-primary)]/10 px-2 py-0.5 rounded">
+                   اتصال بالعميل
+                 </a>
+               )}
              </div>
           </div>
-          <button className="bg-white border border-slate-200 w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-colors shadow-sm">
+          <button 
+            onClick={() => setShowChat(true)}
+            className="bg-white border border-slate-200 w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-colors shadow-sm relative"
+          >
             <MessageCircle className="w-5 h-5" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
           </button>
         </div>
         

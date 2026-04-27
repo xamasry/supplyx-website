@@ -98,6 +98,12 @@ export default function SupplierRequestDetail() {
           coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
         });
 
+        // Update bidsCount on request
+        await updateDoc(doc(db, 'requests', id as string), {
+          bidsCount: (request.bidsCount || 0) + 1,
+          updatedAt: serverTimestamp()
+        });
+
         // Create notification for buyer
         await addDoc(collection(db, 'notifications'), {
           userId: request.buyerId,

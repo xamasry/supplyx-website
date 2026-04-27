@@ -3,6 +3,9 @@
 
 @theme {
   --color-primary: #22C55E;
+  --color-primary-500: #22C55E;
+  --color-primary-600: #16A34A;
+  --color-primary-700: #15803D;
   --color-primary-hover: #16A34A;
   --color-secondary: #7EE7B7;
   --color-accent: #22C55E;

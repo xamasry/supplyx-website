@@ -57,15 +57,24 @@ export default function RequestDetail() {
   }, [id, navigate]);
 
   const [isAccepting, setIsAccepting] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
+  const [confirmPhone, setConfirmPhone] = useState('');
 
   const handleAccept = async (bidId: string) => {
-    if(!id || !request) return;
+    if(!id || !request || !confirmPhone) {
+      if (!confirmPhone) toast.error("يرجى إدخال رقم الهاتف للتواصل");
+      return;
+    }
     
     const bidToAccept = bids.find(b => b.id === bidId);
     if (!bidToAccept) return;
     
     setIsAccepting(bidId);
     try {
+      // Fetch supplier profile to get their phone
+      const supplierDoc = await getDoc(doc(db, 'users', bidToAccept.supplierId));
+      const supplierPhone = supplierDoc.exists() ? supplierDoc.data().phone : null;
+
       const batch = writeBatch(db);
       
       // Update request status and store supplier info
@@ -74,8 +83,11 @@ export default function RequestDetail() {
         acceptedBidId: bidId,
         supplierId: bidToAccept.supplierId,
         supplierName: bidToAccept.supplierName,
+        supplierPhone: supplierPhone || 'غير متوفر',
         price: bidToAccept.price,
         deliveryTime: bidToAccept.deliveryTime,
+        buyerConfirmPhone: confirmPhone,
+        buyerConfirmLocation: buyerLocation ? { lat: buyerLocation.lat, lng: buyerLocation.lng } : null,
         updatedAt: serverTimestamp()
       });
       
@@ -98,11 +110,13 @@ export default function RequestDetail() {
       });
       
       await batch.commit();
+      toast.success('تم قبول العرض بنجاح! سيصلك المورد قريباً.');
       navigate('/buyer/home');
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `requests/${id}/bids/${bidId}`);
     } finally {
       setIsAccepting(null);
+      setShowConfirmModal(null);
     }
   };
 
@@ -204,16 +218,14 @@ export default function RequestDetail() {
                 </div>
                 {request.status === 'active' && (
                   <button 
-                    onClick={() => handleAccept(bid.id)}
+                    onClick={() => {
+                      setShowConfirmModal(bid.id);
+                      setConfirmPhone(request.buyerPhone || '');
+                    }}
                     disabled={!!isAccepting}
                     className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold text-sm hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {isAccepting === bid.id ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        جاري القبول...
-                      </>
-                    ) : 'اختيار العرض'}
+                    اختيار العرض
                   </button>
                 )}
                 {bid.status === 'accepted' && (
@@ -233,6 +245,55 @@ export default function RequestDetail() {
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-slate-900 mb-2">تأكيد القبول</h3>
+            <p className="text-sm text-slate-500 mb-6 font-semibold">بمجرد القبول، سيتم إرسال موقعك ورقم هاتفك للمورد للبدء في التوصيل.</p>
+            
+            <div className="space-y-4 mb-8">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400 block pr-1">رقم الهاتف للتواصل</label>
+                <input 
+                  type="tel" 
+                  value={confirmPhone}
+                  onChange={(e) => setConfirmPhone(e.target.value)}
+                  placeholder="01xxxxxxxxx"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--color-primary)] font-bold transition-all"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-blue-600 mt-0.5" />
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-blue-600">موقع التوصيل</p>
+                  <p className="text-xs text-slate-700 font-bold">{buyerLocation ? 'تم تحديد موقعك بدقة' : 'سيتم استخدام موقعك المسجل'}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button 
+                onClick={() => handleAccept(showConfirmModal)}
+                disabled={isAccepting === showConfirmModal}
+                className="flex-1 bg-[var(--color-primary)] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[var(--color-primary)]/20 flex items-center justify-center gap-2"
+              >
+                {isAccepting === showConfirmModal ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                تأكيد ومتابعة
+              </button>
+              <button 
+                onClick={() => setShowConfirmModal(null)}
+                className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

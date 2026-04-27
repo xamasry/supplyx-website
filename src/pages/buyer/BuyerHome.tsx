@@ -206,8 +206,7 @@ export default function BuyerHome() {
                 </div>
                 <div className="text-center bg-[var(--color-accent)]/10 px-4 py-2 rounded-xl text-[var(--color-accent)]">
                   <span className="block text-xl font-bold leading-none">
-                    {/* In a real app we might store bidCount on the request doc for efficiency */}
-                    0
+                    {req.bidsCount || 0}
                   </span>
                   <span className="block text-[10px] font-bold mt-1">عروض</span>
                 </div>

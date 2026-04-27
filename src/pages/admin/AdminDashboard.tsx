@@ -57,7 +57,7 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'settings';
 
@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [reportType, setReportType] = useState<'day' | 'week' | 'month'>('week');
   const [stats, setStats] = useState({
     totalOrders: 0,
     deliveredOrders: 0,
@@ -116,6 +117,87 @@ export default function AdminDashboard() {
     checkAdmin();
   }, []);
 
+  useEffect(() => {
+    if (requests.length === 0) return;
+    
+    // Real Data aggregation based on reportType
+    const now = new Date();
+    let aggregatedData: any[] = [];
+
+    if (reportType === 'day') {
+      // Last 24 hours
+      for (let i = 23; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+        const hour = d.getHours();
+        const dayRevenue = requests
+          .filter((r: any) => {
+            if (r.status !== 'delivered') return false;
+            const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
+            const rDate = new Date(rTimestamp);
+            return rDate.getHours() === hour && rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
+          })
+          .reduce((acc, curr: any) => acc + (curr.price || 0), 0);
+        
+        aggregatedData.push({
+          name: `${hour}:00`,
+          revenue: dayRevenue,
+          profit: dayRevenue * (commissionRate / 100)
+        });
+      }
+    } else if (reportType === 'week') {
+      // Last 7 days
+      const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayName = days[d.getDay()];
+        const startOfDay = new Date(d.setHours(0,0,0,0)).getTime();
+        const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
+        
+        let dayRevenue = 0;
+        requests.forEach((r: any) => {
+           if (r.status === 'delivered' && (r.updatedAt || r.createdAt)) {
+              const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
+              if (rTimestamp >= startOfDay && rTimestamp <= endOfDay) {
+                 dayRevenue += (r.price || 0);
+              }
+           }
+        });
+
+        aggregatedData.push({
+          name: dayName,
+          revenue: dayRevenue,
+          profit: dayRevenue * (commissionRate / 100)
+        });
+      }
+    } else {
+      // Last 4 weeks
+      for (let i = 3; i >= 0; i--) {
+        const start = new Date();
+        start.setDate(start.getDate() - (i + 1) * 7);
+        const end = new Date();
+        end.setDate(end.getDate() - i * 7);
+        
+        const revenue = requests
+          .filter((r: any) => {
+            if (r.status !== 'delivered') return false;
+            const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
+            const rDate = new Date(rTimestamp);
+            return rDate >= start && rDate < end;
+          })
+          .reduce((acc, curr: any) => acc + (curr.price || 0), 0);
+        
+        aggregatedData.push({
+          name: `أسبوع ${4-i}`,
+          revenue: revenue,
+          profit: revenue * (commissionRate / 100)
+        });
+      }
+    }
+    
+    setChartData(aggregatedData);
+  }, [requests, reportType, commissionRate]);
+
   const startStreamingData = () => {
     // 1. Orders/Requests Stream
     const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
@@ -145,36 +227,9 @@ export default function AdminDashboard() {
         activeOrders: active,
         cancelledOrders: cancelled,
         totalRevenue: revenue,
-        platformProfit: revenue * (commissionRate / 100)
+        platformProfit: revenue * (commissionRate / 100),
+        bidsCount: data.reduce((acc, curr: any) => acc + (curr.bidsCount || 0), 0)
       }));
-
-      // Chart Data aggregation (last 7 days - simulated for now)
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        
-        // Find real requests for this day
-        const dayStr = d.toLocaleDateString('ar-EG', { weekday: 'short' });
-        const startOfDay = new Date(d.setHours(0,0,0,0)).getTime();
-        const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
-        
-        let dayRevenue = 0;
-        data.forEach((r: any) => {
-           if (r.status === 'delivered' && r.updatedAt) {
-              const rTime = new Date(r.updatedAt).getTime();
-              if (rTime >= startOfDay && rTime <= endOfDay) {
-                 dayRevenue += (r.price || 0);
-              }
-           }
-        });
-
-        return {
-          name: dayStr,
-          revenue: dayRevenue,
-          profit: dayRevenue * (commissionRate / 100)
-        };
-      });
-      setChartData(last7Days);
     }, (error) => {
       console.error("Admin Requests Snapshot Error:", error);
     });
@@ -401,10 +456,11 @@ export default function AdminDashboard() {
                   {/* Revenue Chart */}
                   <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="font-bold text-white">إحصائيات الأرباح الأسبوعية</h3>
-                      <div className="flex gap-2">
-                        <button className="bg-slate-800 px-3 py-1 rounded-lg text-xs font-bold text-slate-400">إيرادات</button>
-                        <button className="bg-primary-500/10 px-3 py-1 rounded-lg text-xs font-bold text-primary-500">أرباح</button>
+                      <h3 className="font-bold text-white">إحصائيات الأرباح {reportType === 'day' ? 'اليومية' : reportType === 'week' ? 'الأسبوعية' : 'الشهرية'}</h3>
+                      <div className="flex bg-slate-800 p-1 rounded-xl">
+                        <button onClick={() => setReportType('day')} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all ${reportType === 'day' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>يومي</button>
+                        <button onClick={() => setReportType('week')} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all ${reportType === 'week' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>أسبوعي</button>
+                        <button onClick={() => setReportType('month')} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all ${reportType === 'month' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>شهري</button>
                       </div>
                     </div>
                     <div className="h-[300px]">
@@ -620,6 +676,65 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'offers' && (
+              <motion.div key="offers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <table className="w-full text-right">
+                    <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                      <tr>
+                        <th className="px-6 py-4">العرض</th>
+                        <th className="px-6 py-4">المورد</th>
+                        <th className="px-6 py-4">السعر</th>
+                        <th className="px-6 py-4">الخصم</th>
+                        <th className="px-6 py-4">إحصائيات</th>
+                        <th className="px-6 py-4">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {offers.filter(o => (o.title || '').includes(searchQuery)).map((o: any) => (
+                        <tr key={o.id} className="hover:bg-slate-800/30 transition">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <img src={o.image} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-800" />
+                              <span className="font-bold text-white text-sm">{o.title}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-400">{o.supplierName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-emerald-500 font-bold">{o.offerPrice} ج</span>
+                            <span className="text-[10px] text-slate-500 line-through mr-2">{o.originalPrice} ج</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 bg-red-500/10 text-red-500 rounded text-[10px] font-bold">{o.discount}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="text-center">
+                                <span className="block text-white font-bold text-xs">{o.views || 0}</span>
+                                <span className="text-[10px] text-slate-500 uppercase">مشاهدة</span>
+                              </div>
+                              <div className="text-center">
+                                <span className="block text-white font-bold text-xs">{o.orders || 0}</span>
+                                <span className="text-[10px] text-slate-500 uppercase">طلب</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button onClick={() => handleDeleteItem('offers', o.id)} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
+                              <Trash2 className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {offers.length === 0 && (
+                    <div className="p-12 text-center text-slate-500 italic">لا توجد عروض ترويجية نشطة</div>
+                  )}
                 </div>
               </motion.div>
             )}

@@ -7,7 +7,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import { Shield, Lock, Mail, AlertCircle, ArrowRight, Chrome } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 const OWNER_EMAIL = 'masriboro@gmail.com';
 

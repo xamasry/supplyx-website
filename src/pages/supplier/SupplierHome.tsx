@@ -3,7 +3,7 @@ import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft
 import { cn, calculateDistance } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
@@ -36,11 +36,20 @@ export default function SupplierHome() {
 
       // Query 1: Fetch active requests (to bid on)
       const qReq = query(collection(db, 'requests'), where('status', '==', 'active'));
-      unsubRequests = onSnapshot(qReq, (snapshot) => {
+      unsubRequests = onSnapshot(qReq, async (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
         
-        const enhancedData = data.map(req => {
+        // Enhance with hasBid info
+        const dataWithBids = await Promise.all(data.map(async (req) => {
+          const bidsRef = collection(db, `requests/${req.id}/bids`);
+          const qB = query(bidsRef, where('supplierId', '==', user.uid));
+          const bidSnap = await getDocs(qB);
+          return { ...req, hasBid: !bidSnap.empty };
+        }));
+
+        dataWithBids.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        
+        const enhancedData = dataWithBids.map(req => {
           if (supplierLocation && req.coordinates) {
             const distance = calculateDistance(supplierLocation.lat, supplierLocation.lng, req.coordinates.lat, req.coordinates.lng);
             return { ...req, distance };
@@ -79,17 +88,32 @@ export default function SupplierHome() {
   // Active orders for the supplier
   const activeOrders = orders.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status));
 
+  // Stats aggregation
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const todayOrders = orders.filter(o => {
+    const oDate = o.createdAt?.toDate?.() || new Date(o.createdAt);
+    return oDate >= today && o.status !== 'cancelled';
+  }).length;
+
+  const startOfWeek = new Date();
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  const weeklyProfit = orders.filter(o => {
+    const oDate = o.createdAt?.toDate?.() || new Date(o.createdAt);
+    return oDate >= startOfWeek && o.status === 'delivered';
+  }).reduce((acc, curr) => acc + (curr.price || 0), 0);
+
   return (
     <div className="space-y-6 pb-6 font-sans">
       
       {/* Stats Board */}
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-[var(--color-primary)] text-white p-3 rounded-2xl text-center shadow-lg shadow-[var(--color-primary)]/20">
-          <span className="block text-2xl font-bold">12</span>
+          <span className="block text-2xl font-bold">{todayOrders}</span>
           <span className="block text-[10px] opacity-80 mt-1">طلبات اليوم</span>
         </div>
         <div className="bg-white border border-slate-200 p-3 rounded-2xl text-center shadow-sm">
-          <span className="block text-xl font-bold text-slate-900">3,450ج</span>
+          <span className="block text-xl font-bold text-slate-900">{weeklyProfit.toLocaleString()}ج</span>
           <span className="block text-[10px] text-slate-500 font-semibold mt-1">أرباح الأسبوع</span>
         </div>
         <div className="bg-white border border-slate-200 p-3 rounded-2xl text-center shadow-sm">
@@ -170,9 +194,12 @@ export default function SupplierHome() {
               </div>
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                <div className="text-xs font-bold text-slate-600 font-sans"> بانتظار عروض الأسعار</div>
+                <div className="text-xs font-bold text-slate-600 font-sans flex items-center gap-2">
+                  <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px]">{req.bidsCount || 0} عروض مقدمة</span>
+                  <span>بانتظار عرضك</span>
+                </div>
                 <Link to={`/supplier/request/${req.id}`} className="px-5 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold text-sm shadow-sm hover:bg-[var(--color-primary-hover)] transition-colors">
-                  قدّم عرضك
+                  {req.hasBid ? 'تعديل عرضك' : 'قدّم عرضك'}
                 </Link>
               </div>
             </div>
