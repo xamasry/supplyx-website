@@ -119,9 +119,15 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // In express 4.x we use * to match all fallback routes
+    
+    // Serve index.html for any request that doesn't match a static file or API route
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send('Build not found. Please run npm run build.');
+      }
     });
   }
 
