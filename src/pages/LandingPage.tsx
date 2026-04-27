@@ -205,58 +205,60 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          <div className="relative flex flex-col gap-6">
+          <div className="relative flex flex-col gap-8">
             {/* Seamless Scrollable Container (First Row) */}
-            <div className="flex overflow-hidden group">
+            <div className="flex overflow-hidden group py-2">
               <motion.div 
-                className="flex gap-4 px-4 h-24"
-                animate={{ x: ["0%", "-50%"] }}
+                className="flex gap-4 px-2"
+                animate={{ x: ["0%", "-33.333%"] }}
                 transition={{ 
-                  duration: 25, 
+                  duration: 20, 
                   repeat: Infinity, 
-                  ease: "linear" 
+                  ease: "linear",
+                  repeatType: "loop"
                 }}
                 style={{ width: 'max-content' }}
               >
-                {[...CATEGORIES, ...CATEGORIES].map((cat, idx) => (
+                {[...CATEGORIES, ...CATEGORIES, ...CATEGORIES].map((cat, idx) => (
                   <div 
                     key={`${cat.id}-${idx}`}
-                    className="bg-slate-50 border border-slate-100 px-8 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default"
+                    className="bg-slate-50 border border-slate-100 px-8 h-16 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default min-w-[180px]"
                   >
                     <span className="text-2xl">{cat.icon}</span>
-                    <span className="font-extrabold text-slate-700">{cat.name}</span>
+                    <span className="font-extrabold text-slate-700 text-sm">{cat.name}</span>
                   </div>
                 ))}
               </motion.div>
             </div>
 
             {/* Seamless Scrollable Container (Second Row - Opposite Direction) */}
-            <div className="flex overflow-hidden group">
+            <div className="flex overflow-hidden group py-2">
               <motion.div 
-                className="flex gap-4 px-4 h-24"
-                animate={{ x: ["-50%", "0%"] }}
+                className="flex gap-4 px-2"
+                animate={{ x: ["-33.333%", "0%"] }}
                 transition={{ 
-                  duration: 30, 
+                  duration: 25, 
                   repeat: Infinity, 
-                  ease: "linear" 
+                  ease: "linear",
+                  repeatType: "loop"
                 }}
                 style={{ width: 'max-content' }}
               >
-                {[...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse()].map((cat, idx) => (
+                {[...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse()].map((cat, idx) => (
                   <div 
                     key={`${cat.id}-${idx}-rev`}
-                    className="bg-slate-50 border border-slate-100 px-8 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default"
+                    className="bg-slate-50 border border-slate-100 px-8 h-16 rounded-2xl flex items-center gap-4 whitespace-nowrap hover:bg-[#22C55E]/5 hover:border-[#22C55E]/20 transition-all cursor-default min-w-[180px]"
                   >
                     <span className="text-2xl">{cat.icon}</span>
-                    <span className="font-extrabold text-slate-700">{cat.name}</span>
+                    <span className="font-extrabold text-slate-700 text-sm">{cat.name}</span>
                   </div>
                 ))}
               </motion.div>
             </div>
             
             {/* Edge Fading Masks */}
-            <div className="absolute inset-y-0 left-0 w-24 md:w-48 bg-gradient-to-r from-white to-transparent pointer-events-none z-10" />
-            <div className="absolute inset-y-0 right-0 w-24 md:w-48 bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-y-0 left-0 w-32 md:w-64 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-10" />
+            <div className="absolute inset-y-0 right-0 w-32 md:w-64 bg-gradient-to-l from-white via-white/80 to-transparent pointer-events-none z-10" />
           </div>
 
           <div className="text-center mt-12 px-6">
