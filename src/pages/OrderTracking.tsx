@@ -1,5 +1,5 @@
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Package, Clock, CheckCircle2, ChevronRight, MessageCircle, MapPin, Upload, Loader2, Phone } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronRight, MessageCircle, MapPin, Upload, Loader2, Phone, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
@@ -36,13 +36,31 @@ export default function OrderTracking() {
     return () => unsub();
   }, [id]);
 
+  const [rating, setRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+
   const updateStatus = async (newStatus: string) => {
     if (!id) return;
     try {
       await updateDoc(doc(db, 'requests', id), {
         status: newStatus,
+        updatedAt: serverTimestamp(),
+        ...(newStatus === 'delivered' && !isSupplier ? { buyerConfirmed: true } : {})
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `requests/${id}`);
+    }
+  };
+
+  const submitRating = async () => {
+    if (!id || rating === 0) return;
+    try {
+      await updateDoc(doc(db, 'requests', id), {
+        rating,
+        ratingAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      setRatingSubmitted(true);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `requests/${id}`);
     }
@@ -283,18 +301,71 @@ export default function OrderTracking() {
              <div className="text-center p-5 bg-orange-50 border border-orange-100 rounded-2xl">
                <p className="text-sm font-black text-orange-800">الأموال محفوظة بأمان (Escrow)</p>
                <p className="text-xs text-orange-700 mt-2 font-bold leading-relaxed">سيتم تحويل المبلغ للمورد فور تأكيد استلامك للطلب أو خلال 48 ساعة من التوصيل التلقائي.</p>
+               {statusLevel === 3 && (
+                 <button 
+                   onClick={() => updateStatus('delivered')}
+                   className="w-full py-4 mt-4 bg-[var(--color-success)] text-white rounded-2xl font-black shadow-lg shadow-[var(--color-success)]/20 active:scale-95 transition-all"
+                 >
+                   تأكيد استلام الطلب الآن
+                 </button>
+               )}
              </div>
           )}
-          {!isSupplier && statusLevel === 4 && (
-            <button 
-              onClick={() => updateStatus('delivered')} // Re-affirming delivery is same status but buyer confirmed
-              className="w-full py-5 bg-[var(--color-success)] text-white rounded-2xl font-black text-lg shadow-lg shadow-[var(--color-success)]/20 hover:scale-[1.01] transition-transform"
-            >
-              تقييم التجربة وتأكيد الاستلام
-            </button>
+          {!isSupplier && statusLevel === 4 && !request.rating && (
+            <div className="p-5 bg-white rounded-2xl border border-slate-100 space-y-4">
+              <div className="text-center">
+                <h4 className="font-bold text-slate-900">كيف كانت تجربتك؟</h4>
+                <p className="text-xs text-slate-500 mt-1">تقييمك يساعدنا في تحسين جودة الموردين</p>
+              </div>
+              
+              <div className="flex justify-center gap-2 py-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button 
+                    key={star}
+                    onClick={() => setRating(star)}
+                    className="p-1 transition-transform active:scale-90"
+                  >
+                    <Star 
+                      className={cn(
+                        "w-8 h-8 transition-colors",
+                        star <= rating ? "fill-amber-400 text-amber-400" : "text-slate-300"
+                      )} 
+                    />
+                  </button>
+                ))}
+              </div>
+
+              <button 
+                onClick={submitRating}
+                disabled={rating === 0 || ratingSubmitted}
+                className="w-full py-4 bg-[var(--color-primary)] text-white rounded-2xl font-black text-lg shadow-lg disabled:opacity-50 transition-all active:scale-95"
+              >
+                {ratingSubmitted ? 'تم التقييم بنجاح' : 'إرسال التقييم'}
+              </button>
+            </div>
+          )}
+          {!isSupplier && statusLevel === 4 && request.rating && (
+            <div className="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100">
+               <div className="flex justify-center gap-1 mb-2">
+                 {[1, 2, 3, 4, 5].map(s => (
+                   <Star key={s} className={cn("w-4 h-4", s <= request.rating ? "fill-amber-400 text-amber-400" : "text-slate-200")} />
+                 ))}
+               </div>
+               <p className="text-sm font-bold text-slate-600">شكراً لتقييمك! تم إغلاق الطلب بنجاح.</p>
+            </div>
           )}
           {statusLevel === 4 && (
             <div className="text-center p-4">
+               {isSupplier && request.rating && (
+                 <div className="mb-4 p-3 bg-amber-50 rounded-2xl border border-amber-100 animate-in zoom-in duration-300">
+                    <p className="text-[10px] text-amber-600 font-black mb-1 uppercase tracking-wider">تقييم العميل</p>
+                    <div className="flex justify-center gap-1.5 mb-1">
+                      {[1, 2, 3, 4, 5].map(s => (
+                        <Star key={s} className={cn("w-4 h-4", s <= request.rating ? "fill-amber-400 text-amber-400" : "text-slate-200")} />
+                      ))}
+                    </div>
+                 </div>
+               )}
                <p className="text-sm font-bold text-[var(--color-success)] bg-[var(--color-success)]/10 py-3 rounded-xl">مكتمل ✓</p>
             </div>
           )}
