@@ -72,6 +72,7 @@ export default function NewRequest() {
         
         notes: notes,
         status: 'active',
+        bidsCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         // Expires in 2 hours will be handled by our Cloud Function, but let's record it if we want

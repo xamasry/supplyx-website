@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { calculateDistance } from '../../lib/utils';
@@ -100,7 +100,7 @@ export default function SupplierRequestDetail() {
 
         // Update bidsCount on request
         await updateDoc(doc(db, 'requests', id as string), {
-          bidsCount: (request.bidsCount || 0) + 1,
+          bidsCount: increment(1),
           updatedAt: serverTimestamp()
         });
 
