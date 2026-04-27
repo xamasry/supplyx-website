@@ -190,34 +190,80 @@ export default function LandingPage() {
         </section>
 
         {/* Categories Preview */}
-        <section className="py-24 px-6 bg-slate-50">
-          <div className="max-w-7xl mx-auto text-center space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-[#0B1D2A] tracking-tight">غطينا لك كل احتياجاتك</h2>
+        <section className="py-24 px-0 bg-slate-50 overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6 text-center mb-16">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="space-y-4"
+            >
+              <h2 className="text-4xl md:text-5xl font-black text-[#0B1D2A] tracking-tight">غطينا لك كل احتياجاتك</h2>
               <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
                 اكثر من 18 تصنيف متخصص لجميع مستلزمات المطاعم، المقاهي، وخدمات التغذية.
               </p>
+            </motion.div>
+          </div>
+
+          <div className="flex flex-col gap-8 relative">
+            {/* Gradient Mask for Edges */}
+            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
+
+            {/* First Row - Moving Left */}
+            <div className="flex w-full overflow-hidden">
+              <motion.div 
+                className="flex gap-6 px-2 py-4"
+                animate={{ x: ["0%", "-33.333%"] }}
+                transition={{ 
+                  duration: 30, 
+                  repeat: Infinity, 
+                  ease: "linear",
+                }}
+                style={{ width: 'max-content' }}
+              >
+                {[...CATEGORIES, ...CATEGORIES, ...CATEGORIES].map((cat, idx) => (
+                  <div 
+                    key={`${cat.id}-${idx}`}
+                    className="bg-white px-10 py-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center gap-4 group transition-all hover:border-[#22C55E]/50 hover:shadow-lg hover:-translate-y-1 min-w-[220px]"
+                  >
+                    <span className="text-3xl group-hover:scale-110 transition-transform">{cat.icon}</span>
+                    <span className="font-black text-slate-800 text-base whitespace-nowrap">{cat.name}</span>
+                  </div>
+                ))}
+              </motion.div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {CATEGORIES.slice(0, 12).map((cat) => (
-                <motion.div 
-                  key={cat.id}
-                  whileHover={{ y: -5 }}
-                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 group transition-all hover:border-[#22C55E]/50 hover:shadow-md"
-                >
-                  <span className="text-4xl group-hover:scale-110 transition-transform">{cat.icon}</span>
-                  <span className="font-bold text-slate-800 text-sm">{cat.name}</span>
-                </motion.div>
-              ))}
+            {/* Second Row - Moving Right */}
+            <div className="flex w-full overflow-hidden mt-4">
+              <motion.div 
+                className="flex gap-6 px-2 py-4"
+                animate={{ x: ["-33.333%", "0%"] }}
+                transition={{ 
+                  duration: 35, 
+                  repeat: Infinity, 
+                  ease: "linear",
+                }}
+                style={{ width: 'max-content' }}
+              >
+                {[...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse(), ...CATEGORIES.slice().reverse()].map((cat, idx) => (
+                  <div 
+                    key={`${cat.id}-${idx}-rev`}
+                    className="bg-white px-10 py-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center gap-4 group transition-all hover:border-[#22C55E]/50 hover:shadow-lg hover:-translate-y-1 min-w-[220px]"
+                  >
+                    <span className="text-3xl group-hover:scale-110 transition-transform">{cat.icon}</span>
+                    <span className="font-black text-slate-800 text-base whitespace-nowrap">{cat.name}</span>
+                  </div>
+                ))}
+              </motion.div>
             </div>
+          </div>
 
-            <div className="pt-8">
-               <Link to="/auth/signup" className="text-[#22C55E] font-bold flex items-center justify-center gap-2 group">
-                 <span>تصفح جميع التصنيفات والمنتجات</span>
-                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-               </Link>
-            </div>
+          <div className="max-w-7xl mx-auto text-center pt-16 px-6">
+             <Link to="/auth/signup" className="inline-flex items-center gap-3 px-8 py-4 bg-[#22C55E]/5 text-[#22C55E] rounded-2xl font-bold hover:bg-[#22C55E]/10 transition-all group">
+               <span>ابدأ استكشاف جميع المنتجات</span>
+               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+             </Link>
           </div>
         </section>
       </main>
