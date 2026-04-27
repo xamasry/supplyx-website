@@ -213,7 +213,6 @@ export default function LandingPage() {
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: idx * 0.05 }}
                   animate={{ 
                     y: [0, -6, 0],
                     rotate: [0, idx % 2 === 0 ? 0.5 : -0.5, 0]
@@ -224,6 +223,7 @@ export default function LandingPage() {
                     boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05)"
                   }}
                   transition={{
+                    delay: idx * 0.05,
                     y: {
                       duration: 3 + (idx % 3),
                       repeat: Infinity,
@@ -248,7 +248,7 @@ export default function LandingPage() {
           </div>
 
           <div className="max-w-7xl mx-auto text-center pt-16 px-6">
-             <Link to="/auth/signup" className="inline-flex items-center gap-3 px-8 py-4 bg-[#22C55E] text-white rounded-2xl font-black hover:bg-[#16a34a] transition-all hover:shadow-lg hover:shadow-[#22C55E]/20 group">
+             <Link to="/auth/login" className="inline-flex items-center gap-3 px-8 py-4 bg-[#22C55E] text-white rounded-2xl font-black hover:bg-[#16a34a] transition-all hover:shadow-lg hover:shadow-[#22C55E]/20 group">
                <span>ابدأ استكشاف جميع المنتجات</span>
                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
              </Link>
