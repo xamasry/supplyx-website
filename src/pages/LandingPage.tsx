@@ -114,7 +114,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 font-bold">موردين موثوقين</p>
-                    <p className="text-2xl font-black text-[#0B1D2A]">+850</p>
+                    <p className="text-2xl font-black text-[#0B1D2A]">+30</p>
                   </div>
                 </div>
               </motion.div>
@@ -148,7 +148,7 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400 font-bold">طلبات مكتملة</p>
-                    <p className="text-2xl font-black text-[#0B1D2A]">+120K</p>
+                    <p className="text-2xl font-black text-[#0B1D2A]">+500</p>
                   </div>
                 </div>
               </motion.div>
@@ -177,12 +177,12 @@ export default function LandingPage() {
              
              <div className="flex bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 gap-16 text-center">
                 <div>
-                   <p className="text-4xl font-black text-[#22C55E] mb-1">+25K</p>
+                   <p className="text-4xl font-black text-[#22C55E] mb-1">50</p>
                    <p className="text-sm font-bold text-white/60 lowercase">مطعم ومقهى</p>
                 </div>
                 <div className="w-px h-16 bg-white/10"></div>
                 <div>
-                   <p className="text-4xl font-black text-white mb-1">+850</p>
+                   <p className="text-4xl font-black text-white mb-1">30</p>
                    <p className="text-sm font-bold text-white/60">مورد موثوق</p>
                 </div>
              </div>
