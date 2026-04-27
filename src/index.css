@@ -17,6 +17,15 @@
   
   --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Cairo", ui-sans-serif, system-ui, sans-serif;
+
+  @keyframes bounce-subtle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+}
+
+@utility animate-bounce-subtle {
+  animation: bounce-subtle 3s ease-in-out infinite;
 }
 
 @layer base {

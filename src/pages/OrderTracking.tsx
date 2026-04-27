@@ -101,6 +101,17 @@ export default function OrderTracking() {
         </div>
       )}
 
+      {/* Sticky Chat Button */}
+      {request.status !== 'delivered' && (
+        <button 
+          onClick={() => setShowChat(true)}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center shadow-2xl z-40 hover:scale-110 active:scale-95 transition-all animate-bounce-subtle"
+        >
+          <MessageCircle className="w-7 h-7" />
+          <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></span>
+        </button>
+      )}
+
       <header className="flex items-center">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700">
           <ChevronRight className="w-6 h-6" />
@@ -234,13 +245,6 @@ export default function OrderTracking() {
                )}
              </div>
           </div>
-          <button 
-            onClick={() => setShowChat(true)}
-            className="bg-white border border-slate-200 w-10 h-10 rounded-full flex items-center justify-center text-[var(--color-primary)] hover:border-[var(--color-primary)] transition-colors shadow-sm relative"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
         </div>
         
         <div className="p-4 bg-[var(--color-brand-bg)] space-y-3">

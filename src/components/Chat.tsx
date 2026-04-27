@@ -31,6 +31,18 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isComponentMounted = useRef(true);
+
+  useEffect(() => {
+    isComponentMounted.current = true;
+    return () => { isComponentMounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     if (!requestId) return;
@@ -43,6 +55,20 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
         id: doc.id,
         ...doc.data()
       })) as Message[];
+      
+      // Handle browser notifications for new messages
+      if (!loading && msgs.length > messages.length) {
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg.senderId !== auth.currentUser?.uid) {
+          if (Notification.permission === 'granted' && document.hidden) {
+            new Notification(`رسالة جديدة من ${lastMsg.senderName}`, {
+              body: lastMsg.text,
+              icon: '/pwa-192x192.png'
+            });
+          }
+        }
+      }
+
       setMessages(msgs);
       setLoading(false);
       
