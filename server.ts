@@ -14,6 +14,61 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
+  const whatsappRouter = (await import('./server/whatsapp/webhook')).default;
+  const { notifyNearbySuppliers } = await import('./server/triggers/onNewRequest');
+  const { db } = await import('./src/lib/firebase');
+  const { doc, getDoc } = await import('firebase/firestore');
+
+  app.use('/api/whatsapp', whatsappRouter);
+
+  app.post('/api/requests/notify', async (req, res) => {
+    const { requestId } = req.body;
+    
+    try {
+      const requestDoc = await getDoc(doc(db, 'requests', requestId));
+      if (!requestDoc.exists()) {
+        return res.status(404).json({ error: 'Request not found' });
+      }
+      
+      const request = { id: requestId, ...requestDoc.data() } as any;
+      
+      notifyNearbySuppliers(request).catch(console.error);
+      
+      res.json({ success: true, message: 'Notification process started' });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to notify suppliers' });
+    }
+  });
+
+  app.post('/api/whatsapp/send-verification', async (req, res) => {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone is required' });
+
+    try {
+      const { sendTextMessage } = await import('./server/whatsapp/sender');
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      const { setDoc } = await import('firebase/firestore');
+      
+      await setDoc(doc(db, 'phone_verifications', phone), {
+        code,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      });
+
+      const message = `كود التحقق الخاص بك في SupplyX هو: *${code}*\n\nالرجاء إدخال هذا الكود في صفحة التسجيل.`;
+      const response = await sendTextMessage(phone, message);
+      
+      if (!response) {
+        throw new Error('Failed to send WhatsApp message');
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to send verification code' });
+    }
+  });
+
   // Mock endpoints for the sake of presentation
   // In a real app we would use Supabase via client or service role
   // Supabase takes care of most DB functionality directly but we could add webhooks

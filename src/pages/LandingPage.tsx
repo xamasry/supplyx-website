@@ -11,15 +11,23 @@ export default function LandingPage() {
         <Logo size="md" />
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
           <Link to="/" className="text-[#22C55E]">الرئيسية</Link>
-          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">تسجيل دخول للموردين</Link>
-          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">تسجيل دخول للمطاعم</Link>
+          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول الموردين</Link>
+          <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول المطاعم</Link>
         </nav>
-        <Link 
-          to="/auth/login" 
-          className="px-6 py-2.5 bg-[#22C55E] text-white rounded-full font-bold text-sm shadow-lg shadow-[#22C55E]/30 hover:scale-105 active:scale-95 transition-all"
-        >
-          تسجيل الدخول
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link 
+            to="/auth/login" 
+            className="hidden sm:inline-block px-6 py-2.5 text-[#0B1D2A] hover:bg-slate-50 rounded-full font-bold text-sm transition-all border border-transparent hover:border-slate-200"
+          >
+            تسجيل الدخول
+          </Link>
+          <Link 
+            to="/auth/signup" 
+            className="px-6 py-2.5 bg-[#22C55E] text-white rounded-full font-bold text-sm shadow-lg shadow-[#22C55E]/30 hover:scale-105 active:scale-95 transition-all"
+          >
+            حساب جديد
+          </Link>
+        </div>
       </header>
 
       <main className="flex-1">
@@ -46,8 +54,11 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center gap-4">
-                <Link to="/auth/login" className="w-full sm:w-auto px-10 py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all">
-                  تسجيل الدخول المستفيدين
+                <Link to="/auth/signup" className="w-full sm:w-auto px-10 py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all text-center">
+                  سجل الآن مجاناً
+                </Link>
+                <Link to="/auth/login" className="w-full sm:w-auto px-10 py-5 bg-white text-[#0B1D2A] border border-slate-200 rounded-2xl font-bold text-lg hover:border-[#22C55E] hover:text-[#22C55E] transition-all text-center">
+                  تسجيل الدخول
                 </Link>
               </div>
 

@@ -5,6 +5,7 @@ import { auth } from '../../lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import toast from 'react-hot-toast';
 
 import Logo from '../../components/ui/Logo';
 
@@ -42,6 +43,16 @@ export default function LoginPage() {
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        if (userData.status === 'pending') {
+           toast.error('حسابك قيد المراجعة حالياً ولن تتمكن من الدخول حتى توافق الإدارة.');
+           auth.signOut();
+           return;
+        }
+        if (userData.status === 'rejected') {
+           toast.error('لقد تم رفض طلب تسجيل حسابك من قبل الإدارة.');
+           auth.signOut();
+           return;
+        }
         if (userData.disabled) {
            toast.error('حسابك محظور. يرجى مراجعة الإدارة.');
            auth.signOut();
@@ -135,6 +146,13 @@ export default function LoginPage() {
             تسجيل الدخول
           </button>
         </form>
+
+        <div className="mt-8 text-center bg-slate-50 p-6 rounded-2xl border border-slate-100">
+          <p className="text-slate-500 font-bold mb-3">ليس لديك حساب؟</p>
+          <Link to="/auth/signup" className="inline-flex items-center justify-center w-full py-4 bg-white text-[#0B1D2A] border-2 border-slate-200 rounded-xl font-black hover:border-[#22C55E] hover:text-[#22C55E] transition-colors">
+            إنشاء حساب جديد
+          </Link>
+        </div>
       </div>
     </div>
   );

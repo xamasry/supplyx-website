@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
 import BuyerHome from './pages/buyer/BuyerHome';
 import SupplierHome from './pages/supplier/SupplierHome';
 import NewRequest from './pages/buyer/NewRequest';
@@ -37,6 +38,7 @@ export default function App() {
         
         {/* Auth */}
         <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/signup" element={<SignupPage />} />
         
         {/* Buyer Routes - Wrapped in Layout */}
         <Route element={

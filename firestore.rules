@@ -72,11 +72,17 @@ service cloud.firestore {
     }
 
     function isValidUserProfile(data) {
-      return (data.role == null || data.role in ['buyer', 'supplier'])
-        && (data.updatedAt == null || data.updatedAt == request.time);
+      return (data.role == null || data.role in ['buyer', 'supplier', 'admin'])
+        && (data.updatedAt == null || data.updatedAt == request.time)
+        && (data.status == null || data.status in ['pending', 'approved', 'rejected', 'on_hold'])
+        && (data.whatsappPhone == null || data.whatsappPhone is string);
     }
 
     // Phase 4: Match Blocks
+    match /phone_verifications/{phone} {
+      allow read, write: if true;
+    }
+
     match /admins/{adminId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.auth.token.email == 'masriboro@gmail.com' && adminId == request.auth.uid;

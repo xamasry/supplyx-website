@@ -527,9 +527,17 @@ export default function AdminDashboard() {
                        <Users className="w-4 h-4" />
                        إضافة مستخدم جديد
                     </button>
-                    <button className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold">تصدير المستخدمين</button>
                   </div>
                 </div>
+
+                {users.filter(u => u.status === 'pending').length > 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500" />
+                        <span className="font-bold text-amber-500">يوجد طلبات تسجيل بانتظار المراجعة</span>
+                     </div>
+                  </div>
+                )}
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                   <table className="w-full text-right border-collapse">
@@ -549,7 +557,7 @@ export default function AdminDashboard() {
                         const matchRole = roleFilter === 'all' || u.role === roleFilter;
                         return matchSearch && matchRole;
                       }).map((user: any) => (
-                        <tr key={user.id} className="hover:bg-slate-800/30 transition">
+                        <tr key={user.id} className={`transition ${user.status === 'pending' ? 'bg-amber-500/5' : 'hover:bg-slate-800/30'}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">
@@ -563,7 +571,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <p className="text-sm font-bold text-white whitespace-nowrap">{user.businessName || '-'}</p>
-                            <p className="text-[10px] text-slate-500">{user.phone || '-'}</p>
+                            <p className="text-[10px] text-slate-500">{user.phone || user.whatsappPhone || '-'}</p>
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${user.role === 'supplier' ? 'bg-purple-500/10 text-purple-500' : 'bg-blue-500/10 text-blue-500'}`}>
@@ -575,16 +583,34 @@ export default function AdminDashboard() {
                             {user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : '-'}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`w-2 h-2 rounded-full ${user.disabled ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
-                              <span className="text-xs">{user.disabled ? 'محظور' : 'نشط'}</span>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${user.status === 'pending' ? 'bg-amber-500' : user.status === 'rejected' ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                                <span className="text-xs">
+                                   {user.status === 'pending' ? 'معلق (بانتظار الموافقة)' : 
+                                    user.status === 'rejected' ? 'مرفوض' : 
+                                    user.status === 'on_hold' ? 'معلق مؤقتاً' : 'موافق عليه'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 opacity-60">
+                                <span className={`w-2 h-2 rounded-full ${user.disabled ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                                <span className="text-[10px]">{user.disabled ? 'الوصول محظور' : 'الوصول مسموح'}</span>
+                              </div>
                             </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                               <button onClick={() => updateDoc(doc(db, 'users', user.id), { disabled: !user.disabled })} className="p-2 bg-slate-800 rounded-lg group" title={user.disabled ? "إلغاء الحظر" : "حظر الحساب"}>
-                                 <Ban className={`w-4 h-4 ${user.disabled ? 'text-emerald-500' : 'text-slate-500 group-hover:text-red-500'}`} />
-                               </button>
+                               {user.status === 'pending' && (
+                                  <>
+                                     <button onClick={() => updateDoc(doc(db, 'users', user.id), { status: 'approved', disabled: false, updatedAt: serverTimestamp() })} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition">قبول</button>
+                                     <button onClick={() => updateDoc(doc(db, 'users', user.id), { status: 'rejected', disabled: true, updatedAt: serverTimestamp() })} className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition">رفض</button>
+                                  </>
+                               )}
+                               {user.status !== 'pending' && (
+                                  <button onClick={() => updateDoc(doc(db, 'users', user.id), { disabled: !user.disabled, updatedAt: serverTimestamp() })} className="p-2 bg-slate-800 rounded-lg group" title={user.disabled ? "إلغاء الحظر" : "حظر الحساب"}>
+                                    <Ban className={`w-4 h-4 ${user.disabled ? 'text-emerald-500' : 'text-slate-500 group-hover:text-red-500'}`} />
+                                  </button>
+                               )}
                                <button onClick={() => handleDeleteItem('users', user.id)} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
                                  <Trash2 className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
                                </button>

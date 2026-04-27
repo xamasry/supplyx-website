@@ -94,6 +94,14 @@ export default function NewRequest() {
         location: 'بنها، القليوبية',
         coordinates: location ? { lat: location.lat, lng: location.lng } : null
       });
+
+      // Notify suppliers via webhook
+      fetch('/api/requests/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: docRef.id })
+      }).catch(console.error);
+
       toast.success('تم إرسال الطلب بنجاح!');
       navigate(`/buyer/request/${docRef.id}`);
     } catch (error) {
