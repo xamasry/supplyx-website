@@ -19,8 +19,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const loginEmail = email.includes('@') ? email : `${email}@supplyx.com`;
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+      const normalizedEmail = email.includes('@') ? email.toLowerCase() : `${email.toLowerCase()}@supplyx.com`;
+      const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
       
       const adminDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
       if (adminDoc.exists()) {

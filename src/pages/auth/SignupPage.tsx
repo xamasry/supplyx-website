@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import toast from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -19,102 +18,67 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
 
-  const sendVerificationCode = async () => {
-    if (!phone) {
-       toast.error('يرجى إدخال رقم الواتساب أولاً');
-       return;
-    }
-    
-    let formattedPhone = phone;
-    // ensure starts with 20 if length is 10/11
-    if (formattedPhone.startsWith('01')) {
-       formattedPhone = '2' + formattedPhone;
-    } else if (formattedPhone.startsWith('1')) {
-       formattedPhone = '20' + formattedPhone;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/whatsapp/send-verification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ phone: formattedPhone })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        toast.success('تم إرسال كود التحقق بنجاح');
-        setPhone(formattedPhone);
-        setStep(2);
-        if (data.mockCode) {
-           setVerificationCode(data.mockCode);
-           if (data.errorType === 'SANDBOX_RESTRICTION') {
-             toast.error(
-               `⚠️ تنبيه: واتساب في "وضع التجربة". لم تصل الرسالة لأن الرقم غير مضاف في Meta Dashboard. الكود هو: ${data.mockCode}`, 
-               { duration: 8000, style: { border: '1px solid #f59e0b', padding: '16px', color: '#92400e' } }
-             );
-           } else if (data.whatsappError) {
-             toast.error(`فشل واتساب: ${data.whatsappError}. الكود: ${data.mockCode}`, { duration: 6000 });
-           } else {
-             toast.success(`[تجريبي] تم إرسال الكود: ${data.mockCode}`);
-           }
-        }
-      } else {
-        const errorMsg = data.details ? `${data.error} (${data.details})` : (data.error || 'فشل إرسال كود التحقق. تأكد من الرقم.');
-        toast.error(errorMsg, { duration: 6000 });
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error('حدث خطأ أثناء الاتصال بالخادم');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyAndSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!verificationCode || verificationCode.length !== 6) {
-      toast.error('يرجى إدخال كود صحيح مكون من 6 أرقام');
+    if (!name || !email || !password || !phone || !businessName) {
+      toast.error('يرجى إكمال جميع البيانات المطلوبة');
       return;
     }
 
     setLoading(true);
     try {
-      // Format phone to match server side storage
-      const formattedPhone = phone.startsWith('20') ? phone : '20' + phone.replace(/^0+/, '');
+      let formattedPhone = phone;
+      if (formattedPhone.startsWith('01')) {
+         formattedPhone = '2' + formattedPhone;
+      } else if (formattedPhone.startsWith('1')) {
+         formattedPhone = '20' + formattedPhone;
+      }
+
+      // Check if phone number already exists in Firestore 'users' collection
+      const usersRef = collection(db, 'users');
+      const qPhone = query(usersRef, where('phone', '==', formattedPhone));
+      const qWhatsappPhone = query(usersRef, where('whatsappPhone', '==', formattedPhone));
       
-      // Check code matching in firestore
-      const docRef = doc(db, 'phone_verifications', formattedPhone);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists() || docSnap.data().code !== verificationCode) {
-         toast.error('الكود غير صحيح، حاول مرة أخرى');
-         setLoading(false);
-         return;
+      const [phoneSnap, whatsappPhoneSnap] = await Promise.all([
+        getDocs(qPhone),
+        getDocs(qWhatsappPhone)
+      ]);
+      
+      if (!phoneSnap.empty || !whatsappPhoneSnap.empty) {
+        toast.error('رقم الهاتف مسجل بالفعل في نظامنا. يرجى استخدام رقم آخر أو تسجيل الدخول.');
+        setLoading(false);
+        return;
       }
 
-      // Check expiry
-      if (new Date(docSnap.data().expiresAt) < new Date()) {
-         toast.error('الكود منتهي الصلاحية، اطلب كود جديد');
-         setLoading(false);
-         return;
+      // Normalize email for check
+      const normalizedEmail = email.includes('@') ? email.toLowerCase() : `${email.toLowerCase()}@supplyx.com`;
+
+      const qEmail = query(usersRef, where('email', '==', normalizedEmail));
+      const emailSnap = await getDocs(qEmail);
+      if (!emailSnap.empty) {
+        toast.error('البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول أو استخدام بريد آخر.');
+        setLoading(false);
+        return;
       }
 
-      // Code is valid! Create account
-      const loginEmail = email.includes('@') ? email : `${email}@supplyx.com`;
-      const userCredential = await createUserWithEmailAndPassword(auth, loginEmail, password);
+      // Create account
+      const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+      
+      // Update profile display name
+      await updateProfile(userCredential.user, {
+        displayName: businessName || name
+      });
       
       const userId = userCredential.user.uid;
       
       await setDoc(doc(db, 'users', userId), {
          name,
          businessName,
-         email: loginEmail,
+         email: normalizedEmail,
          role,
-         whatsappPhone: phone,
+         phone: formattedPhone,
+         whatsappPhone: formattedPhone,
          whatsappOptIn: true,
          status: 'pending', // Requires admin approval
          disabled: true,
@@ -131,7 +95,11 @@ export default function SignupPage() {
 
     } catch (error: any) {
       console.error(error);
-      toast.error(`حدث خطأ أثناء إنشاء الحساب: ${error.message}`);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو تسجيل الدخول.');
+      } else {
+        toast.error(`حدث خطأ أثناء إنشاء الحساب: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -148,134 +116,99 @@ export default function SignupPage() {
         <h1 className="text-2xl font-bold text-center text-slate-900 mb-2 font-display">إنشاء حساب جديد</h1>
         <p className="text-center text-slate-500 mb-8 font-medium">سجل بياناتك للبدء مع SupplyX 🚀</p>
 
-        {step === 1 ? (
-          <div className="space-y-4">
-             <div>
-                <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">نوع الحساب</label>
-                <div className="flex gap-2">
-                   <button 
-                     type="button"
-                     onClick={() => setRole('buyer')}
-                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'buyer' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                   >
-                     مشتري (مطعم)
-                   </button>
-                   <button 
-                     type="button"
-                     onClick={() => setRole('supplier')}
-                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'supplier' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                   >
-                     مورد
-                   </button>
-                </div>
-             </div>
+        <form onSubmit={handleSignup} className="space-y-4">
+           <div>
+              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">نوع الحساب</label>
+              <div className="flex gap-2">
+                 <button 
+                   type="button"
+                   onClick={() => setRole('buyer')}
+                   className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'buyer' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                 >
+                   مشتري (مطعم)
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={() => setRole('supplier')}
+                   className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'supplier' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                 >
+                   مورد
+                 </button>
+              </div>
+           </div>
 
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">الاسم بالكامل</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
-                placeholder="اسمك الثلاثي"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">اسم النشاط (المطعم أو الشركة)</label>
-              <input
-                type="text"
-                required
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
-                placeholder={role === 'buyer' ? 'اسم المطعم' : 'اسم شركة التوريد'}
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">البريد الإلكتروني</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
-                dir="ltr"
-                placeholder="example@email.com"
-              />
-            </div>
-            
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">كلمة المرور</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
-                dir="ltr"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">رقم الواتساب (للتفعيل والإشعارات)</label>
-              <input
-                type="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
-                dir="ltr"
-                placeholder="01xxxxxxxxx"
-              />
-              <p className="text-xs text-slate-500 mt-2 text-right">سيتم إرسال كود تحقق لهذا الرقم عبر واتساب.</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={sendVerificationCode}
-              disabled={loading || !name || !email || !password || !phone || !businessName}
-              className="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-[#22C55E]/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'المتابعة للخطوة التالية'}
-            </button>
-             
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">الاسم بالكامل</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              placeholder="اسمك الثلاثي"
+            />
           </div>
-        ) : (
-          <form onSubmit={handleVerifyAndSignup} className="space-y-4">
-             <div className="bg-green-50 p-4 rounded-xl border border-green-100 mb-6 text-right">
-                <p className="text-sm text-green-800 font-bold leading-relaxed">
-                   تم إرسال كود تحقق لرقم الواتساب: <span dir="ltr" className="inline-block bg-white px-2 py-0.5 rounded text-green-600 ml-1">{phone}</span>
-                </p>
-                <button type="button" onClick={() => setStep(1)} className="text-xs text-green-600 font-bold mt-2 hover:underline">تعديل الرقم</button>
-             </div>
-             
-            <div>
-              <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">كود التحقق</label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold text-center tracking-widest text-2xl transition-shadow"
-                dir="ltr"
-                placeholder="000000"
-              />
-            </div>
+          
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">اسم النشاط (المطعم أو الشركة)</label>
+            <input
+              type="text"
+              required
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              placeholder={role === 'buyer' ? 'اسم المطعم' : 'اسم شركة التوريد'}
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">البريد الإلكتروني</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              dir="ltr"
+              placeholder="example@email.com"
+            />
+          </div>
+          
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">كلمة المرور</label>
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              dir="ltr"
+              placeholder="••••••••"
+            />
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading || verificationCode.length !== 6}
-              className="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-[#22C55E]/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'تأكيد وإنشاء الحساب'}
-            </button>
-          </form>
-        )}
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">رقم الواتساب</label>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              dir="ltr"
+              placeholder="01xxxxxxxxx"
+            />
+            <p className="text-xs text-slate-500 mt-2 text-right">سيتم مراجعة بياناتك وتفعيل حسابك من قبل الإدارة.</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-[#22C55E]/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'إنشاء حساب جديد'}
+          </button>
+        </form>
 
         <div className="mt-8 text-center">
           <Link to="/auth/login" className="text-slate-500 font-bold hover:text-primary-600 transition-colors inline-flex items-center gap-1 group">

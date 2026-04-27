@@ -157,10 +157,10 @@ export default function BuyerProfile() {
           <Store />
         </div>
         <div className="w-16 h-16 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center overflow-hidden shrink-0 z-10">
-          <img src={user?.photoURL || "https://ui-avatars.com/api/?name=مطعم+الامل&background=transparent&color=fff"} alt="Logo" className="w-full h-full object-cover" />
+          <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.businessName || "U")}&background=fff&color=22C55E`} alt="Logo" className="w-full h-full object-cover" />
         </div>
         <div className="z-10 flex-1">
-          <h2 className="font-bold text-2xl font-display">{profile?.businessName || user?.displayName || 'مطعم الأمل'}</h2>
+          <h2 className="font-bold text-2xl font-display">{profile?.businessName || user?.displayName || 'مستخدم جديد'}</h2>
           <p className="text-white/80 text-sm mt-1 mb-2">{user?.email}</p>
           <div className="inline-flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded text-xs font-bold font-mono" dir="ltr">
             ID: #{user?.uid.slice(0, 8).toUpperCase() || 'BNH-7729'}

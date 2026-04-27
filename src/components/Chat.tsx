@@ -98,7 +98,8 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
         text,
         senderId: auth.currentUser.uid,
         senderName: auth.currentUser.displayName || 'مستخدم',
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        participants: [auth.currentUser.uid, receiverId]
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `requests/${requestId}/messages`);

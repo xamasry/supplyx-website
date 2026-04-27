@@ -3,7 +3,7 @@ import { Search, Flame, Clock, ChevronLeft, Package, Loader2 } from 'lucide-reac
 import { cn } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -12,21 +12,29 @@ import { CATEGORIES } from '../../constants';
 export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let unsubSnapshot: (() => void) | null = null;
     let unsubOffers: (() => void) | null = null;
     
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
 
       if (!user) {
         setRequests([]);
         setOffers([]);
+        setUserProfile(null);
         setLoading(false);
         return;
+      }
+
+      // Fetch Profile
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      if (userSnap.exists()) {
+        setUserProfile(userSnap.data());
       }
 
       // Fetch Requests
@@ -51,6 +59,8 @@ export default function BuyerHome() {
       }, (error) => {
         console.error('Error fetching offers:', error);
       });
+
+      // Pass bName to context or state if needed
     });
 
     return () => {
@@ -76,7 +86,7 @@ export default function BuyerHome() {
       const orderRef = collection(db, 'requests');
       const newOrder = {
         buyerId: auth.currentUser.uid,
-        buyerName: auth.currentUser.displayName || 'مشتري بنها',
+        buyerName: userProfile?.businessName || auth.currentUser.displayName || 'مشتري',
         productName: offer.title,
         quantity: '1',
         unit: 'وحدة',

@@ -4,14 +4,24 @@ import { Search, Flame, Tag, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import toast from 'react-hot-toast';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
 
 export default function BuyerOffers() {
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [userProfile, setUserProfile] = useState<any>(null);
+
   useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        const snap = await getDoc(doc(db, 'users', u.uid));
+        if (snap.exists()) setUserProfile(snap.data());
+      }
+    });
+
     const q = query(
       collection(db, 'offers'),
       where('status', '==', 'active'),
@@ -30,7 +40,10 @@ export default function BuyerOffers() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubAuth();
+    };
   }, []);
 
   const filteredOffers = offers.filter(offer => 
@@ -53,7 +66,7 @@ export default function BuyerOffers() {
       const orderRef = collection(db, 'requests');
       const newOrder = {
         buyerId: auth.currentUser.uid,
-        buyerName: auth.currentUser.displayName || 'مشتري بنها',
+        buyerName: userProfile?.businessName || auth.currentUser.displayName || 'مشتري',
         productName: offer.title,
         quantity: '1', // Default quantity for direct offers
         unit: 'وحدة',

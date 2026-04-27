@@ -4,17 +4,21 @@ import { Home, ClipboardList, Gift, User, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 
 export default function BuyerLayout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const path = location.pathname;
 
   useEffect(() => {
     let unsubNotifs: (() => void) | null = null;
+    let unsubProfile: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -23,8 +27,23 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         unsubNotifs();
         unsubNotifs = null;
       }
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
 
       if (u) {
+        // Fetch profile for businessName and status check
+        unsubProfile = onSnapshot(doc(db, 'users', u.uid), (snap) => {
+          if (snap.exists()) {
+             const data = snap.data();
+             setUserProfile(data);
+             if (data.status === 'pending' && !location.pathname.includes('/auth/pending')) {
+               navigate('/auth/pending');
+             }
+          }
+        });
+
         const q = query(
           collection(db, 'notifications'),
           where('userId', '==', u.uid),
@@ -35,12 +54,14 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         }, (err) => console.error("BuyerLayout Notif error:", err));
       } else {
         setUnreadCount(0);
+        setUserProfile(null);
       }
     });
 
     return () => {
       unsubAuth();
       if (unsubNotifs) unsubNotifs();
+      if (unsubProfile) unsubProfile();
     };
   }, []);
 
@@ -53,11 +74,11 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
           <Logo size="sm" />
           <div className="hidden md:flex items-center gap-3 pl-6 border-l border-slate-100">
             <div className="w-10 h-10 bg-[#22C55E]/10 text-[#22C55E] rounded-xl flex items-center justify-center font-black text-xl">
-              {user?.displayName ? user.displayName[0] : 'S'}
+              {userProfile?.businessName?.[0] || user?.displayName?.[0] || 'S'}
             </div>
             <div>
               <h1 className="font-bold text-[#0B1D2A] leading-tight truncate max-w-[150px] md:max-w-none">
-                {user?.displayName || 'مطعم الأمل'}
+                {userProfile?.businessName || user?.displayName || 'مستخدم جديد'}
               </h1>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                 {user?.email || 'حساب مطعم'}

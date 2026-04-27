@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, MapPin, Loader2, DollarSign } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
@@ -52,9 +52,15 @@ export default function NewRequest() {
     setLoading(true);
     const path = 'requests';
     try {
+      let bName = auth.currentUser.displayName || 'مشتري';
+      const userSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userSnap.exists()) {
+         bName = userSnap.data().businessName || bName;
+      }
+
       const docRef = await addDoc(collection(db, path), {
         buyerId: auth.currentUser.uid,
-        buyerName: auth.currentUser.displayName || 'مطعم الأمل',
+        buyerName: bName,
         
         categoryId: selectedCategory.id,
         categoryName: selectedCategory.name,
@@ -320,7 +326,7 @@ export default function NewRequest() {
               <div className="flex items-start gap-3">
                 <MapPin className="text-danger w-6 h-6 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">{auth.currentUser?.displayName || 'مطعم الأمل'}</h3>
+                  <h3 className="font-bold text-sm text-slate-900">{auth.currentUser?.displayName || 'مستخدم جديد'}</h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium leading-relaxed">حدد موقعك الدقيق ليصل تنبيه للموردين في محيط منطقتك.</p>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { 
   collection, 
   query, 
+  where,
   getDocs, 
   doc, 
   getDoc, 
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'buyer' | 'supplier'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -287,12 +289,33 @@ export default function AdminDashboard() {
     setIsAddingUser(true);
     
     try {
+      const normalizedEmail = newUser.email.includes('@') ? newUser.email.toLowerCase() : `${newUser.email.toLowerCase()}@supplyx.com`;
+      
+      // Check if phone or email exists
+      const usersRef = collection(db, 'users');
+      const qPhone = query(usersRef, where('phone', '==', newUser.phone));
+      const qEmail = query(usersRef, where('email', '==', normalizedEmail));
+      
+      const [pSnap, eSnap] = await Promise.all([getDocs(qPhone), getDocs(qEmail)]);
+      
+      if (!pSnap.empty) {
+        toast.error('رقم الهاتف مسجل بالفعل لمستخدم آخر');
+        setIsAddingUser(false);
+        return;
+      }
+      
+      if (!eSnap.empty) {
+        toast.error('البريد الإلكتروني مسجل بالفعل لمستخدم آخر');
+        setIsAddingUser(false);
+        return;
+      }
+
       const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(firebaseConfig, 'SecondaryApp');
       const secondaryAuth = getSecondaryAuth(secondaryApp);
       
       const userCredential = await createUserWithEmailAndPassword(
         secondaryAuth, 
-        newUser.email.includes('@') ? newUser.email : `${newUser.email}@supplyx.com`, 
+        normalizedEmail, 
         newUser.password
       );
       
@@ -300,7 +323,7 @@ export default function AdminDashboard() {
       
       await setDoc(doc(db, 'users', newUid), {
         name: newUser.name,
-        email: newUser.email.includes('@') ? newUser.email : `${newUser.email}@supplyx.com`,
+        email: normalizedEmail,
         phone: newUser.phone,
         businessName: newUser.businessName,
         address: newUser.address,
@@ -571,11 +594,17 @@ export default function AdminDashboard() {
             {activeTab === 'users' && (
               <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between bg-slate-900 p-4 border border-slate-800 rounded-2xl">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-4">
                     <div className="flex rounded-lg bg-slate-800 p-1">
                       <button onClick={() => setRoleFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'all' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>الكل</button>
                       <button onClick={() => setRoleFilter('buyer')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'buyer' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>المشترين</button>
                       <button onClick={() => setRoleFilter('supplier')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'supplier' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>الموردين</button>
+                    </div>
+
+                    <div className="flex rounded-lg bg-slate-800 p-1">
+                      <button onClick={() => setStatusFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'all' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>حالة مجهولة</button>
+                      <button onClick={() => setStatusFilter('pending')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'pending' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>انتظار</button>
+                      <button onClick={() => setStatusFilter('approved')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'approved' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>مقبول</button>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -609,9 +638,15 @@ export default function AdminDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                       {users.filter(u => {
-                        const matchSearch = (u.name || '').includes(searchQuery) || (u.email || '').includes(searchQuery) || (u.businessName || '').includes(searchQuery);
+                        const searchLower = searchQuery.toLowerCase();
+                        const matchSearch = (u.name || '').toLowerCase().includes(searchLower) || 
+                                           (u.email || '').toLowerCase().includes(searchLower) || 
+                                           (u.businessName || '').toLowerCase().includes(searchLower) ||
+                                           (u.phone || '').includes(searchQuery) ||
+                                           (u.whatsappPhone || '').includes(searchQuery);
                         const matchRole = roleFilter === 'all' || u.role === roleFilter;
-                        return matchSearch && matchRole;
+                        const matchStatus = statusFilter === 'all' || u.status === statusFilter;
+                        return matchSearch && matchRole && matchStatus;
                       }).map((user: any) => (
                         <tr key={user.id} className={`transition ${user.status === 'pending' ? 'bg-amber-500/5' : 'hover:bg-slate-800/30'}`}>
                           <td className="px-6 py-4">

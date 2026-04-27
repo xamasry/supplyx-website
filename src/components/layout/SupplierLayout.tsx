@@ -4,18 +4,22 @@ import { Home, Package, Tag, BarChart2, User, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 
 export default function SupplierLayout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const path = location.pathname;
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     let unsubNotifs: (() => void) | null = null;
+    let unsubProfile: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -24,8 +28,22 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
         unsubNotifs();
         unsubNotifs = null;
       }
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
 
       if (u) {
+        unsubProfile = onSnapshot(doc(db, 'users', u.uid), (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setUserProfile(data);
+            if (data.status === 'pending' && !location.pathname.includes('/auth/pending')) {
+              navigate('/auth/pending');
+            }
+          }
+        });
+
         const q = query(
           collection(db, 'notifications'),
           where('userId', '==', u.uid),
@@ -36,12 +54,14 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
         }, (err) => console.error("SupplierLayout Notif error:", err));
       } else {
         setUnreadCount(0);
+        setUserProfile(null);
       }
     });
 
     return () => {
       unsubAuth();
       if (unsubNotifs) unsubNotifs();
+      if (unsubProfile) unsubProfile();
     };
   }, []);
 
@@ -54,11 +74,11 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
           <Logo size="sm" className="hidden md:flex" />
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#22C55E]/10 border-2 border-white overflow-hidden shadow-sm">
-              <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'مورد'}&background=22C55E&color=fff`} alt="Logo" className="w-full h-full object-cover" />
+              <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || user?.displayName || 'مورد')}&background=22C55E&color=fff`} alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="font-bold text-[#0B1D2A] leading-tight">
-                {user?.displayName || 'الشركة المتحدة'}
+                {userProfile?.businessName || user?.displayName || 'الشركة المتحدة'}
               </h1>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="relative flex h-2 w-2">

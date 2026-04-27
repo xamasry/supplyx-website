@@ -46,7 +46,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'masriboro@gmail.com'
+      );
     }
 
     function isRequestOwner(requestId) {
@@ -54,16 +57,38 @@ service cloud.firestore {
       return r.buyerId == request.auth.uid || r.userId == request.auth.uid;
     }
 
+    function isValidPaymentMethod(data) {
+      return data.keys().hasAll(['cardHolder', 'cardNumber', 'expiryDate', 'type', 'userId', 'createdAt'])
+        && data.cardHolder is string && data.cardHolder.size() <= 100
+        && data.cardNumber is string && data.cardNumber.size() <= 20
+        && data.expiryDate is string && data.expiryDate.size() <= 10
+        && data.type in ['visa', 'mastercard']
+        && data.userId == request.auth.uid;
+    }
+
     // -- COLLECTIONS --
+    
+    match /users {
+      allow list: if isSignedIn();
+    }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      allow read: if true;
+      allow write: if isAdmin() || isOwner(userId);
+
+      match /payment_methods/{methodId} {
+        allow read, write: if isAdmin() || isOwner(userId);
+      }
+    }
+
+    match /phone_verifications/{phone} {
+      allow read: if true;
+      allow write: if false;
     }
 
     match /admins/{userId} {
       allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /offers/{offerId} {
@@ -76,48 +101,68 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /notifications {
+      allow list, read, write: if isAdmin();
+      allow list: if isSignedIn();
+    }
+
     match /notifications/{notificationId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, write: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /requests {
+      allow read, write: if isAdmin();
+      allow list: if isSignedIn();
     }
 
     match /requests/{requestId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.userId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid ||
+        isAdmin()
+      );
       
       allow create: if isSignedIn() && 
         isValidId(requestId) && 
-        (incoming().buyerId == request.auth.uid || incoming().userId == request.auth.uid);
+        (incoming().buyerId == request.auth.uid || incoming().userId == request.auth.uid || isAdmin());
       
-      allow update: if (
-        isSignedIn() && (
+      allow update: if isSignedIn() && (
         isAdmin() ||
         
         // Action: Buyer/Owner
         ( (existing().buyerId == request.auth.uid || existing().userId == request.auth.uid) && 
-          incoming().diff(existing()).affectedKeys().hasAny(['status', 'acceptedBidId', 'supplierId', 'supplierName', 'price', 'deliveryTime', 'buyerConfirmPhone', 'buyerConfirmLocation', 'updatedAt', 'productName', 'quantity', 'category', 'description', 'location', 'coordinates'])) ||
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'acceptedBidId', 'supplierId', 'supplierName', 'price', 'deliveryTime', 'buyerConfirmPhone', 'buyerConfirmLocation', 'updatedAt', 'productName', 'quantity', 'category', 'description', 'location', 'coordinates', 'supplierPhone'])) ||
         
         // Action: Assigned Supplier
         ( (existing().supplierId == request.auth.uid) && 
           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
-
+  
         // Action: Public (counter update)
         ( incoming().diff(existing()).affectedKeys().hasOnly(['bidsCount', 'updatedAt']))
-        )
       );
-
+      
       allow delete: if isAdmin() || ( (existing().buyerId == request.auth.uid || existing().userId == request.auth.uid) && existing().status == 'active');
 
+      match /bids {
+        allow read, write: if isAdmin();
+        allow list: if isSignedIn();
+      }
+
       match /bids/{bidId} {
-        allow read: if isSignedIn();
+        allow read: if isSignedIn() && (
+          resource.data.supplierId == request.auth.uid ||
+          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid ||
+          get(/databases/$(database)/documents/requests/$(requestId)).data.userId == request.auth.uid ||
+          isAdmin()
+        );
         
         allow create: if isSignedIn() &&
           isValidId(bidId) &&
-          incoming().supplierId == request.auth.uid;
+          (incoming().supplierId == request.auth.uid || isAdmin());
         
-        allow update: if (
-          isSignedIn() && (
+        allow update: if isSignedIn() && (
           isAdmin() ||
           
           // Action: Supplier
@@ -127,25 +172,25 @@ service cloud.firestore {
           // Action: Buyer/Owner of Request
           (isRequestOwner(requestId) &&
            incoming().diff(existing()).affectedKeys().hasAny(['status', 'updatedAt']))
-          )
         );
-
+  
         allow delete: if isAdmin() || (existing().supplierId == request.auth.uid);
+      }
+  
+      match /messages {
+        allow read, write: if isAdmin();
+        allow list: if isSignedIn();
       }
 
       match /messages/{messageId} {
         allow read: if isSignedIn() && (
-          existing().buyerId == request.auth.uid || 
-          existing().userId == request.auth.uid || 
-          existing().supplierId == request.auth.uid ||
-          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid ||
-          get(/databases/$(database)/documents/requests/$(requestId)).data.supplierId == request.auth.uid
+          request.auth.uid in resource.data.participants || isAdmin()
         );
         allow create: if isSignedIn() && (
-          get(/databases/$(database)/documents/requests/$(requestId)).data.buyerId == request.auth.uid ||
-          get(/databases/$(database)/documents/requests/$(requestId)).data.supplierId == request.auth.uid
-        ) && incoming().senderId == request.auth.uid;
+          request.auth.uid in incoming().participants || isAdmin()
+        ) && (incoming().senderId == request.auth.uid || isAdmin());
       }
     }
+
   }
 }
