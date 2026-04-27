@@ -93,7 +93,8 @@ service cloud.firestore {
 
     match /offers/{offerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isSignedIn(); // We can add check for role if needed, but let's keep it simple
+      allow update, delete: if isAdmin() || (isSignedIn() && existing().supplierId == request.auth.uid);
     }
 
     match /settings/{settingId} {
@@ -118,6 +119,7 @@ service cloud.firestore {
 
     match /requests/{requestId} {
       allow read: if isSignedIn() && (
+        resource.data.status == 'active' ||
         resource.data.buyerId == request.auth.uid || 
         resource.data.userId == request.auth.uid || 
         resource.data.supplierId == request.auth.uid ||

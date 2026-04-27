@@ -14,7 +14,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, updateProfile as updateSecondaryProfile } from 'firebase/auth';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link, useNavigate } from 'react-router-dom';
 import { db, auth } from '../../lib/firebase';
@@ -320,14 +320,22 @@ export default function AdminDashboard() {
       );
       
       const newUid = userCredential.user.uid;
+
+      // Update profile display name for the new user
+      await updateSecondaryProfile(userCredential.user, {
+        displayName: newUser.businessName || newUser.name
+      });
       
       await setDoc(doc(db, 'users', newUid), {
         name: newUser.name,
         email: normalizedEmail,
         phone: newUser.phone,
+        whatsappPhone: newUser.phone,
+        whatsappOptIn: true,
         businessName: newUser.businessName,
         address: newUser.address,
         role: newUser.role,
+        status: 'approved',
         disabled: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
