@@ -50,8 +50,22 @@ export default function SignupPage() {
         toast.success('تم إرسال كود التحقق بنجاح');
         setPhone(formattedPhone);
         setStep(2);
+        if (data.mockCode) {
+           setVerificationCode(data.mockCode);
+           if (data.errorType === 'SANDBOX_RESTRICTION') {
+             toast.error(
+               `⚠️ تنبيه: واتساب في "وضع التجربة". لم تصل الرسالة لأن الرقم غير مضاف في Meta Dashboard. الكود هو: ${data.mockCode}`, 
+               { duration: 8000, style: { border: '1px solid #f59e0b', padding: '16px', color: '#92400e' } }
+             );
+           } else if (data.whatsappError) {
+             toast.error(`فشل واتساب: ${data.whatsappError}. الكود: ${data.mockCode}`, { duration: 6000 });
+           } else {
+             toast.success(`[تجريبي] تم إرسال الكود: ${data.mockCode}`);
+           }
+        }
       } else {
-        toast.error('فشل إرسال კود التحقق. تأكد من الرقم.');
+        const errorMsg = data.details ? `${data.error} (${data.details})` : (data.error || 'فشل إرسال كود التحقق. تأكد من الرقم.');
+        toast.error(errorMsg, { duration: 6000 });
       }
     } catch (error) {
       console.error(error);
@@ -70,8 +84,11 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
+      // Format phone to match server side storage
+      const formattedPhone = phone.startsWith('20') ? phone : '20' + phone.replace(/^0+/, '');
+      
       // Check code matching in firestore
-      const docRef = doc(db, 'phone_verifications', phone);
+      const docRef = doc(db, 'phone_verifications', formattedPhone);
       const docSnap = await getDoc(docRef);
       if (!docSnap.exists() || docSnap.data().code !== verificationCode) {
          toast.error('الكود غير صحيح، حاول مرة أخرى');
@@ -139,14 +156,14 @@ export default function SignupPage() {
                    <button 
                      type="button"
                      onClick={() => setRole('buyer')}
-                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'buyer' ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'buyer' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                    >
                      مشتري (مطعم)
                    </button>
                    <button 
                      type="button"
                      onClick={() => setRole('supplier')}
-                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'supplier' ? 'bg-primary-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                     className={`flex-1 py-3 px-4 rounded-xl font-bold transition-colors ${role === 'supplier' ? 'bg-[#22C55E] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                    >
                      مورد
                    </button>
@@ -160,7 +177,7 @@ export default function SignupPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold placeholder:font-normal text-right transition-shadow"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
                 placeholder="اسمك الثلاثي"
               />
             </div>
@@ -172,7 +189,7 @@ export default function SignupPage() {
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold placeholder:font-normal text-right transition-shadow"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
                 placeholder={role === 'buyer' ? 'اسم المطعم' : 'اسم شركة التوريد'}
               />
             </div>
@@ -184,7 +201,7 @@ export default function SignupPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold placeholder:font-normal text-right transition-shadow"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
                 dir="ltr"
                 placeholder="example@email.com"
               />
@@ -197,7 +214,7 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold placeholder:font-normal text-right transition-shadow"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
                 dir="ltr"
                 placeholder="••••••••"
               />
@@ -210,7 +227,7 @@ export default function SignupPage() {
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold placeholder:font-normal text-right transition-shadow"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
                 dir="ltr"
                 placeholder="01xxxxxxxxx"
               />
@@ -221,7 +238,7 @@ export default function SignupPage() {
               type="button"
               onClick={sendVerificationCode}
               disabled={loading || !name || !email || !password || !phone || !businessName}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
+              className="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-[#22C55E]/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'المتابعة للخطوة التالية'}
             </button>
@@ -229,11 +246,11 @@ export default function SignupPage() {
           </div>
         ) : (
           <form onSubmit={handleVerifyAndSignup} className="space-y-4">
-             <div className="bg-primary-50 p-4 rounded-xl border border-primary-100 mb-6 text-right">
-                <p className="text-sm text-primary-800 font-bold leading-relaxed">
-                   تم إرسال كود تحقق لرقم الواتساب: <span dir="ltr" className="inline-block bg-white px-2 py-0.5 rounded text-primary-600 ml-1">{phone}</span>
+             <div className="bg-green-50 p-4 rounded-xl border border-green-100 mb-6 text-right">
+                <p className="text-sm text-green-800 font-bold leading-relaxed">
+                   تم إرسال كود تحقق لرقم الواتساب: <span dir="ltr" className="inline-block bg-white px-2 py-0.5 rounded text-green-600 ml-1">{phone}</span>
                 </p>
-                <button type="button" onClick={() => setStep(1)} className="text-xs text-primary-600 font-bold mt-2 hover:underline">تعديل الرقم</button>
+                <button type="button" onClick={() => setStep(1)} className="text-xs text-green-600 font-bold mt-2 hover:underline">تعديل الرقم</button>
              </div>
              
             <div>
@@ -244,7 +261,7 @@ export default function SignupPage() {
                 maxLength={6}
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value)}
-                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold text-center tracking-widest text-2xl transition-shadow"
+                className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold text-center tracking-widest text-2xl transition-shadow"
                 dir="ltr"
                 placeholder="000000"
               />
@@ -253,7 +270,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading || verificationCode.length !== 6}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
+              className="w-full bg-[#22C55E] hover:bg-[#16A34A] text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-[#22C55E]/25 flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:shadow-none"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'تأكيد وإنشاء الحساب'}
             </button>

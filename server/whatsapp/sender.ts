@@ -1,11 +1,24 @@
-const WHATSAPP_API_URL = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
-const HEADERS = {
-  'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
-  'Content-Type': 'application/json'
-};
+function getWhatsAppConfig() {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  if (!token || !phoneId) {
+    console.warn('WhatsApp API credentials missing (WHATSAPP_ACCESS_TOKEN or WHATSAPP_PHONE_NUMBER_ID)');
+  }
+
+  return {
+    url: `https://graph.facebook.com/v19.0/${phoneId}/messages`,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  };
+}
 
 // ===== إرسال رسالة نصية عادية =====
 export async function sendTextMessage(to: string, text: string): Promise<string | null> {
+  const { url, headers } = getWhatsAppConfig();
+  
   const body = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
@@ -15,15 +28,15 @@ export async function sendTextMessage(to: string, text: string): Promise<string 
   };
 
   try {
-    const res = await fetch(WHATSAPP_API_URL, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: HEADERS as any,
+      headers: headers as any,
       body: JSON.stringify(body)
     });
     const data: any = await res.json();
     if (!res.ok) {
-      console.error('WhatsApp send error:', data);
-      return null;
+      console.error('WhatsApp API Error (sendTextMessage):', JSON.stringify(data, null, 2));
+      return data; // Return the full error object
     }
     return data.messages?.[0]?.id || null;
   } catch (err) {
@@ -39,6 +52,7 @@ export async function sendButtonMessage(
   buttons: { id: string; title: string }[],
   headerText?: string
 ): Promise<string | null> {
+  const { url, headers } = getWhatsAppConfig();
   const body = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
@@ -60,12 +74,15 @@ export async function sendButtonMessage(
   };
 
   try {
-    const res = await fetch(WHATSAPP_API_URL, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: HEADERS as any,
+      headers: headers as any,
       body: JSON.stringify(body)
     });
     const data: any = await res.json();
+    if (!res.ok) {
+       console.error('WhatsApp API Error (sendButtonMessage):', JSON.stringify(data, null, 2));
+    }
     return data.messages?.[0]?.id || null;
   } catch (err) {
     console.error('Button message error:', err);
@@ -80,6 +97,7 @@ export async function sendListMessage(
   buttonLabel: string,
   sections: { title: string; rows: { id: string; title: string; description?: string }[] }[]
 ): Promise<string | null> {
+  const { url, headers } = getWhatsAppConfig();
   const body = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
@@ -96,12 +114,15 @@ export async function sendListMessage(
   };
 
   try {
-    const res = await fetch(WHATSAPP_API_URL, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: HEADERS as any,
+      headers: headers as any,
       body: JSON.stringify(body)
     });
     const data: any = await res.json();
+    if (!res.ok) {
+       console.error('WhatsApp API Error (sendListMessage):', JSON.stringify(data, null, 2));
+    }
     return data.messages?.[0]?.id || null;
   } catch (err) {
     console.error('List message error:', err);
@@ -115,6 +136,7 @@ export async function sendTemplateMessage(
   templateName: string,
   components: any[]
 ): Promise<string | null> {
+  const { url, headers } = getWhatsAppConfig();
   const body = {
     messaging_product: "whatsapp",
     to,
@@ -127,12 +149,15 @@ export async function sendTemplateMessage(
   };
 
   try {
-    const res = await fetch(WHATSAPP_API_URL, {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: HEADERS as any,
+      headers: headers as any,
       body: JSON.stringify(body)
     });
     const data: any = await res.json();
+    if (!res.ok) {
+       console.error('WhatsApp API Error (sendTemplateMessage):', JSON.stringify(data, null, 2));
+    }
     return data.messages?.[0]?.id || null;
   } catch (err) {
     console.error('Template message error:', err);

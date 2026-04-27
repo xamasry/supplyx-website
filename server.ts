@@ -46,23 +46,43 @@ async function startServer() {
 
     try {
       const { sendTextMessage } = await import('./server/whatsapp/sender');
+      
+      // Format phone to international format (assuming Egypt +20)
+      const formattedPhone = phone.startsWith('20') ? phone : '20' + phone.replace(/^0+/, '');
+      
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       
       const { setDoc } = await import('firebase/firestore');
       
-      await setDoc(doc(db, 'phone_verifications', phone), {
+      await setDoc(doc(db, 'phone_verifications', formattedPhone), {
         code,
         expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
       });
 
       const message = `كود التحقق الخاص بك في SupplyX هو: *${code}*\n\nالرجاء إدخال هذا الكود في صفحة التسجيل.`;
-      const response = await sendTextMessage(phone, message);
+      console.log(`[WhatsApp Attempt] Sending OTP to: ${formattedPhone}`);
+      const response = await sendTextMessage(formattedPhone, message) as any;
+      console.log(`[WhatsApp Response]`, JSON.stringify(response));
       
-      if (!response) {
-        throw new Error('Failed to send WhatsApp message');
+      let whatsappError = null;
+      let errorType = null;
+
+      if (response && typeof response === 'object' && 'error' in response) {
+        const err = response.error;
+        whatsappError = err.message;
+        errorType = err.code === 131030 ? 'SANDBOX_RESTRICTION' : 'API_ERROR';
+        console.error(`WhatsApp Error [${errorType}]:`, whatsappError);
+      } else if (!response) {
+        whatsappError = 'لم يتم استلام رد من خادم واتساب';
+        errorType = 'CONNECTION_ERROR';
       }
 
-      res.json({ success: true });
+      res.json({ 
+        success: true, 
+        mockCode: (!response || errorType) ? code : undefined,
+        whatsappError: whatsappError,
+        errorType: errorType
+      });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Failed to send verification code' });
