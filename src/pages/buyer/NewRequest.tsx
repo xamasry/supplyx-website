@@ -6,27 +6,7 @@ import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebas
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import toast from 'react-hot-toast';
-
-const CATEGORIES = [
-  { id: '1', name: 'مشروبات', icon: '🥤', products: ['بيبسي كانز', 'مياه معدنية', 'عصير جهينة', 'سفن اب'] },
-  { id: '2', name: 'لحوم ودواجن', icon: '🥩', products: ['فراخ بانيه', 'لحمة مفرومة', 'كبدة', 'سجق'] },
-  { id: '3', name: 'ألبان وأجبان', icon: '🥛', products: ['لبن كامل الدسم', 'جبنة رومي', 'جبنة موتزاريلا', 'زبادي'] },
-  { id: '4', name: 'خضار وفاكهة', icon: '🥬', products: ['طماطم', 'بصل', 'بطاطس', 'ليمون'] },
-  { id: '5', name: 'مجمدات', icon: '🧊', products: ['بامية مجمدة', 'ملوخية مجمدة', 'بطاطس نص مقلية', 'برجر'] },
-  { id: '6', name: 'حبوب وبقوليات', icon: '🍚', products: ['أرز بسمتي', 'فول', 'عدس', 'مكرونة'] },
-  { id: '7', name: 'زيوت وتوابل', icon: '🛢️', products: ['زيت قلي', 'زيت زيتون', 'سمنة', 'خل'] },
-  { id: '8', name: 'مخبوزات', icon: '🥖', products: ['عيش شامي', 'فينو', 'بقسماط', 'توست'] },
-  { id: '9', name: 'قهوة وشاي', icon: '☕', products: ['بن محوج', 'نسكافيه', 'شاي ليبتون', 'أعشاب'] },
-  { id: '10', name: 'عصائر ومركزات', icon: '🧃', products: ['شربات فيتراك', 'عصير مانجو', 'ليمون نعناع'] },
-  { id: '11', name: 'حلويات', icon: '🍫', products: ['شوكولاتة', 'كيك', 'بسكويت', 'كريمة'] },
-  { id: '12', name: 'بهارات وصوصات', icon: '🧂', products: ['فلفل أسود', 'كمون', 'كاتشب', 'مايونيز'] },
-  { id: '13', name: 'ورقيات', icon: '📄', products: ['مناديل سحب', 'رول تواليت', 'مناديل مطبخ', 'ورق زبدة'] },
-  { id: '14', name: 'أكواب وأدوات', icon: '🥤', products: ['أكواب بلاستيك', 'شوك', 'ملاعق', 'أطباق فوم'] },
-  { id: '15', name: 'عبوات وتغليف', icon: '🫙', products: ['شنط بلاستيك', 'استرتش', 'فويل ورق المونيوم'] },
-  { id: '16', name: 'مواد تنظيف', icon: '🧴', products: ['صابون سايل', 'كلور', 'ديتول', 'معطر'] },
-  { id: '17', name: 'معدات وأدوات', icon: '🔌', products: ['سكاكين', 'قطاعات', 'خلاط'] },
-  { id: '18', name: 'طلب مخصوص', icon: '✨', products: [] },
-];
+import { CATEGORIES } from '../../constants';
 
 export default function NewRequest() {
   const navigate = useNavigate();

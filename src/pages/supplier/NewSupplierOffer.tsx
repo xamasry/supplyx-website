@@ -4,10 +4,12 @@ import { ChevronRight, Upload, Percent, Loader2 } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { CATEGORIES } from '../../constants';
 
 export default function NewSupplierOffer() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [offerPrice, setOfferPrice] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,14 +47,22 @@ export default function NewSupplierOffer() {
       return;
     }
 
+    if (!categoryId) {
+      toast.error('يرجى اختيار تصنيف للعرض');
+      return;
+    }
+
     setLoading(true);
     try {
       const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
+      const category = CATEGORIES.find(c => c.id === categoryId);
       
       const offerData = {
         supplierId: auth.currentUser.uid,
         supplierName: auth.currentUser.displayName || 'مورد بنها',
         title: title.trim(),
+        categoryId: categoryId,
+        categoryName: category?.name || '',
         originalPrice: origPrice,
         offerPrice: offPrice,
         discount: `${discountVal}%`,
@@ -99,6 +109,21 @@ export default function NewSupplierOffer() {
             className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all" 
             required
            />
+         </div>
+
+         <div className="space-y-2 text-right">
+            <label className="text-sm font-bold text-slate-700">تصنيف العرض</label>
+            <select 
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all appearance-none font-bold text-slate-700"
+              required
+            >
+              <option value="">اختر التصنيف...</option>
+              {CATEGORIES.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+              ))}
+            </select>
          </div>
 
          <div className="grid grid-cols-2 gap-4">

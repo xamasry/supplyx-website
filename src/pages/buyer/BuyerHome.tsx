@@ -7,27 +7,7 @@ import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp,
 import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-
-const CATEGORIES = [
-  { id: '1', name: 'مشروبات', icon: '🥤' },
-  { id: '2', name: 'لحوم ودواجن', icon: '🥩' },
-  { id: '3', name: 'ألبان وأجبان', icon: '🥛' },
-  { id: '4', name: 'خضار وفاكهة', icon: '🥬' },
-  { id: '5', name: 'مجمدات', icon: '🧊' },
-  { id: '6', name: 'حبوب وبقوليات', icon: '🍚' },
-  { id: '7', name: 'زيوت وتوابل', icon: '🛢️' },
-  { id: '8', name: 'مخبوزات', icon: '🥖' },
-  { id: '9', name: 'قهوة وشاي', icon: '☕' },
-  { id: '10', name: 'عصائر ومركزات', icon: '🧃' },
-  { id: '11', name: 'حلويات', icon: '🍫' },
-  { id: '12', name: 'بهارات وصوصات', icon: '🧂' },
-  { id: '13', name: 'ورقيات', icon: '📄' },
-  { id: '14', name: 'أكواب وأدوات', icon: '🥤' },
-  { id: '15', name: 'عبوات وتغليف', icon: '🫙' },
-  { id: '16', name: 'مواد تنظيف', icon: '🧴' },
-  { id: '17', name: 'معدات وأدوات', icon: '🔌' },
-  { id: '18', name: 'طلب مخصوص', icon: '✨' },
-];
+import { CATEGORIES } from '../../constants';
 
 export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -244,14 +224,21 @@ export default function BuyerHome() {
       </section>
 
       {/* Categories */}
-      <section className="md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-4 bg-[var(--color-primary)] text-white rounded-3xl p-6 shadow-inner flex flex-col items-center">
+      <section className="md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-4 bg-[var(--color-primary)] text-white rounded-3xl p-6 shadow-inner flex flex-col items-center overflow-hidden">
         <h3 className="w-full text-lg font-bold mb-4 flex justify-between items-center font-display">
           التصنيفات
-          <Link to="/buyer/home" className="text-[10px] opacity-60 font-normal hover:opacity-100 transition-opacity">عرض الكل</Link>
+          <span className="text-[10px] opacity-60 font-normal">عرض الكل</span>
         </h3>
-        <div className="grid grid-cols-2 gap-3 w-full pb-2">
+        <div className="grid grid-cols-2 gap-3 w-full pb-2 overflow-y-auto hide-scrollbar max-h-[500px]">
           {CATEGORIES.map((c, i) => (
-            <div key={c.id} className={cn("bg-white/10 p-3 lg:p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/20 transition-colors", i === CATEGORIES.length - 1 && "text-[var(--color-accent)]")}>
+            <div 
+              key={c.id} 
+              onClick={() => navigate(`/buyer/request/new`)}
+              className={cn(
+                "bg-white/10 p-3 lg:p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/20 transition-colors transform hover:scale-95 active:scale-90",
+                i === CATEGORIES.length - 1 && "text-[var(--color-accent)]"
+              )}
+            >
               <span className="text-2xl lg:text-3xl mb-1">{c.icon}</span>
               <span className="text-[11px] font-bold leading-tight">{c.name}</span>
             </div>

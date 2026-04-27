@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Store, Truck, Shield, Zap, CheckCircle2, Star, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import Logo from '../components/ui/Logo';
+import { CATEGORIES } from '../constants';
 
 export default function LandingPage() {
   return (
@@ -185,6 +186,38 @@ export default function LandingPage() {
                    <p className="text-sm font-bold text-white/60">مورد موثوق</p>
                 </div>
              </div>
+          </div>
+        </section>
+
+        {/* Categories Preview */}
+        <section className="py-24 px-6 bg-slate-50">
+          <div className="max-w-7xl mx-auto text-center space-y-12">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-black text-[#0B1D2A] tracking-tight">غطينا لك كل احتياجاتك</h2>
+              <p className="text-slate-500 max-w-2xl mx-auto text-lg font-medium">
+                اكثر من 18 تصنيف متخصص لجميع مستلزمات المطاعم، المقاهي، وخدمات التغذية.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {CATEGORIES.slice(0, 12).map((cat) => (
+                <motion.div 
+                  key={cat.id}
+                  whileHover={{ y: -5 }}
+                  className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col items-center gap-3 group transition-all hover:border-[#22C55E]/50 hover:shadow-md"
+                >
+                  <span className="text-4xl group-hover:scale-110 transition-transform">{cat.icon}</span>
+                  <span className="font-bold text-slate-800 text-sm">{cat.name}</span>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="pt-8">
+               <Link to="/auth/signup" className="text-[#22C55E] font-bold flex items-center justify-center gap-2 group">
+                 <span>تصفح جميع التصنيفات والمنتجات</span>
+                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+               </Link>
+            </div>
           </div>
         </section>
       </main>
