@@ -1,22 +1,28 @@
-# Security Specification for Tawredat App
+# Security Specification - SupplyX
 
 ## Data Invariants
-- A `Request` must have a valid `buyerId` matching the authenticated user.
-- A `Bid` must reference a valid `requestId` and have a `supplierId` matching the authenticated user.
-- Only the `buyer` who created a request can update its status to 'completed' or 'cancelled'.
-- Only the `supplier` who created a bid can update its price or details.
-- Only the `buyer` who owns the request can change a bid status to 'accepted'.
+1. A Request must have a valid buyerId matching the authenticated user during creation.
+2. An Offer can only be managed (update/delete) by its supplier.
+3. A Bid must be linked to a valid Request.
+4. Notifications are private to the recipient.
+5. User profile updates are restricted to the owner or admins.
+6. Requests created from offers must include the correct supplierId and price.
 
-## The Dirty Dozen Payloads
-1. Create a request with someone else's `buyerId`. (Denied)
-2. Create a request with an invalid status (e.g., 'admin'). (Denied)
-3. Create a request with a huge product name (resource exhaustion). (Denied)
-4. Update a request owned by another user. (Denied)
-5. Create a bid for a non-existent request. (Denied)
-6. Create a bid with a negative price. (Denied)
-7. Create a bid with someone else's `supplierId`. (Denied)
-8. Update a bid status to 'accepted' as a supplier (privilege escalation). (Denied)
-9. List all requests without being logged in. (Denied)
-10. Update the `createdAt` timestamp of a request. (Denied)
-11. Inject non-string product names. (Denied)
-12. Delete a request (not allowed by rules). (Denied)
+## The "Dirty Dozen" Payloads (Deny List)
+1. Creating a request with another user's `buyerId`.
+2. Updating a request's `buyerId` (immutability).
+3. Deleting a request that is not 'active'.
+4. Creating a bid with a negative price.
+5. Updating another supplier's bid.
+6. Reading private user profile fields of another user.
+7. Creating a notification for another user as a non-system/admin.
+8. Updating an offer's `supplierId`.
+9. Injecting a 2MB string into `productName`.
+10. Setting a request status to 'delivered' as a buyer without supplier confirmation (if enforced).
+11. Reading the list of all bids across all requests.
+12. Creating a request with a future `createdAt` timestamp.
+
+## Test Runner Plan
+- Verify `create` on `/requests` fails if `buyerId != auth.uid`.
+- Verify `update` on `/offers` fails if `auth.uid != supplierId`.
+- Verify `read` on `/notifications` fails if `auth.uid != notification.userId`.

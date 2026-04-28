@@ -10,8 +10,11 @@ export default function NewSupplierOffer() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [offerPrice, setOfferPrice] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [unit, setUnit] = useState('كيلو');
   const [loading, setLoading] = useState(false);
 
   const calcDiscount = () => {
@@ -63,10 +66,13 @@ export default function NewSupplierOffer() {
         title: title.trim(),
         categoryId: categoryId,
         categoryName: category?.name || '',
+        categoryIcon: category?.icon || '✨',
         originalPrice: origPrice,
         offerPrice: offPrice,
         discount: `${discountVal}%`,
-        image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300&q=80',
+        image: imageUrl.trim() || null,
+        quantity: Number(quantity) || 1,
+        unit: unit || 'كيلو',
         status: 'active',
         views: 0,
         orders: 0,
@@ -138,6 +144,38 @@ export default function NewSupplierOffer() {
            </div>
          </div>
 
+         <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 text-right">
+               <label className="text-sm font-bold text-slate-700">الكمية (لكل سعر)</label>
+               <input 
+                 type="number" 
+                 value={quantity}
+                 onChange={(e) => setQuantity(e.target.value)}
+                 className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold text-right" 
+                 required
+               />
+            </div>
+            <div className="space-y-2 text-right">
+               <label className="text-sm font-bold text-slate-700">الوحدة</label>
+               <select 
+                 value={unit}
+                 onChange={(e) => setUnit(e.target.value)}
+                 className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold text-right appearance-none"
+               >
+                 <option value="كيلو">كيلو</option>
+                 <option value="جرام">جرام</option>
+                 <option value="كرتونة">كرتونة</option>
+                 <option value="علبة">علبة</option>
+                 <option value="قطعة">قطعة</option>
+                 <option value="شوال">شوال</option>
+                 <option value="لتر">لتر</option>
+                 <option value="متر">متر</option>
+                 <option value="بالتة">بالتة</option>
+                 <option value="دستة">دستة</option>
+               </select>
+            </div>
+         </div>
+
          {calcDiscount() > 0 && (
            <div className="bg-[var(--color-success)]/10 text-[var(--color-success)] p-3 rounded-xl flex items-center justify-between font-bold border border-[var(--color-success)]/20">
              <span>نسبة الخصم المحسوبة:</span>
@@ -145,10 +183,20 @@ export default function NewSupplierOffer() {
            </div>
          )}
 
-         <button type="button" className="w-full py-6 border-2 border-dashed border-slate-300 rounded-2xl mt-2 flex flex-col items-center justify-center gap-2 hover:bg-slate-50 transition-colors text-slate-500">
-            <Upload className="w-6 h-6" />
-            <span className="text-sm font-bold">صورة المنتج أو العرض</span>
-         </button>
+         <div className="space-y-2 text-right">
+            <label className="text-sm font-bold text-slate-700">رابط صورة المنتج (اختياري)</label>
+            <div className="relative">
+              <input 
+               type="url" 
+               value={imageUrl}
+               onChange={(e) => setImageUrl(e.target.value)}
+               placeholder="https://example.com/image.jpg" 
+               className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-mono text-sm pl-12" 
+              />
+              <Upload className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+            </div>
+            <p className="text-[10px] text-slate-400 font-medium">إذا لم تضع صورة، سنقوم باستخدام أيقونة التصنيف تلقائياً</p>
+         </div>
 
          <button 
           type="submit" 

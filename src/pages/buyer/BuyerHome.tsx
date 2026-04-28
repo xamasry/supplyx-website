@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Flame, Clock, ChevronLeft, Package, Loader2 } from 'lucide-react';
+import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -72,61 +72,96 @@ export default function BuyerHome() {
 
   const navigate = useNavigate();
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderQuantity, setOrderQuantity] = useState('1');
+  const [orderAddress, setOrderAddress] = useState('');
+  const [orderPhone, setOrderPhone] = useState('');
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
-  const handleOrder = async (offer: any) => {
-    console.log('handleOrder triggered for offer:', offer.id);
-    if (!auth.currentUser) {
-      toast.error('يرجى تسجيل الدخول أولاً');
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('المتصفح لا يدعم تحديد الموقع');
       return;
     }
 
-    setIsOrdering(offer.id);
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error('Location error:', error);
+        setIsGettingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  };
+
+  const handleOrder = async () => {
+    if (!selectedOffer || !auth.currentUser) return;
+
+    setIsOrdering(selectedOffer.id);
     try {
-      console.log('Starting order process for user:', auth.currentUser.uid);
       const orderRef = collection(db, 'requests');
       const newOrder = {
         buyerId: auth.currentUser.uid,
         buyerName: userProfile?.businessName || auth.currentUser.displayName || 'مشتري',
-        productName: offer.title,
-        quantity: '1',
-        unit: 'وحدة',
+        productName: selectedOffer.title,
+        quantity: orderQuantity,
+        unit: selectedOffer.unit || 'وحدة',
         category: 'عروض خاصة',
         status: 'accepted',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        supplierId: offer.supplierId,
-        supplierName: offer.supplierName,
-        price: offer.offerPrice,
+        supplierId: selectedOffer.supplierId,
+        supplierName: selectedOffer.supplierName,
+        price: selectedOffer.offerPrice,
         deliveryTime: 45,
-        notes: `طلب مباشر من العرض: ${offer.title}`,
-        offerId: offer.id
+        notes: `طلب مباشر من العرض: ${selectedOffer.title}`,
+        offerId: selectedOffer.id,
+        address: orderAddress,
+        phone: orderPhone,
+        totalAmount: (Number(selectedOffer.offerPrice) * Number(orderQuantity)) / (Number(selectedOffer.quantity) || 1),
+        coordinates: location
       };
 
-      const docRef = await addDoc(orderRef, newOrder);
-      console.log('Order created successfully:', docRef.id);
+      await addDoc(orderRef, newOrder);
       
-      // Update offer stats
-      if (offer.id) {
-        await updateDoc(doc(db, 'offers', offer.id), {
-          orders: increment(1),
-          updatedAt: serverTimestamp()
-        }).catch(err => console.error('Error updating offer stats:', err));
+      if (selectedOffer.id) {
+        try {
+          await updateDoc(doc(db, 'offers', selectedOffer.id), {
+            orders: increment(1),
+            updatedAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error('Error updating offer orders count:', err);
+        }
       }
       
-      await addDoc(collection(db, 'notifications'), {
-        userId: offer.supplierId,
-        title: 'طلب جديد من عرضك!',
-        message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء عرضك "${offer.title}".`,
-        type: 'bid_accepted',
-        read: false,
-        createdAt: serverTimestamp(),
-        link: `/supplier/orders`
-      }).catch(err => console.error('Error creating notification:', err));
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          userId: selectedOffer.supplierId,
+          title: 'طلب جديد من عرضك!',
+          message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء ${orderQuantity} ${selectedOffer.unit} من عرضك "${selectedOffer.title}".`,
+          type: 'bid_accepted',
+          read: false,
+          createdAt: serverTimestamp(),
+          link: `/supplier/orders`
+        });
+      } catch (err) {
+        console.error('Error sending notification:', err);
+      }
 
       toast.success('تم إرسال الطلب بنجاح!');
+      setShowOrderModal(false);
       navigate('/buyer/orders');
     } catch (error) {
-      console.error('Error creating order:', error);
       handleFirestoreError(error, OperationType.CREATE, 'requests');
     } finally {
       setIsOrdering(null);
@@ -278,9 +313,29 @@ export default function BuyerHome() {
         <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
           {offers.map(offer => (
             <div key={offer.id} className="min-w-[280px] md:min-w-[320px] bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl p-3 flex gap-3 snap-start hover:border-[var(--color-primary)] transition-colors">
-              <div className="w-20 h-20 bg-slate-200 rounded-xl relative overflow-hidden shrink-0">
-                <img src={offer.image} alt={offer.title} className="w-full h-full object-cover" />
-                <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl">خصم {offer.discount}</div>
+              <div className="w-20 h-20 bg-white rounded-xl relative overflow-hidden shrink-0 flex items-center justify-center border border-slate-100">
+                {offer.image ? (
+                  <img 
+                    src={offer.image} 
+                    alt={offer.title} 
+                    className="w-full h-full object-cover" 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                
+                <div className={cn(
+                  "flex flex-col items-center justify-center",
+                  offer.image ? "hidden" : ""
+                )}>
+                  <span className="text-3xl filter drop-shadow-sm">
+                    {offer.categoryIcon || CATEGORIES.find(c => c.id === offer.categoryId || c.name === offer.category)?.icon || '✨'}
+                  </span>
+                </div>
+
+                <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl z-10">خصم {offer.discount}</div>
               </div>
               <div className="flex-1 flex flex-col justify-between text-right">
                 <div>
@@ -289,15 +344,27 @@ export default function BuyerHome() {
                 </div>
                 <div className="flex justify-between items-end mt-1">
                   <div className="flex flex-col">
-                     <span className="text-[var(--color-danger)] font-bold">{offer.offerPrice} ج.م</span>
+                     <div className="flex items-center gap-1">
+                       <span className="text-[var(--color-danger)] font-bold">{offer.offerPrice} ج.م</span>
+                       {offer.unit && (
+                         <span className="text-[9px] text-slate-500 font-medium">/ {offer.quantity || 1} {offer.unit}</span>
+                       )}
+                     </div>
                      <span className="text-[10px] text-slate-400 line-through">{offer.originalPrice} ج</span>
                   </div>
                   <button 
-                    onClick={() => handleOrder(offer)}
+                    onClick={() => {
+                      setSelectedOffer(offer);
+                      setOrderQuantity(String(offer.quantity || 1));
+                      setOrderAddress(userProfile?.address || '');
+                      setOrderPhone(userProfile?.phone || '');
+                      setShowOrderModal(true);
+                      requestLocation();
+                    }}
                     disabled={!!isOrdering}
                     className="text-[10px] bg-[var(--color-primary)] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
                   >
-                    {isOrdering === offer.id ? 'جاري...' : 'اطلب الآن'}
+                    اطلب الآن
                   </button>
                 </div>
               </div>
@@ -311,6 +378,125 @@ export default function BuyerHome() {
         </div>
       </section>
 
+      {/* Order Confirmation Modal */}
+      {showOrderModal && selectedOffer && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="relative h-32 bg-[var(--color-primary)] flex items-center justify-center overflow-hidden">
+               <div className="absolute inset-0 opacity-10">
+                 <div className="absolute top-0 left-0 w-24 h-24 bg-white rounded-full -mt-12 -ml-12" />
+                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full -mb-16 -mr-16" />
+               </div>
+               <h2 className="text-white text-2xl font-black relative z-10">تأكيد طلب العرض</h2>
+               <button 
+                 onClick={() => setShowOrderModal(false)}
+                 className="absolute top-6 left-6 bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition-colors"
+                >
+                 <X className="w-5 h-5" />
+               </button>
+            </div>
+
+            <div className="p-8 space-y-6 text-right">
+              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                <div className="w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center text-3xl shrink-0">
+                  {selectedOffer.categoryIcon || CATEGORIES.find(c => c.id === selectedOffer.categoryId || c.name === selectedOffer.category || c.name === selectedOffer.categoryName)?.icon || '✨'}
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-800 leading-tight">{selectedOffer.title}</h3>
+                  <p className="text-xs text-slate-500 font-bold mt-1">السعر: {selectedOffer.offerPrice} ج.م / {selectedOffer.quantity} {selectedOffer.unit}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
+                    الكمية المطلوبة ({selectedOffer.unit})
+                    <ShoppingBag className="w-4 h-4 text-[var(--color-primary)]" />
+                  </label>
+                  <input 
+                    type="number"
+                    value={orderQuantity}
+                    onChange={(e) => setOrderQuantity(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
+                    min="1"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
+                    عنوان التوصيل
+                    <MapPin className="w-4 h-4 text-[var(--color-primary)]" />
+                  </label>
+                  <input 
+                    type="text"
+                    value={orderAddress}
+                    onChange={(e) => setOrderAddress(e.target.value)}
+                    placeholder="ادخل عنوان التوصيل بالتفصيل..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-bold focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
+                    رقم الهاتف للتواصل
+                    <Phone className="w-4 h-4 text-[var(--color-primary)]" />
+                  </label>
+                  <input 
+                    type="tel"
+                    value={orderPhone}
+                    onChange={(e) => setOrderPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all font-mono"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  {!location ? (
+                    <button 
+                      onClick={requestLocation}
+                      disabled={isGettingLocation}
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-all border border-slate-200"
+                    >
+                      {isGettingLocation ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <MapPin className="w-3.5 h-3.5" />
+                      )}
+                      {isGettingLocation ? 'جاري تحديد موقعك...' : 'تحديد موقعي الحالي للتوصيل بدقة'}
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-2xl text-xs font-bold border border-green-100">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      تم تحديد موقعك بنجاح
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <div className="flex justify-between items-center mb-6 px-2">
+                  <span className="text-2xl font-black text-[var(--color-primary)]">
+                    {((Number(selectedOffer.offerPrice) * Number(orderQuantity)) / (Number(selectedOffer.quantity) || 1)).toFixed(2)} ج.م
+                  </span>
+                  <span className="text-slate-500 font-black">إجمالي المبلغ التقريبي</span>
+                </div>
+
+                <button 
+                  onClick={handleOrder}
+                  disabled={!orderQuantity || !orderAddress || !orderPhone || !!isOrdering}
+                  className="w-full bg-[var(--color-primary)] text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-[var(--color-primary)]/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3"
+                >
+                  {isOrdering ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-6 h-6" />
+                  )}
+                  {isOrdering ? 'جاري الطلب...' : 'تأكيد وإرسال الطلب'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

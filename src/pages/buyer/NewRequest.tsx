@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, MapPin, Loader2, DollarSign } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -34,6 +34,12 @@ export default function NewRequest() {
       c.products.some(p => p.includes(searchQuery))
     );
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (step === 3 && !location && !geoError) {
+      getLocation();
+    }
+  }, [step, location, geoError, getLocation]);
 
   const finalProductName = showCustomProductInput ? customProductValue : productName;
 
