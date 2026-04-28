@@ -39,8 +39,10 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
   }, []);
 
   useEffect(() => {
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(err => console.error('Notification permission error:', err));
+      }
     }
   }, []);
 
@@ -60,11 +62,15 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
       if (!loading && msgs.length > messages.length) {
         const lastMsg = msgs[msgs.length - 1];
         if (lastMsg.senderId !== auth.currentUser?.uid) {
-          if (Notification.permission === 'granted' && document.hidden) {
-            new Notification(`رسالة جديدة من ${lastMsg.senderName}`, {
-              body: lastMsg.text,
-              icon: '/pwa-192x192.png'
-            });
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
+            try {
+              new Notification(`رسالة جديدة من ${lastMsg.senderName}`, {
+                body: lastMsg.text,
+                icon: '/pwa-192x192.png'
+              });
+            } catch (err) {
+              console.error('Error creating notification:', err);
+            }
           }
         }
       }
@@ -115,7 +121,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
   }
 
   return (
-    <div className="flex flex-col h-[500px] bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden font-sans">
+    <div className="flex flex-col h-full sm:h-[500px] bg-white sm:rounded-3xl border-0 sm:border border-slate-200 shadow-none sm:shadow-sm overflow-hidden font-sans">
       <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center">
           <User className="w-4 h-4" />
