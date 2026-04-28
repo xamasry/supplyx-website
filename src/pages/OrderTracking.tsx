@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Package, Clock, CheckCircle2, ChevronRight, MessageCircle, MapPin, Upload, Loader2, Phone, Star } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useState, useEffect } from 'react';
-import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import Chat from '../components/Chat';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ export default function OrderTracking() {
   const isSupplier = location.pathname.includes('/supplier/');
   
   const [request, setRequest] = useState<any>(null);
+  const [collectionName, setCollectionName] = useState<string>('requests');
   const [loading, setLoading] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [rating, setRating] = useState(0);
@@ -22,42 +23,60 @@ export default function OrderTracking() {
   useEffect(() => {
     if (!id) return;
 
-    // Try requests collection first
-    const requestRef = doc(db, 'requests', id);
-    const unsubRequest = onSnapshot(requestRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setRequest({ id: snapshot.id, ...snapshot.data() });
-        setLoading(false);
-      } else {
-        // Try orders collection if request not found
+    let unsubRequest: (() => void) | null = null;
+    let unsubOrder: (() => void) | null = null;
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        // If not logged in, we can't fetch. Wait for auth.
+        return;
+      }
+
+      // If already fetching, don't restart
+      if (unsubRequest) return;
+
+      const requestRef = doc(db, 'requests', id);
+      unsubRequest = onSnapshot(requestRef, (snapshot) => {
+        if (snapshot.exists()) {
+          setRequest({ id: snapshot.id, ...snapshot.data() });
+          setCollectionName('requests');
+          setLoading(false);
+        } else {
+          const orderRef = doc(db, 'orders', id);
+          unsubOrder = onSnapshot(orderRef, (orderSnap) => {
+            if (orderSnap.exists()) {
+              setRequest({ id: orderSnap.id, ...orderSnap.data() });
+              setCollectionName('orders');
+            } else {
+              setRequest(null);
+            }
+            setLoading(false);
+          }, (err) => {
+            console.error('Order fetch error:', err);
+            setLoading(false);
+          });
+        }
+      }, (error) => {
+        console.error('Request fetch error:', error);
         const orderRef = doc(db, 'orders', id);
-        const unsubOrder = onSnapshot(orderRef, (orderSnap) => {
+        unsubOrder = onSnapshot(orderRef, (orderSnap) => {
           if (orderSnap.exists()) {
             setRequest({ id: orderSnap.id, ...orderSnap.data() });
-          } else {
-            setRequest(null);
+            setCollectionName('orders');
           }
           setLoading(false);
         }, (err) => {
-          console.error('Order fetch error:', err);
+          console.error('Order fallback fetch error:', err);
           setLoading(false);
         });
-        
-        return () => unsubOrder();
-      }
-    }, (error) => {
-      console.error('Request fetch error:', error);
-      // Don't fail yet, maybe it's in orders
-      const orderRef = doc(db, 'orders', id);
-      onSnapshot(orderRef, (orderSnap) => {
-        if (orderSnap.exists()) {
-          setRequest({ id: orderSnap.id, ...orderSnap.data() });
-        }
-        setLoading(false);
       });
     });
 
-    return () => unsubRequest();
+    return () => {
+      unsubAuth();
+      if (unsubRequest) unsubRequest();
+      if (unsubOrder) unsubOrder();
+    };
   }, [id]);
 
   const updateStatus = async (newStatus: string) => {
@@ -148,6 +167,7 @@ export default function OrderTracking() {
                   requestId={id!} 
                   receiverId={(isSupplier ? request.buyerId : request.supplierId) || ''} 
                   receiverName={(isSupplier ? request.buyerName : request.supplierName) || 'المستخدم'} 
+                  collectionName={collectionName}
                 />
               </div>
            </div>

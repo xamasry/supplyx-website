@@ -24,9 +24,10 @@ interface ChatProps {
   requestId: string;
   receiverId: string;
   receiverName: string;
+  collectionName?: string;
 }
 
-export default function Chat({ requestId, receiverId, receiverName }: ChatProps) {
+export default function Chat({ requestId, receiverId, receiverName, collectionName = 'requests' }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -49,7 +50,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
   useEffect(() => {
     if (!requestId) return;
 
-    const messagesRef = collection(db, 'requests', requestId, 'messages');
+    const messagesRef = collection(db, collectionName, requestId, 'messages');
     const q = query(messagesRef, orderBy('createdAt', 'asc'), limit(100));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -58,23 +59,6 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
         ...doc.data()
       })) as Message[];
       
-      // Handle browser notifications for new messages
-      if (!loading && msgs.length > messages.length) {
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg.senderId !== auth.currentUser?.uid) {
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
-            try {
-              new Notification(`رسالة جديدة من ${lastMsg.senderName}`, {
-                body: lastMsg.text,
-                icon: '/pwa-192x192.png'
-              });
-            } catch (err) {
-              console.error('Error creating notification:', err);
-            }
-          }
-        }
-      }
-
       setMessages(msgs);
       setLoading(false);
       
@@ -85,7 +69,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
         }
       }, 100);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `requests/${requestId}/messages`);
+      handleFirestoreError(error, OperationType.LIST, `${collectionName}/${requestId}/messages`);
       setLoading(false);
     });
 
@@ -100,7 +84,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
     setNewMessage('');
 
     try {
-      await addDoc(collection(db, 'requests', requestId, 'messages'), {
+      await addDoc(collection(db, collectionName, requestId, 'messages'), {
         text,
         senderId: auth.currentUser.uid,
         senderName: auth.currentUser.displayName || 'مستخدم',
@@ -108,7 +92,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
         participants: [auth.currentUser.uid, receiverId]
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `requests/${requestId}/messages`);
+      handleFirestoreError(error, OperationType.CREATE, `${collectionName}/${requestId}/messages`);
     }
   };
 
@@ -121,8 +105,8 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
   }
 
   return (
-    <div className="flex flex-col h-full sm:h-[500px] bg-white sm:rounded-3xl border-0 sm:border border-slate-200 shadow-none sm:shadow-sm overflow-hidden font-sans">
-      <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+    <div className="flex flex-col h-full sm:h-[500px] bg-white sm:rounded-3xl border-0 sm:border border-slate-200 shadow-none sm:shadow-sm overflow-hidden font-sans min-h-0">
+      <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3 shrink-0">
         <div className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] flex items-center justify-center">
           <User className="w-4 h-4" />
         </div>
@@ -166,7 +150,7 @@ export default function Chat({ requestId, receiverId, receiverName }: ChatProps)
 
       <form 
         onSubmit={handleSendMessage}
-        className="p-4 border-t border-slate-100 bg-white flex gap-2"
+        className="p-4 border-t border-slate-100 bg-white flex gap-2 shrink-0"
       >
         <input 
           type="text" 
