@@ -101,35 +101,91 @@ async function startServer() {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'spa',
+      appType: 'custom',
     });
     app.use(vite.middlewares);
 
     app.get('*', async (req, res, next) => {
       const url = req.originalUrl;
+      const originalPath = req.path;
+      
+      // Skip API routes
+      if (url.startsWith('/api')) {
+        console.log(`[API 404] Missing endpoint: ${url}`);
+        return next();
+      }
+
+      // Skip common static file extensions - standard Vite middleware should have caught these
+      // if they existed. If they didn't, we might not want to serve index.html for them.
+      if (originalPath.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|json|woff|woff2|ttf|otf)$/)) {
+        return next();
+      }
+
       try {
-        let template = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+        const indexPath = path.resolve(process.cwd(), 'index.html');
+        if (!fs.existsSync(indexPath)) {
+          console.error(`[SPA Error] index.html not found at ${indexPath}`);
+          return res.status(404).send('index.html not found');
+        }
+        
+        let template = fs.readFileSync(indexPath, 'utf-8');
         template = await vite.transformIndexHtml(url, template);
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
-        next(e);
+        console.error(`[Vite Transform Error] URL: ${url}`, e);
+        res.status(500).json({ error: 'Internal Server Error during Vite transformation' });
       }
     });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
     
-    // Serve index.html for any request that doesn't match a static file or API route
+    // Serve static files from dist
+    app.use(express.static(distPath, { index: false }));
+    
+    // Serve index.html for all other routes (SPA Fallback)
     app.get('*', (req, res) => {
+      const url = req.url;
+      
+      // Skip API routes
+      if (url.startsWith('/api')) {
+        return res.status(404).json({ error: 'API route not found' });
+      }
+
+      // Skip files with extensions that weren't found by express.static
+      if (req.path.includes('.')) {
+        return res.status(404).send('File not found');
+      }
+
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
+        console.error(`[Production SPA Error] Build not found at ${indexPath}`);
         res.status(404).send('Build not found. Please run npm run build.');
       }
     });
   }
+
+  // Final 404 Catch-all (for things that reached here, like missing APIs)
+  app.use((req, res) => {
+    console.log(`[404] No route matched for ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ 
+      error: 'Not Found', 
+      path: req.originalUrl,
+      help: 'If this is a UI route, ensure SPA fallback is working. If this is an API, check the endpoint path.'
+    });
+  });
+
+  // Global Error Handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(`[Global Error] ${req.method} ${req.url}`, err);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: err.message,
+      stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    });
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
