@@ -4,6 +4,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { auth, db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
 
 export default function SupplierProfile() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function SupplierProfile() {
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isInvoicesModalOpen, setIsInvoicesModalOpen] = useState(false);
   
   // Form states
   const [editFormData, setEditFormData] = useState({
@@ -224,13 +226,16 @@ export default function SupplierProfile() {
                 <p className="text-[10px] text-slate-500 mt-0.5">إعدادات الإشعارات للمناطق المدعومة</p>
               </div>
             </button>
-            <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full">
+            <button 
+              onClick={() => setIsInvoicesModalOpen(true)}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full"
+            >
               <div className="w-10 h-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center shrink-0">
                 <FileText className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-slate-900 text-sm">تسوية الحسابات</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5">سجل التحويلات والمستحقات المعلقة</p>
+                <h4 className="font-bold text-slate-900 text-sm">الفواتير والتقارير المالية</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">سجل المبيعات والمستحقات المكتملة</p>
               </div>
             </button>
             <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative w-full">
@@ -389,6 +394,13 @@ export default function SupplierProfile() {
           </div>
         </div>
       )}
+
+      {/* Invoices and Reports Modal */}
+      <InvoicesAndReportsModal 
+        isOpen={isInvoicesModalOpen} 
+        onClose={() => setIsInvoicesModalOpen(false)} 
+        role="supplier" 
+      />
     </div>
   );
 }

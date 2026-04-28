@@ -81,26 +81,26 @@ export default function OrderTracking() {
 
   const updateStatus = async (newStatus: string) => {
     if (!id || !request) return;
-    const collectionName = request.productName ? (request.requestId ? 'requests' : 'orders') : 'requests';
-    // Actually, we can check which collection the doc belongs to or just try both
     try {
-      // First try updating in requests
-      await updateDoc(doc(db, 'requests', id), {
+      const updateData = {
         status: newStatus,
         updatedAt: serverTimestamp(),
         ...(newStatus === 'delivered' && !isSupplier ? { buyerConfirmed: true } : {})
-      });
-    } catch (error) {
+      };
+
+      // 1. Try to update the main identified collection
+      await updateDoc(doc(db, collectionName, id), updateData);
+
+      // 2. Try the fallback collection silently just in case there's a duplication ghosting issue
+      const otherCollection = collectionName === 'requests' ? 'orders' : 'requests';
       try {
-        // Then try in orders
-        await updateDoc(doc(db, 'orders', id), {
-          status: newStatus,
-          updatedAt: serverTimestamp(),
-          ...(newStatus === 'delivered' && !isSupplier ? { buyerConfirmed: true } : {})
-        });
-      } catch (err2) {
-        handleFirestoreError(err2, OperationType.UPDATE, `orders/${id}`);
-      }
+         await updateDoc(doc(db, otherCollection, id), updateData);
+      } catch (e) { /* Ignore */ }
+      
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${id}`);
+      toast.error('لم نتمكن من تحديث الطلب، ربما تم حذفه! جار إعادة التوجيه...');
+      throw error;
     }
   };
 
@@ -426,14 +426,18 @@ export default function OrderTracking() {
           )}
 
           {/* Cancellation Button */}
-          {statusLevel < 3 && statusLevel >= 1 && (
+          {statusLevel < 4 && statusLevel >= 1 && (
             <div className="mt-4 pt-4 border-t border-slate-100">
               <button 
                 onClick={async () => {
                   if (window.confirm('هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟')) {
-                    await updateStatus('cancelled');
-                    toast.success('تم إلغاء الطلب بنجاح');
-                    navigate(isSupplier ? '/supplier/orders' : '/buyer/orders');
+                    try {
+                      await updateStatus('cancelled');
+                      toast.success('تم إلغاء الطلب بنجاح');
+                      navigate(isSupplier ? '/supplier/orders' : '/buyer/orders');
+                    } catch (err) {
+                      console.error("Cancellation failed", err);
+                    }
                   }
                 }}
                 className="w-full py-3 text-xs font-bold text-red-500 hover:text-red-700 transition-colors flex items-center justify-center gap-2"
