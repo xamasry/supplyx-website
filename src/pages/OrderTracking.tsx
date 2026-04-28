@@ -16,40 +16,72 @@ export default function OrderTracking() {
   const [request, setRequest] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showChat, setShowChat] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   useEffect(() => {
     if (!id) return;
 
-    const docRef = doc(db, 'requests', id);
-    const unsub = onSnapshot(docRef, (snapshot) => {
+    // Try requests collection first
+    const requestRef = doc(db, 'requests', id);
+    const unsubRequest = onSnapshot(requestRef, (snapshot) => {
       if (snapshot.exists()) {
         setRequest({ id: snapshot.id, ...snapshot.data() });
+        setLoading(false);
       } else {
-        // Maybe it's not a request but something else?
-        // For now assume it's a request
+        // Try orders collection if request not found
+        const orderRef = doc(db, 'orders', id);
+        const unsubOrder = onSnapshot(orderRef, (orderSnap) => {
+          if (orderSnap.exists()) {
+            setRequest({ id: orderSnap.id, ...orderSnap.data() });
+          } else {
+            setRequest(null);
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error('Order fetch error:', err);
+          setLoading(false);
+        });
+        
+        return () => unsubOrder();
       }
-      setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `requests/${id}`);
-      setLoading(false);
+      console.error('Request fetch error:', error);
+      // Don't fail yet, maybe it's in orders
+      const orderRef = doc(db, 'orders', id);
+      onSnapshot(orderRef, (orderSnap) => {
+        if (orderSnap.exists()) {
+          setRequest({ id: orderSnap.id, ...orderSnap.data() });
+        }
+        setLoading(false);
+      });
     });
 
-    return () => unsub();
+    return () => unsubRequest();
   }, [id]);
 
-  const [rating, setRating] = useState(0);
-  const [ratingSubmitted, setRatingSubmitted] = useState(false);
-
   const updateStatus = async (newStatus: string) => {
-    if (!id) return;
+    if (!id || !request) return;
+    const collectionName = request.productName ? (request.requestId ? 'requests' : 'orders') : 'requests';
+    // Actually, we can check which collection the doc belongs to or just try both
     try {
+      // First try updating in requests
       await updateDoc(doc(db, 'requests', id), {
         status: newStatus,
         updatedAt: serverTimestamp(),
         ...(newStatus === 'delivered' && !isSupplier ? { buyerConfirmed: true } : {})
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `requests/${id}`);
+      try {
+        // Then try in orders
+        await updateDoc(doc(db, 'orders', id), {
+          status: newStatus,
+          updatedAt: serverTimestamp(),
+          ...(newStatus === 'delivered' && !isSupplier ? { buyerConfirmed: true } : {})
+        });
+      } catch (err2) {
+        handleFirestoreError(err2, OperationType.UPDATE, `orders/${id}`);
+      }
     }
   };
 

@@ -114,6 +114,18 @@ service cloud.firestore {
       }
     }
 
+    match /orders/{orderId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow list, get, create: if isSignedIn();
+      }
+    }
+
     match /notifications/{notificationId} {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
