@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, Trash2, ChevronLeft, Clock, Info, CheckCircle2 } from 'lucide-react';
+import Logo from '../components/ui/Logo';
 import { cn } from '../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
 import { 
@@ -156,10 +157,12 @@ export default function Notifications() {
                 <div className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
                   notif.type === 'bid_accepted' ? "bg-green-100 text-green-600" : 
-                  notif.type === 'new_bid' ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-600"
+                  notif.type === 'new_bid' ? "bg-blue-100 text-blue-600" : 
+                  notif.type === 'broadcast' ? "bg-white border border-slate-100 scale-90" : "bg-slate-100 text-slate-600"
                 )}>
                   {notif.type === 'bid_accepted' ? <CheckCircle2 className="w-6 h-6" /> : 
-                   notif.type === 'new_bid' ? <Bell className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+                   notif.type === 'new_bid' ? <Bell className="w-6 h-6" /> : 
+                   notif.type === 'broadcast' ? <Logo size="sm" /> : <Info className="w-6 h-6" />}
                 </div>
                 
                 <div className="flex-1 min-w-0 pr-4 text-right">

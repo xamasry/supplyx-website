@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { 
   collection, 
@@ -11,7 +11,8 @@ import {
   onSnapshot, 
   deleteDoc,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, updateProfile as updateSecondaryProfile } from 'firebase/auth';
@@ -44,6 +45,7 @@ import {
   Phone,
   Store
 } from 'lucide-react';
+import { CATEGORIES } from '../../constants';
 import { 
   BarChart, 
   Bar, 
@@ -60,7 +62,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'settings';
+type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'settings' | 'broadcast' | 'categories';
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -76,7 +78,8 @@ export default function AdminDashboard() {
     platformProfit: 0,
     suppliersCount: 0,
     buyersCount: 0,
-    bidsCount: 0
+    bidsCount: 0,
+    pendingUsers: 0
   });
   
   const [users, setUsers] = useState<any[]>([]);
@@ -96,18 +99,30 @@ export default function AdminDashboard() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' as 'all' | 'buyer' | 'supplier' });
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
   const navigate = useNavigate();
+  const unsubscribes = useRef<(() => void)[]>([]);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!auth.currentUser) {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (!user) {
         setIsAdmin(false);
         setLoading(false);
         return;
       }
 
+      // Special check for super admin by email
+      const superAdminEmail = 'masriboro@gmail.com';
+      if (user.email === superAdminEmail) {
+        setIsAdmin(true);
+        startStreamingData();
+        return;
+      }
+
       try {
-        const adminDoc = await getDoc(doc(db, 'admins', auth.currentUser.uid));
+        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
         if (adminDoc.exists()) {
           setIsAdmin(true);
           startStreamingData();
@@ -120,9 +135,12 @@ export default function AdminDashboard() {
         setIsAdmin(false);
         setLoading(false);
       }
-    };
+    });
 
-    checkAdmin();
+    return () => {
+      unsubscribe();
+      unsubscribes.current.forEach(u => u());
+    };
   }, []);
 
   useEffect(() => {
@@ -289,6 +307,10 @@ export default function AdminDashboard() {
   }, [requests, reportType, rates]);
 
   const startStreamingData = () => {
+    // Clear any existing unsubscribes
+    unsubscribes.current.forEach(u => u());
+    unsubscribes.current = [];
+
     // 1. Orders/Requests Stream
     const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -296,6 +318,7 @@ export default function AdminDashboard() {
     }, (error) => {
       console.error("Admin Requests Snapshot Error:", error);
     });
+    unsubscribes.current.push(unsubRequests);
 
     // 2. Users Stream
     const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -304,11 +327,13 @@ export default function AdminDashboard() {
       setStats(prev => ({
         ...prev,
         suppliersCount: data.filter((u: any) => u.role === 'supplier').length,
-        buyersCount: data.filter((u: any) => u.role === 'buyer').length
+        buyersCount: data.filter((u: any) => u.role === 'buyer').length,
+        pendingUsers: data.filter((u: any) => u.status === 'pending').length
       }));
     }, (error) => {
       console.error("Admin Users Snapshot Error:", error);
     });
+    unsubscribes.current.push(unsubUsers);
 
     // 3. Offers Stream
     const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
@@ -316,6 +341,7 @@ export default function AdminDashboard() {
     }, (error) => {
       console.error("Admin Offers Snapshot Error:", error);
     });
+    unsubscribes.current.push(unsubOffers);
 
     // 4. Settings Stream
     const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
@@ -330,14 +356,9 @@ export default function AdminDashboard() {
     }, (error) => {
       console.error("Admin Settings Snapshot Error:", error);
     });
+    unsubscribes.current.push(unsubSettings);
 
     setLoading(false);
-    return () => {
-      unsubRequests();
-      unsubUsers();
-      unsubOffers();
-      unsubSettings();
-    };
   };
 
   const handleDeleteItem = async (collectionName: string, id: string) => {
@@ -433,6 +454,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcast.title || !broadcast.message) {
+      toast.error('يرجى ملء جميع الحقول');
+      return;
+    }
+
+    setIsSendingBroadcast(true);
+    try {
+      const targetUsers = broadcast.target === 'all' 
+        ? users 
+        : users.filter(u => u.role === broadcast.target);
+      
+      const batch = writeBatch(db);
+      targetUsers.forEach(user => {
+        const notifRef = doc(collection(db, 'notifications'));
+        batch.set(notifRef, {
+          userId: user.id,
+          title: broadcast.title,
+          message: broadcast.message,
+          type: 'broadcast',
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      await batch.commit();
+      toast.success(`تم إرسال الإشعار لـ ${targetUsers.length} مستخدم`);
+      setBroadcast({ title: '', message: '', target: 'all' });
+    } catch (err) {
+      console.error("Error sending broadcast:", err);
+      toast.error('فشل إرسال الإشعار');
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -471,6 +529,8 @@ export default function AdminDashboard() {
             <NavItem icon={<Users className="w-5 h-5" />} label="المستخدمين" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="العروض" active={activeTab === 'offers'} onClick={() => setActiveTab('offers')} />
             <NavItem icon={<ArrowRightLeft className="w-5 h-5" />} label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
+            <NavItem icon={<Tag className="w-5 h-5" />} label="الخدمات والأصناف" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} />
+            <NavItem icon={<Mail className="w-5 h-5" />} label="بث إشعارات" active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} />
             <NavItem icon={<DollarSign className="w-5 h-5" />} label="المالية والأرباح" active={activeTab === 'finances'} onClick={() => setActiveTab('finances')} />
             <NavItem icon={<AlertCircle className="w-5 h-5" />} label="الإعدادات" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
           </nav>
@@ -496,6 +556,8 @@ export default function AdminDashboard() {
              activeTab === 'users' ? 'إدارة المستخدمين' :
              activeTab === 'offers' ? 'التحكم في العروض' :
              activeTab === 'requests' ? 'متابعة الطلبات' :
+             activeTab === 'categories' ? 'إدارة الأصناف والخدمات' :
+             activeTab === 'broadcast' ? 'بث رسائل للنظام' :
              activeTab === 'finances' ? 'الأداء المالي' : 'الإعدادات العامة'}
           </h2>
 
@@ -546,7 +608,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <StatCard label="إجمالي الإيرادات" value={`${stats.totalRevenue.toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
                   <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="أرباح العمليات" color="sky" />
-                  <StatCard label="الطلبات الكلية" value={stats.totalOrders} icon={<ShoppingBag />} trend="حي" color="amber" />
+                  <StatCard label="طلبات انتظار المراجعة" value={stats.pendingUsers} icon={<Users />} trend="مستخدم جديد" color="amber" />
                   <StatCard label="قاعدة المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="متزايد" color="indigo" />
                 </div>
 
@@ -852,25 +914,34 @@ export default function AdminDashboard() {
             {activeTab === 'requests' && (
               <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 
-                <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2">
-                  <button 
-                    onClick={() => setRequestFilter('fast')} 
-                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
-                    الطلبات السريعة
-                  </button>
-                  <button 
-                    onClick={() => setRequestFilter('bulk')} 
-                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'bulk' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
-                    مناقصات الجملة
-                  </button>
-                  <button 
-                    onClick={() => setRequestFilter('offer')} 
-                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'offer' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
-                  >
-                    عروض التجار
-                  </button>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2 flex-1">
+                    <button 
+                      onClick={() => setRequestFilter('fast')} 
+                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      الطلبات السريعة
+                    </button>
+                    <button 
+                      onClick={() => setRequestFilter('bulk')} 
+                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'bulk' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      مناقصات الجملة
+                    </button>
+                    <button 
+                      onClick={() => setRequestFilter('offer')} 
+                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'offer' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                    >
+                      عروض التجار
+                    </button>
+                  </div>
+
+                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-1 gap-1">
+                    <button onClick={() => setRequestsStatusFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>الكل</button>
+                    <button onClick={() => setRequestsStatusFilter('active')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'active' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-white'}`}>نشط</button>
+                    <button onClick={() => setRequestsStatusFilter('delivered')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'delivered' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-white'}`}>مكتمل</button>
+                    <button onClick={() => setRequestsStatusFilter('cancelled')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'cancelled' ? 'bg-red-500 text-white' : 'text-slate-500 hover:text-white'}`}>ملغي</button>
+                  </div>
                 </div>
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
@@ -881,17 +952,23 @@ export default function AdminDashboard() {
                           <th className="px-6 py-4">المشتري</th>
                           <th className="px-6 py-4">المورد</th>
                           <th className="px-6 py-4">السعر</th>
+                          <th className="px-6 py-4 whitespace-nowrap">التاريخ</th>
                           <th className="px-6 py-4">الحالة</th>
                           <th className="px-6 py-4">إجراءات</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
                         {requests
-                          .filter(r => (r.productName || '').includes(searchQuery))
+                          .filter(r => (r.productName || '').toLowerCase().includes(searchQuery.toLowerCase()))
                           .filter(r => {
                             if (requestFilter === 'bulk') return r.requestType === 'bulk';
                             if (requestFilter === 'offer') return !!r.offerId;
                             return r.requestType !== 'bulk' && !r.offerId;
+                          })
+                          .filter(r => {
+                            if (requestsStatusFilter === 'all') return true;
+                            if (requestsStatusFilter === 'active') return r.status !== 'delivered' && r.status !== 'cancelled';
+                            return r.status === requestsStatusFilter;
                           })
                           .map((r: any) => (
                           <tr key={r.id} className="hover:bg-slate-800/30 transition">
@@ -901,9 +978,16 @@ export default function AdminDashboard() {
                                 <div className="text-[10px] text-slate-500 mt-1">تتضمن {r.items.length} منتجات</div>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-xs text-slate-400">{r.buyerName || 'مشتري'}</td>
-                            <td className="px-6 py-4 text-xs text-slate-400">{r.supplierName || 'بانتظار عرض'}</td>
+                            <td className="px-6 py-4 text-xs text-slate-400">
+                               <p className="font-bold text-slate-300">{r.buyerName || 'مشتري'}</p>
+                            </td>
+                            <td className="px-6 py-4 text-xs text-slate-400">
+                               <p className="italic">{r.supplierName || 'بانتظار عرض'}</p>
+                            </td>
                             <td className="px-6 py-4 font-bold text-emerald-500 text-sm whitespace-nowrap">{r.price || 0} ج.م</td>
+                            <td className="px-6 py-4 text-[10px] text-slate-500 italic whitespace-nowrap">
+                               {r.createdAt ? new Date(r.createdAt).toLocaleDateString('ar-EG') : '-'}
+                            </td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(r.status)}`}>
                                 {getStatusLabel(r.status)}
@@ -927,6 +1011,109 @@ export default function AdminDashboard() {
                     }).length === 0 && (
                      <div className="p-12 text-center text-slate-500 italic">لا توجد طلبات هنا</div>
                    )}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'categories' && (
+              <motion.div key="categories" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-amber-500 text-sm font-bold flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>تنبيه: يتم تحميل الأصناف حالياً من ملف الإعدادات الأساسي. التعديل البرمجي مطلوب لإضافة أصناف جديدة في النسخة الحالية.</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {CATEGORIES.map((cat: any) => (
+                    <div key={cat.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-primary-500/30 transition-colors">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{cat.icon}</span>
+                          <h3 className="font-bold text-white">{cat.name}</h3>
+                        </div>
+                        <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded">ID: {cat.id}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">المنتجات المقترحة ({cat.products.length}):</p>
+                        <div className="flex flex-wrap gap-2">
+                          {cat.products.map((p: string, i: number) => (
+                            <span key={i} className="text-[10px] bg-slate-800 border border-slate-700 text-slate-300 px-2 py-1 rounded-md">
+                              {p}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'broadcast' && (
+              <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="p-3 bg-primary-500/10 rounded-2xl">
+                      <Mail className="w-8 h-8 text-primary-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">بث إشعار عام للنظام</h3>
+                      <p className="text-slate-400 text-sm">أرسل رسالة فورية إلى جميع المستخدمين أو فئة معينة</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleBroadcast} className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-2">الفئة المستهدفة</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {['all', 'buyer', 'supplier'].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setBroadcast({...broadcast, target: t as any})}
+                            className={`py-3 rounded-xl border font-bold text-xs transition ${
+                              broadcast.target === t 
+                                ? 'bg-primary-500 border-primary-500 text-white shadow-lg' 
+                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                            }`}
+                          >
+                            {t === 'all' ? 'الكل' : t === 'buyer' ? 'المشترين' : 'الموردين'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-2">عنوان الرسالة</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={broadcast.title}
+                        onChange={(e) => setBroadcast({...broadcast, title: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-4 focus:ring-2 focus:ring-primary-500 outline-none"
+                        placeholder="مثال: تحديث جديد في النظام، عرض خاص للموردين..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-2">محتوى الرسالة</label>
+                      <textarea 
+                        required
+                        rows={4}
+                        value={broadcast.message}
+                        onChange={(e) => setBroadcast({...broadcast, message: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-4 focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+                        placeholder="اكتب تفاصيل الرسالة هنا..."
+                      ></textarea>
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={isSendingBroadcast}
+                      className="w-full py-4 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white font-bold rounded-xl transition shadow-lg shadow-primary-500/20"
+                    >
+                      {isSendingBroadcast ? 'جاري البث...' : 'إرسال الإشعار الآن'}
+                    </button>
+                  </form>
                 </div>
               </motion.div>
             )}

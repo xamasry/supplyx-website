@@ -77,7 +77,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow list: if isAdmin();
+      allow get: if isSignedIn();
       allow create, update: if isOwner(userId) || isAdmin();
       
       match /payment_methods/{methodId} {
@@ -100,7 +101,8 @@ service cloud.firestore {
     }
 
     match /requests/{requestId} {
-      allow list, get: if isSignedIn();
+      allow list: if isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+      allow get: if isAdmin() || isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isAdmin();
