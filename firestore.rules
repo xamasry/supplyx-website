@@ -95,19 +95,15 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isSignedIn() && existing().supplierId == request.auth.uid);
     }
 
+    match /requests/{requestId}/bids/{bidId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /requests/{requestId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      
-      allow create: if isSignedIn() && 
-        (incoming().buyerId == request.auth.uid || incoming().userId == request.auth.uid || isAdmin());
-      
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isAdmin();
-
-      match /bids/{bidId} {
-        allow list, get, write: if isSignedIn();
-      }
 
       match /messages/{messageId} {
         allow list, get, create: if isSignedIn();

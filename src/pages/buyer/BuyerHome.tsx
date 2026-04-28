@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
@@ -168,7 +168,7 @@ export default function BuyerHome() {
     }
   };
 
-  const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status));
+  const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status) && !isRequestExpired(r));
 
   return (
     <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-4 pb-6 md:pb-0 relative">
@@ -183,16 +183,28 @@ export default function BuyerHome() {
           <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
         </div>
         
-        <Link 
-          to="/buyer/request/new"
-          className="flex-1 bg-[var(--color-danger)] text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-3 shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform"
-        >
-          <div className="relative z-10 flex flex-col items-center">
-             <span className="text-xs font-bold bg-white/20 px-3 py-1.5 rounded mb-3">🆘 طارئ جداً</span>
-             <h2 className="text-2xl font-bold font-display text-center leading-tight mt-1">طلب خامة<br/>ناقصة</h2>
-          </div>
-          <Flame className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12" />
-        </Link>
+        <div className="flex gap-4 h-[140px] md:h-auto md:flex-1">
+          <Link 
+            to="/buyer/request/new"
+            className="flex-1 bg-[var(--color-danger)] text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform"
+          >
+            <div className="relative z-10 flex flex-col items-center">
+               <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded mb-1">سريع (ساعات)</span>
+               <h2 className="text-lg font-bold font-display text-center leading-tight">طلب طارئ</h2>
+            </div>
+            <Flame className="absolute -right-4 -bottom-4 w-20 h-20 opacity-10 rotate-12" />
+          </Link>
+          <Link 
+            to="/buyer/request/new?type=bulk"
+            className="flex-1 bg-slate-900 text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform border border-slate-700"
+          >
+            <div className="relative z-10 flex flex-col items-center">
+               <span className="text-[10px] font-bold bg-white/10 px-2 py-1 rounded mb-1 border border-white/10">مناقصة 48h</span>
+               <h2 className="text-lg font-bold font-display text-center leading-tight">صفقة جملة</h2>
+            </div>
+            <Package className="absolute -left-4 -bottom-4 w-20 h-20 opacity-5 -rotate-12" />
+          </Link>
+        </div>
       </div>
 
       {/* Stats Cards (Desktop Only) to fill grid */}
@@ -236,6 +248,11 @@ export default function BuyerHome() {
             activeRequests.map(req => (
               <Link key={req.id} to={`/buyer/request/${req.id}`} className="block bg-[var(--color-brand-bg)] border border-[var(--color-primary)]/10 p-4 rounded-2xl flex items-start justify-between hover:bg-slate-100 transition-colors relative overflow-hidden shrink-0">
                 <div className={cn("absolute top-0 right-0 w-1 h-full bg-[var(--color-danger)]")}></div>
+                {req.requestType === 'bulk' && (
+                  <div className="absolute top-0 left-0 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-br-xl flex items-center gap-1 border-r border-b border-slate-700">
+                    <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+                  </div>
+                )}
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 leading-tight">{req.productName}</h3>
                   <p className="text-xs text-slate-600 mt-1 mb-2">الكمية: {req.quantity}</p>

@@ -36,3 +36,26 @@ export function formatArabicDate(date: Date): string {
     minute: 'numeric',
   }).format(date);
 }
+
+export function isRequestExpired(request: any): boolean {
+  if (!request) return false;
+  if (['delivered', 'cancelled'].includes(request.status)) return false;
+  
+  const INACTIVITY_LIMIT_MS = request.requestType === 'bulk' ? 48 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  
+  let lastActivity = 0;
+  if (request.updatedAt?.toMillis) {
+    lastActivity = request.updatedAt.toMillis();
+  } else if (request.createdAt?.toMillis) {
+    lastActivity = request.createdAt.toMillis();
+  } else if (request.updatedAt) {
+    lastActivity = new Date(request.updatedAt).getTime();
+  } else if (request.createdAt) {
+    lastActivity = new Date(request.createdAt).getTime();
+  }
+  
+  if (!lastActivity || isNaN(lastActivity)) return false;
+  return (now - lastActivity > INACTIVITY_LIMIT_MS);
+}
+

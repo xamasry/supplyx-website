@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Search, MapPin, Loader2, DollarSign } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ChevronRight, Search, MapPin, Loader2, DollarSign, Package } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
@@ -10,6 +10,8 @@ import { CATEGORIES } from '../../constants';
 
 export default function NewRequest() {
   const navigate = useNavigate();
+  const locationSearch = useLocation().search;
+  const isBulk = new URLSearchParams(locationSearch).get('type') === 'bulk';
   const [step, setStep] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -25,6 +27,9 @@ export default function NewRequest() {
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   
+  // Bulk specific state
+  const [bulkItems, setBulkItems] = useState<{productName: string, quantity: number, unit: string}[]>([]);
+
   const { location, loading: geoLoading, error: geoError, getLocation } = useGeolocation();
 
   const filteredCategories = useMemo(() => {
@@ -43,6 +48,27 @@ export default function NewRequest() {
 
   const finalProductName = showCustomProductInput ? customProductValue : productName;
 
+  const handleAddBulkItem = () => {
+    if (!finalProductName || isNaN(Number(quantity)) || Number(quantity) <= 0 || !unit) {
+      toast.error('يرجى تحديد المنتج والكمية الصحيحة');
+      return;
+    }
+    setBulkItems([...bulkItems, { 
+      productName: finalProductName, 
+      quantity: Number(quantity), 
+      unit 
+    }]);
+    // Reset product selection for next item
+    setProductName('');
+    setCustomProductValue('');
+    setShowCustomProductInput(false);
+    setQuantity('1');
+  };
+
+  const handleRemoveBulkItem = (index: number) => {
+    setBulkItems(bulkItems.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!auth.currentUser) {
       toast.error('يرجى تسجيل الدخول أولاً');
@@ -50,9 +76,16 @@ export default function NewRequest() {
       return;
     }
 
-    if (!selectedCategory || !finalProductName) {
-      toast.error('يرجى اختيار المنتج والفئة أولاً');
-      return;
+    if (isBulk) {
+      if (bulkItems.length === 0) {
+        toast.error('يرجى إضافة منتجات للمناقصة');
+        return;
+      }
+    } else {
+      if (!selectedCategory || !finalProductName) {
+        toast.error('يرجى اختيار المنتج والفئة أولاً');
+        return;
+      }
     }
 
     setLoading(true);
@@ -64,29 +97,35 @@ export default function NewRequest() {
          bName = userSnap.data().businessName || bName;
       }
 
-      const docRef = await addDoc(collection(db, path), {
+      const cleanMaxPrice = maxPrice && !isNaN(Number(maxPrice)) ? Number(maxPrice) : null;
+
+      const requestData: any = {
         buyerId: auth.currentUser.uid,
         buyerName: bName,
-        
-        categoryId: selectedCategory.id,
-        categoryName: selectedCategory.name,
-        productName: finalProductName,
-        
-        quantity: quantity,
-        unit: unit,
-        maxPrice: maxPrice ? Number(maxPrice) : null,
-        
         notes: notes,
         status: 'active',
+        requestType: isBulk ? 'bulk' : 'standard',
         bidsCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        // Expires in 2 hours will be handled by our Cloud Function, but let's record it if we want
-        // expiresAt: admin.firestore.Timestamp.now().toMillis() + 2 * 60 * 60 * 1000
-        
         location: 'بنها، القليوبية',
         coordinates: location ? { lat: location.lat, lng: location.lng } : null
-      });
+      };
+
+      if (isBulk) {
+        requestData.productName = `مناقصة جملة: ${bulkItems.length} منتجات`;
+        requestData.items = bulkItems;
+        requestData.maxPrice = cleanMaxPrice;
+      } else {
+        requestData.categoryId = selectedCategory.id;
+        requestData.categoryName = selectedCategory.name;
+        requestData.productName = finalProductName;
+        requestData.quantity = isNaN(Number(quantity)) ? 1 : Number(quantity);
+        requestData.unit = unit;
+        requestData.maxPrice = cleanMaxPrice;
+      }
+
+      const docRef = await addDoc(collection(db, path), requestData);
 
       // Notify suppliers via webhook
       fetch('/api/requests/notify', {
@@ -111,7 +150,9 @@ export default function NewRequest() {
         <button onClick={() => navigate(-1)} className="p-1 rounded-full hover:bg-slate-50 text-slate-500">
           <ChevronRight className="w-6 h-6" />
         </button>
-        <h1 className="font-bold text-lg text-slate-900 font-display">طلب طارئ جديد</h1>
+        <h1 className="font-bold text-lg text-slate-900 font-display">
+          {isBulk ? 'طلب مناقصة جملة (48h)' : 'طلب طارئ جديد'}
+        </h1>
       </header>
 
       {/* Improved Progress */}
@@ -148,6 +189,23 @@ export default function NewRequest() {
       <div className="flex-1 p-5 mt-6">
         {step === 1 && (
           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+            {isBulk && bulkItems.length > 0 && (
+              <div className="mb-6 space-y-3 bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
+                <h3 className="font-bold text-blue-900 border-b border-blue-200/50 pb-2">عناصر المناقصة المضافة ({bulkItems.length}):</h3>
+                <ul className="space-y-2">
+                  {bulkItems.map((item, index) => (
+                    <li key={index} className="flex justify-between items-center text-sm font-bold bg-white p-2 rounded-lg border border-blue-50">
+                      <span>{item.productName}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                        <button onClick={() => handleRemoveBulkItem(index)} className="text-red-500 hover:text-red-700 text-xs">إزالة</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
             <h2 className="font-bold text-slate-900">عن ماذا تبحث؟</h2>
             <div className="relative mb-6">
               <input 
@@ -242,6 +300,49 @@ export default function NewRequest() {
                     />
                   </div>
                 )}
+                
+                {isBulk && (selectedCategory || showCustomProductInput) && (
+                  <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-4 animate-in slide-in-from-bottom-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-sm font-bold text-slate-600">الكمية</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          value={quantity} 
+                          onChange={(e) => setQuantity(e.target.value)} 
+                          className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
+                        />
+                      </div>
+                      <div className="space-y-1.5 text-right">
+                        <label className="text-sm font-bold text-slate-600">الوحدة</label>
+                        <select 
+                          value={unit} 
+                          onChange={(e) => setUnit(e.target.value)} 
+                          className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
+                        >
+                          <option value="كرتونه">كرتونه</option>
+                          <option value="كيلو">كيلو</option>
+                          <option value="لتر">لتر</option>
+                          <option value="قطعة">قطعة</option>
+                          <option value="عبوة">عبوة</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      id="add-to-bulk-btn"
+                      onClick={handleAddBulkItem}
+                      disabled={!finalProductName}
+                      className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors disabled:opacity-50 shadow-lg"
+                    >
+                      {finalProductName ? `إضافة (${finalProductName}) للمناقصة +` : 'اختر المنتج لإضافته'}
+                    </button>
+                    {finalProductName && (
+                      <p className="text-[10px] text-center text-slate-400 font-bold">يمكنك الضغط على "التالي" للإضافة والمتابعة مباشرة</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -249,34 +350,36 @@ export default function NewRequest() {
 
         {step === 2 && (
           <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className="font-bold text-slate-900">تفاصيل الطلب</h2>
+            <h2 className="font-bold text-slate-900">تفاصيل الطلب الإضافية</h2>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5 text-right">
-                <label className="text-sm font-bold text-slate-600">الكمية</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  value={quantity} 
-                  onChange={(e) => setQuantity(e.target.value)} 
-                  className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
-                />
+            {!isBulk && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5 text-right">
+                  <label className="text-sm font-bold text-slate-600">الكمية</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={quantity} 
+                    onChange={(e) => setQuantity(e.target.value)} 
+                    className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
+                  />
+                </div>
+                <div className="space-y-1.5 text-right">
+                  <label className="text-sm font-bold text-slate-600">الوحدة</label>
+                  <select 
+                    value={unit} 
+                    onChange={(e) => setUnit(e.target.value)} 
+                    className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
+                  >
+                    <option value="كرتونه">كرتونه</option>
+                    <option value="كيلو">كيلو</option>
+                    <option value="لتر">لتر</option>
+                    <option value="قطعة">قطعة</option>
+                    <option value="عبوة">عبوة</option>
+                  </select>
+                </div>
               </div>
-              <div className="space-y-1.5 text-right">
-                <label className="text-sm font-bold text-slate-600">الوحدة</label>
-                <select 
-                  value={unit} 
-                  onChange={(e) => setUnit(e.target.value)} 
-                  className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
-                >
-                  <option value="كرتونه">كرتونه</option>
-                  <option value="كيلو">كيلو</option>
-                  <option value="لتر">لتر</option>
-                  <option value="قطعة">قطعة</option>
-                  <option value="عبوة">عبوة</option>
-                </select>
-              </div>
-            </div>
+            )}
             
             <div className="space-y-1.5 text-right">
               <label className="text-sm font-bold text-slate-600">أقصى سعر مقبول (اختياري)</label>
@@ -311,22 +414,51 @@ export default function NewRequest() {
             
             <div className="bg-primary-50/50 border border-primary-100 rounded-2xl p-5 space-y-4">
               <div>
-                 <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md">{selectedCategory?.name}</span>
-                 <h3 className="font-display font-bold text-xl text-slate-900 mt-2">{finalProductName}</h3>
-              </div>
-              
-              <div className="flex gap-4">
-                 <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-500 mb-1">الكمية</p>
-                    <p className="font-bold text-slate-800">{quantity} <span className="text-xs">{unit}</span></p>
-                 </div>
-                 {maxPrice && (
-                 <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-500 mb-1">السعر المستهدف</p>
-                    <p className="font-bold text-slate-800">{maxPrice} <span className="text-xs">ج.م للمنتج</span></p>
-                 </div>
+                 {!isBulk ? (
+                   <>
+                     <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md">{selectedCategory?.name}</span>
+                     <h3 className="font-display font-bold text-xl text-slate-900 mt-2">{finalProductName}</h3>
+                   </>
+                 ) : (
+                   <>
+                     <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md">صفقة جملة</span>
+                     <h3 className="font-display font-bold text-xl text-slate-900 mt-2">مناقصة جملة: {bulkItems.length} منتجات</h3>
+                   </>
                  )}
               </div>
+              
+              {!isBulk ? (
+                <div className="flex gap-4">
+                   <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1">الكمية</p>
+                      <p className="font-bold text-slate-800">{quantity} <span className="text-xs">{unit}</span></p>
+                   </div>
+                   {maxPrice && (
+                   <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1">السعر المستهدف</p>
+                      <p className="font-bold text-slate-800">{maxPrice} <span className="text-xs">ج.م للمنتج</span></p>
+                   </div>
+                   )}
+                </div>
+              ) : (
+                <div className="bg-white p-3 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-500 mb-2">المنتجات المطلوبة</p>
+                  <ul className="space-y-1 text-sm font-bold text-slate-800">
+                    {bulkItems.map((item, i) => (
+                      <li key={i} className="flex justify-between border-b border-slate-50 pb-1 last:border-0 last:pb-0">
+                        <span>{item.productName}</span>
+                        <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {maxPrice && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center text-sm">
+                      <span className="text-slate-500">إجمالي الميزانية:</span>
+                      <span className="font-bold text-primary-600">{maxPrice} ج.م</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-4">
@@ -364,6 +496,18 @@ export default function NewRequest() {
               )}
               {geoError && <p className="text-[10px] text-red-500 font-bold mt-1">خطأ: غير قادر على تحديد الموقع</p>}
             </div>
+
+            {isBulk && (
+               <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-start gap-3">
+                 <Package className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
+                 <div>
+                   <h4 className="font-bold text-blue-900 text-sm">تبدأ المناقصة الآن</h4>
+                   <p className="text-xs text-blue-700 font-medium leading-relaxed mt-1">
+                     سيتم فتح باب تلقي العروض لهذه الصفقة الكبيرة لمدة <span className="font-bold">٤٨ ساعة</span>، أو حتى تقوم باختيار وقبول عرض معين.
+                   </p>
+                 </div>
+               </div>
+            )}
           </div>
         )}
       </div>
@@ -380,8 +524,27 @@ export default function NewRequest() {
         
         {step < 3 ? (
           <button 
-            onClick={() => setStep(step + 1)}
-            disabled={(step === 1 && !finalProductName)}
+            id="next-step-button"
+            onClick={() => {
+              // If in Step 1 and Bulk mode, and there's a pending item selection, add it automatically
+              if (step === 1 && isBulk && finalProductName && quantity) {
+                const alreadyAdded = bulkItems.some(item => item.productName === finalProductName);
+                if (!alreadyAdded) {
+                  setBulkItems([...bulkItems, { 
+                    productName: finalProductName, 
+                    quantity: Number(quantity), 
+                    unit 
+                  }]);
+                }
+              }
+              setStep(step + 1);
+            }}
+            disabled={
+              step === 1 && (
+                (!isBulk && !finalProductName) || 
+                (isBulk && bulkItems.length === 0 && !finalProductName)
+              )
+            }
             className="flex-1 py-4 bg-primary-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-primary-500/20 hover:bg-primary-600 transition-all disabled:opacity-50 disabled:shadow-none"
           >
             التالي
@@ -392,7 +555,7 @@ export default function NewRequest() {
             disabled={loading || !location}
             className="flex-1 py-4 bg-danger text-white rounded-xl font-bold text-lg hover:scale-[1.02] transition-transform shadow-lg shadow-danger/20 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'انشر الطلب للموردين 🚀'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : isBulk ? 'طرح المناقصة للموردين 🚀' : 'انشر الطلب للموردين 🚀'}
           </button>
         )}
       </div>

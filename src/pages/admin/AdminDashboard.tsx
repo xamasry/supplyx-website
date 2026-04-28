@@ -82,11 +82,17 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
-  const [commissionRate, setCommissionRate] = useState(10);
+  const [reports, setReports] = useState({
+    fast: { count: 0, revenue: 0, profit: 0 },
+    bulk: { count: 0, revenue: 0, profit: 0 },
+    offer: { count: 0, revenue: 0, profit: 0 }
+  });
+  const [rates, setRates] = useState({ fast: 10, bulk: 5, offer: 8 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'buyer' | 'supplier'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [requestFilter, setRequestFilter] = useState<'fast' | 'bulk' | 'offer'>('fast');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -120,34 +126,110 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (requests.length === 0) return;
+    let totalRevenue = 0;
+    let delivered = 0;
+    let active = 0;
+    let cancelled = 0;
+    let platformProfit = 0;
+    let bidsCount = 0;
     
-    // Real Data aggregation based on reportType
+    let fastReport = { count: 0, revenue: 0, profit: 0 };
+    let bulkReport = { count: 0, revenue: 0, profit: 0 };
+    let offerReport = { count: 0, revenue: 0, profit: 0 };
+
+    requests.forEach((r: any) => {
+      bidsCount += r.bidsCount || 0;
+      
+      let reqProfit = 0;
+      let reqRate = rates.fast;
+      if (r.requestType === 'bulk') reqRate = rates.bulk;
+      else if (r.offerId) reqRate = rates.offer;
+
+      if (r.status === 'delivered') {
+        const price = r.price || 0;
+        totalRevenue += price;
+        delivered++;
+        reqProfit = price * (reqRate / 100);
+        platformProfit += reqProfit;
+
+        if (r.requestType === 'bulk') {
+          bulkReport.count++;
+          bulkReport.revenue += price;
+          bulkReport.profit += reqProfit;
+        } else if (r.offerId) {
+          offerReport.count++;
+          offerReport.revenue += price;
+          offerReport.profit += reqProfit;
+        } else {
+          fastReport.count++;
+          fastReport.revenue += price;
+          fastReport.profit += reqProfit;
+        }
+
+      } else if (r.status === 'cancelled') {
+        cancelled++;
+      } else {
+        active++;
+      }
+    });
+
+    setStats(prev => ({
+      ...prev,
+      totalOrders: requests.length,
+      deliveredOrders: delivered,
+      activeOrders: active,
+      cancelledOrders: cancelled,
+      totalRevenue: totalRevenue,
+      platformProfit: platformProfit,
+      bidsCount: bidsCount
+    }));
+
+    setReports({
+      fast: fastReport,
+      bulk: bulkReport,
+      offer: offerReport
+    });
+
+    if (requests.length === 0) {
+      setChartData([]);
+      return;
+    }
+    
     const now = new Date();
     let aggregatedData: any[] = [];
 
+    const getReqProfit = (r: any) => {
+      let reqRate = rates.fast;
+      if (r.requestType === 'bulk') reqRate = rates.bulk;
+      else if (r.offerId) reqRate = rates.offer;
+      return (r.price || 0) * (reqRate / 100);
+    };
+
     if (reportType === 'day') {
-      // Last 24 hours
       for (let i = 23; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 60 * 60 * 1000);
         const hour = d.getHours();
-        const dayRevenue = requests
-          .filter((r: any) => {
-            if (r.status !== 'delivered') return false;
-            const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
-            const rDate = new Date(rTimestamp);
-            return rDate.getHours() === hour && rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
-          })
-          .reduce((acc, curr: any) => acc + (curr.price || 0), 0);
+        
+        let dayRevenue = 0;
+        let dayProfit = 0;
+        
+        requests.forEach((r: any) => {
+          if (r.status !== 'delivered') return;
+          const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
+          const rDate = new Date(rTimestamp);
+          if (rDate.getHours() === hour && rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth()) {
+            dayRevenue += (r.price || 0);
+            dayProfit += getReqProfit(r);
+          }
+        });
         
         aggregatedData.push({
           name: `${hour}:00`,
           revenue: dayRevenue,
-          profit: dayRevenue * (commissionRate / 100)
+          profit: dayProfit
         });
       }
     } else if (reportType === 'week') {
-      // Last 7 days
       const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
@@ -157,11 +239,14 @@ export default function AdminDashboard() {
         const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
         
         let dayRevenue = 0;
+        let dayProfit = 0;
+
         requests.forEach((r: any) => {
            if (r.status === 'delivered' && (r.updatedAt || r.createdAt)) {
               const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
               if (rTimestamp >= startOfDay && rTimestamp <= endOfDay) {
                  dayRevenue += (r.price || 0);
+                 dayProfit += getReqProfit(r);
               }
            }
         });
@@ -169,69 +254,45 @@ export default function AdminDashboard() {
         aggregatedData.push({
           name: dayName,
           revenue: dayRevenue,
-          profit: dayRevenue * (commissionRate / 100)
+          profit: dayProfit
         });
       }
     } else {
-      // Last 4 weeks
       for (let i = 3; i >= 0; i--) {
         const start = new Date();
         start.setDate(start.getDate() - (i + 1) * 7);
         const end = new Date();
         end.setDate(end.getDate() - i * 7);
         
-        const revenue = requests
-          .filter((r: any) => {
-            if (r.status !== 'delivered') return false;
-            const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
-            const rDate = new Date(rTimestamp);
-            return rDate >= start && rDate < end;
-          })
-          .reduce((acc, curr: any) => acc + (curr.price || 0), 0);
+        let rev = 0;
+        let prof = 0;
+
+        requests.forEach((r: any) => {
+          if (r.status !== 'delivered') return;
+          const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
+          const rDate = new Date(rTimestamp);
+          if (rDate >= start && rDate < end) {
+            rev += (r.price || 0);
+            prof += getReqProfit(r);
+          }
+        });
         
         aggregatedData.push({
           name: `أسبوع ${4-i}`,
-          revenue: revenue,
-          profit: revenue * (commissionRate / 100)
+          revenue: rev,
+          profit: prof
         });
       }
     }
     
     setChartData(aggregatedData);
-  }, [requests, reportType, commissionRate]);
+  }, [requests, reportType, rates]);
 
   const startStreamingData = () => {
     // 1. Orders/Requests Stream
     const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRequests(data);
-      
-      let revenue = 0;
-      let delivered = 0;
-      let active = 0;
-      let cancelled = 0;
-      
-      data.forEach((r: any) => {
-        if (r.status === 'delivered') {
-          revenue += (r.price || 0);
-          delivered++;
-        } else if (r.status === 'cancelled') {
-          cancelled++;
-        } else {
-          active++;
-        }
-      });
-
-      setStats(prev => ({
-        ...prev,
-        totalOrders: data.length,
-        deliveredOrders: delivered,
-        activeOrders: active,
-        cancelledOrders: cancelled,
-        totalRevenue: revenue,
-        platformProfit: revenue * (commissionRate / 100),
-        bidsCount: data.reduce((acc, curr: any) => acc + (curr.bidsCount || 0), 0)
-      }));
     }, (error) => {
       console.error("Admin Requests Snapshot Error:", error);
     });
@@ -259,7 +320,12 @@ export default function AdminDashboard() {
     // 4. Settings Stream
     const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
       if (doc.exists()) {
-        setCommissionRate(doc.data().commissionRate);
+        const data = doc.data();
+        setRates({
+          fast: data.fastCommissionRate !== undefined ? data.fastCommissionRate : 10,
+          bulk: data.bulkCommissionRate !== undefined ? data.bulkCommissionRate : 5,
+          offer: data.offerCommissionRate !== undefined ? data.offerCommissionRate : 8
+        });
       }
     }, (error) => {
       console.error("Admin Settings Snapshot Error:", error);
@@ -354,10 +420,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateCommission = async (val: number) => {
+  const updateCommission = async (type: 'fast' | 'bulk' | 'offer', val: number) => {
     try {
+      const field = type === 'fast' ? 'fastCommissionRate' : type === 'bulk' ? 'bulkCommissionRate' : 'offerCommissionRate';
       await setDoc(doc(db, 'settings', 'general'), {
-        commissionRate: val,
+        [field]: val,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       toast.success('تم تحديث نسبة العمولة');
@@ -478,7 +545,7 @@ export default function AdminDashboard() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <StatCard label="إجمالي الإيرادات" value={`${stats.totalRevenue.toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
-                  <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend={`عمولة ${commissionRate}%`} color="sky" />
+                  <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="أرباح العمليات" color="sky" />
                   <StatCard label="الطلبات الكلية" value={stats.totalOrders} icon={<ShoppingBag />} trend="حي" color="amber" />
                   <StatCard label="قاعدة المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="متزايد" color="indigo" />
                 </div>
@@ -784,11 +851,33 @@ export default function AdminDashboard() {
 
             {activeTab === 'requests' && (
               <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                
+                <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2">
+                  <button 
+                    onClick={() => setRequestFilter('fast')} 
+                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                  >
+                    الطلبات السريعة
+                  </button>
+                  <button 
+                    onClick={() => setRequestFilter('bulk')} 
+                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'bulk' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                  >
+                    مناقصات الجملة
+                  </button>
+                  <button 
+                    onClick={() => setRequestFilter('offer')} 
+                    className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'offer' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                  >
+                    عروض التجار
+                  </button>
+                </div>
+
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                    <table className="w-full text-right">
                       <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
                         <tr>
-                          <th className="px-6 py-4">المنتج</th>
+                          <th className="px-6 py-4">{requestFilter === 'bulk' ? 'المنتجات' : 'المنتج'}</th>
                           <th className="px-6 py-4">المشتري</th>
                           <th className="px-6 py-4">المورد</th>
                           <th className="px-6 py-4">السعر</th>
@@ -797,9 +886,21 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
-                        {requests.filter(r => (r.productName || '').includes(searchQuery)).map((r: any) => (
+                        {requests
+                          .filter(r => (r.productName || '').includes(searchQuery))
+                          .filter(r => {
+                            if (requestFilter === 'bulk') return r.requestType === 'bulk';
+                            if (requestFilter === 'offer') return !!r.offerId;
+                            return r.requestType !== 'bulk' && !r.offerId;
+                          })
+                          .map((r: any) => (
                           <tr key={r.id} className="hover:bg-slate-800/30 transition">
-                            <td className="px-6 py-4 font-bold text-white text-sm">{r.productName}</td>
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-white text-sm">{r.productName}</div>
+                              {r.requestType === 'bulk' && r.items && (
+                                <div className="text-[10px] text-slate-500 mt-1">تتضمن {r.items.length} منتجات</div>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-xs text-slate-400">{r.buyerName || 'مشتري'}</td>
                             <td className="px-6 py-4 text-xs text-slate-400">{r.supplierName || 'بانتظار عرض'}</td>
                             <td className="px-6 py-4 font-bold text-emerald-500 text-sm whitespace-nowrap">{r.price || 0} ج.م</td>
@@ -819,6 +920,13 @@ export default function AdminDashboard() {
                         ))}
                       </tbody>
                    </table>
+                   {requests.filter(r => {
+                      if (requestFilter === 'bulk') return r.requestType === 'bulk';
+                      if (requestFilter === 'offer') return !!r.offerId;
+                      return r.requestType !== 'bulk' && !r.offerId;
+                    }).length === 0 && (
+                     <div className="p-12 text-center text-slate-500 italic">لا توجد طلبات هنا</div>
+                   )}
                 </div>
               </motion.div>
             )}
@@ -831,19 +939,45 @@ export default function AdminDashboard() {
                    <FinanceCard label="مستحقات الموردين" value={stats.totalRevenue - stats.platformProfit} color="amber" icon={<Store />} />
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-                   <div className="h-[350px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={chartData}>
-                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-                           <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
-                           <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
-                           <Tooltip cursor={{fill: '#1e293b'}} />
-                           <Bar dataKey="revenue" stackId="a" fill="#334155" />
-                           <Bar dataKey="profit" stackId="a" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                         </BarChart>
-                      </ResponsiveContainer>
-                   </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-1">
+                     <h3 className="font-bold text-white mb-6">تفصيل الأرباح والعمليات</h3>
+                     <div className="space-y-4">
+                       <div className="bg-slate-800 rounded-xl p-4">
+                          <p className="text-sm font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">الطلبات السريعة</p>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>عدد العمليات:</span> <span>{reports.fast.count}</span></div>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>حجم التداول:</span> <span>{reports.fast.revenue.toLocaleString()} ج.م</span></div>
+                          <div className="flex justify-between text-sm font-bold text-sky-400 mt-2 pt-2 border-t border-slate-700"><span>الربح:</span> <span>{reports.fast.profit.toLocaleString()} ج.م</span></div>
+                       </div>
+                       <div className="bg-slate-800 rounded-xl p-4">
+                          <p className="text-sm font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">مناقصات الجملة</p>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>عدد العمليات:</span> <span>{reports.bulk.count}</span></div>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>حجم التداول:</span> <span>{reports.bulk.revenue.toLocaleString()} ج.م</span></div>
+                          <div className="flex justify-between text-sm font-bold text-sky-400 mt-2 pt-2 border-t border-slate-700"><span>الربح:</span> <span>{reports.bulk.profit.toLocaleString()} ج.م</span></div>
+                       </div>
+                       <div className="bg-slate-800 rounded-xl p-4">
+                          <p className="text-sm font-bold text-slate-300 mb-2 border-b border-slate-700 pb-2">عروض التجار</p>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>عدد العمليات:</span> <span>{reports.offer.count}</span></div>
+                          <div className="flex justify-between text-xs text-white mb-1"><span>حجم التداول:</span> <span>{reports.offer.revenue.toLocaleString()} ج.م</span></div>
+                          <div className="flex justify-between text-sm font-bold text-sky-400 mt-2 pt-2 border-t border-slate-700"><span>الربح:</span> <span>{reports.offer.profit.toLocaleString()} ج.م</span></div>
+                       </div>
+                     </div>
+                  </div>
+
+                  <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-8">
+                     <div className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                           <BarChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                             <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} />
+                             <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
+                             <Tooltip cursor={{fill: '#1e293b'}} />
+                             <Bar dataKey="revenue" stackId="a" fill="#334155" />
+                             <Bar dataKey="profit" stackId="a" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                           </BarChart>
+                        </ResponsiveContainer>
+                     </div>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -851,25 +985,64 @@ export default function AdminDashboard() {
             {activeTab === 'settings' && (
               <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-6">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-                  <h3 className="font-bold text-white text-xl mb-6 text-center">إعدادات المنصة</h3>
+                  <h3 className="font-bold text-white text-xl mb-6 text-center">إعدادات المنصة وعمولات الخدمات</h3>
                   
-                  <div className="space-y-6">
+                  <div className="space-y-8">
                     <div>
-                      <label className="block text-sm font-bold text-slate-300 mb-2">نسبة عمولة المنصة (%)</label>
+                      <label className="block text-sm font-bold text-emerald-400 mb-2">نسبة عمولة الطلبات السريعة (%)</label>
                       <div className="flex gap-4">
                          <input 
                            type="number" 
-                           value={commissionRate}
-                           onChange={(e) => setCommissionRate(Number(e.target.value))}
-                           className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary-500 transition"
+                           value={rates.fast}
+                           onChange={(e) => setRates(prev => ({ ...prev, fast: Number(e.target.value) }))}
+                           className="flex-1 bg-slate-800 border border-emerald-500/30 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 transition font-bold"
                          />
                          <button 
-                           onClick={() => updateCommission(commissionRate)}
-                           className="bg-primary-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-700 transition"
+                           onClick={() => updateCommission('fast', rates.fast)}
+                           className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-500 transition"
                          >
                            تحديث
                          </button>
                       </div>
+                      <p className="text-xs text-slate-500 mt-2">تطبق على الطلبات العادية للكميات الصغيرة والمتوسطة بين المطاعم والموردين المتاحين حالياً</p>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-800">
+                      <label className="block text-sm font-bold text-amber-400 mb-2">نسبة عمولة مناقصات الجملة (%)</label>
+                      <div className="flex gap-4">
+                         <input 
+                           type="number" 
+                           value={rates.bulk}
+                           onChange={(e) => setRates(prev => ({ ...prev, bulk: Number(e.target.value) }))}
+                           className="flex-1 bg-slate-800 border border-amber-500/30 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-amber-500 transition font-bold"
+                         />
+                         <button 
+                           onClick={() => updateCommission('bulk', rates.bulk)}
+                           className="bg-amber-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-amber-500 transition"
+                         >
+                           تحديث
+                         </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">تطبق على طلبات المنتجات المتعددة والكميات الضخمة التي يستغرق تجهيزها وقتاً</p>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-800">
+                      <label className="block text-sm font-bold text-purple-400 mb-2">نسبة عمولة عروض التجار (%)</label>
+                      <div className="flex gap-4">
+                         <input 
+                           type="number" 
+                           value={rates.offer}
+                           onChange={(e) => setRates(prev => ({ ...prev, offer: Number(e.target.value) }))}
+                           className="flex-1 bg-slate-800 border border-purple-500/30 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500 transition font-bold"
+                         />
+                         <button 
+                           onClick={() => updateCommission('offer', rates.offer)}
+                           className="bg-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-purple-500 transition"
+                         >
+                           تحديث
+                         </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">تطبق عندما يشتري العميل عرضاً خاصاً مسبق الإعداد من المورد</p>
                     </div>
                   </div>
                 </div>

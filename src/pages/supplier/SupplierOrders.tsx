@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Clock, CheckCircle2, ChevronLeft, MapPin, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, isRequestExpired } from '../../lib/utils';
 import { Link } from 'react-router-dom';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
@@ -45,7 +45,8 @@ export default function SupplierOrders() {
           return timeB - timeA;
         });
 
-        setRequests(data);
+        // Remove expired requests from supplier feed
+        setRequests(data.filter(req => !isRequestExpired(req)));
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests');
@@ -105,6 +106,11 @@ export default function SupplierOrders() {
         ) : filteredOrders.map(order => (
           <Link key={order.id} to={`/supplier/orders/${order.id}`} className="block bg-white rounded-3xl p-5 shadow-sm border border-slate-200 hover:border-[var(--color-primary)] transition-colors relative overflow-hidden group">
             {order.status === 'accepted' && <div className="absolute top-0 right-0 w-1 bg-[var(--color-accent)] h-full"></div>}
+            {order.requestType === 'bulk' && (
+              <div className="absolute top-0 left-0 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-br-xl flex items-center gap-1 border-r border-b border-slate-700">
+                <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+              </div>
+            )}
             
             <div className="flex justify-between items-start mb-3">
               <div>

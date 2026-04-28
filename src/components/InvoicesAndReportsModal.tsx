@@ -104,34 +104,11 @@ export default function InvoicesAndReportsModal({ isOpen, onClose, role }: Invoi
     }
   };
 
-  const handleSaveAsPDF = async () => {
-    if (!invoiceRef.current || !selectedInvoice) return;
-    setIsSaving(true);
-    const toastId = toast.loading('جاري تجهيز ملف PDF...');
-    try {
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        onclone: (clonedDoc) => {
-          fixOklchInClone(clonedDoc);
-        }
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`فاتورة-${selectedInvoice.id.slice(0, 8)}.pdf`);
-      toast.success('تم تحميل ملف PDF', { id: toastId });
-    } catch (error) {
-      console.error('Error saving PDF:', error);
-      toast.error('فشل إنشاء ملف PDF', { id: toastId });
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSaveAsPDF = () => {
+    // Relying on native browser print dialog, which allows saving as PDF effortlessly and faithfully.
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
   const [chartData, setChartData] = useState<any[]>([]);
 
@@ -460,19 +437,18 @@ export default function InvoicesAndReportsModal({ isOpen, onClose, role }: Invoi
                 className="bg-white w-full max-w-xl rounded-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
                 dir="rtl"
               >
-                <div className="p-10 flex-col gap-8 flex-1 overflow-y-auto invoice-container" id="printable-invoice" ref={invoiceRef} style={{ backgroundColor: '#ffffff' }}>
-                  {/* Invoice Header */}
-                  <div className="flex justify-between items-start border-b-2 border-slate-900 pb-8 mb-8" style={{ borderBottomColor: '#000000' }}>
-                     <div>
-                       <div className="flex items-center gap-2 mb-2">
-                         <Logo size="md" />
-                       </div>
-                       <p className="text-xs text-slate-500 font-bold" style={{ color: '#64748b' }}>رقم الفاتورة: #{selectedInvoice.id.slice(0, 10).toUpperCase()}</p>
-                       <p className="text-xs text-slate-500 font-bold" style={{ color: '#64748b' }}>تاريخ الإصدار: {format(selectedInvoice.updatedAt?.toDate() || new Date(), 'dd MMMM yyyy', { locale: ar })}</p>
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-10 flex-col gap-8 invoice-container" id="printable-invoice" ref={invoiceRef} style={{ backgroundColor: '#ffffff' }}>
+                    {/* Invoice Header */}
+                  <div className="flex justify-between items-start border-b-2 border-slate-900 pb-8 mb-8 gap-4" style={{ borderBottomColor: '#000000' }}>
+                     <div className="text-right">
+                       <Logo size="lg" />
                      </div>
-                     <div className="text-left font-display">
-                       <h1 className="text-3xl font-black opacity-10 leading-none" style={{ color: '#000000', opacity: 0.1 }}>INVOICE</h1>
-                       <div className="mt-4 bg-black text-white px-3 py-1 text-xs font-bold rounded" style={{ backgroundColor: '#000000', color: '#ffffff' }}>نسخة أصلية</div>
+                     <div className="text-left font-display flex flex-col items-end">
+                       <h1 className="text-3xl font-black opacity-10 leading-none mb-2" style={{ color: '#000000', opacity: 0.1 }}>INVOICE</h1>
+                       <div className="bg-black text-white px-3 py-1 text-xs font-bold rounded mb-2" style={{ backgroundColor: '#000000', color: '#ffffff' }}>نسخة أصلية</div>
+                       <p className="text-[10px] text-slate-500 font-bold" style={{ color: '#64748b' }}>#{selectedInvoice.id.slice(0, 10).toUpperCase()}</p>
+                       <p className="text-[10px] text-slate-500 font-bold" style={{ color: '#64748b' }}>{format(selectedInvoice.updatedAt?.toDate() || new Date(), 'dd MMMM yyyy', { locale: ar })}</p>
                      </div>
                   </div>
 
@@ -502,15 +478,31 @@ export default function InvoicesAndReportsModal({ isOpen, onClose, role }: Invoi
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50" style={{ borderBottomColor: '#f8fafc' }}>
-                        <tr>
-                          <td className="py-4">
-                            <p className="text-sm font-bold text-slate-900" style={{ color: '#0f172a' }}>{selectedInvoice.productName}</p>
-                            <p className="text-[10px] text-slate-400" style={{ color: '#94a3b8' }}>توريد منتجات عالية الجودة</p>
-                          </td>
-                          <td className="py-4 text-sm font-bold text-slate-600" style={{ color: '#475569' }}>{selectedInvoice.quantity} {selectedInvoice.unit}</td>
-                          <td className="py-4 text-sm font-bold text-slate-600" style={{ color: '#475569' }}>{(selectedInvoice.price / selectedInvoice.quantity).toFixed(2)}</td>
-                          <td className="py-4 text-sm font-bold text-slate-900 text-left" style={{ color: '#0f172a' }}>{selectedInvoice.price?.toLocaleString('ar-EG')} ج.م</td>
-                        </tr>
+                        {(selectedInvoice.requestType === 'bulk' && selectedInvoice.items ? selectedInvoice.items : [{
+                          productName: selectedInvoice.productName,
+                          quantity: selectedInvoice.quantity,
+                          unit: selectedInvoice.unit,
+                          price: selectedInvoice.price
+                        }]).map((item: any, index: number) => {
+                          const itemPrice = selectedInvoice.requestType === 'bulk' && selectedInvoice.itemsPrices 
+                                            ? Number(selectedInvoice.itemsPrices[index] || 0) 
+                                            : Number(item.price || 0);
+                          const quantity = Number(item.quantity) || 1;
+                          const originalItemPrice = selectedInvoice.requestType === 'bulk' ? itemPrice : itemPrice;
+                          const pricePerUnit = originalItemPrice / quantity;
+                          
+                          return (
+                            <tr key={index}>
+                              <td className="py-4">
+                                <p className="text-sm font-bold text-slate-900" style={{ color: '#0f172a' }}>{item.productName}</p>
+                                <p className="text-[10px] text-slate-400" style={{ color: '#94a3b8' }}>{selectedInvoice.requestType === 'bulk' ? 'صنف ضمن مناقصة جملة' : 'توريد منتجات عالية الجودة'}</p>
+                              </td>
+                              <td className="py-4 text-sm font-bold text-slate-600" style={{ color: '#475569' }}>{item.quantity} {item.unit || selectedInvoice.unit}</td>
+                              <td className="py-4 text-sm font-bold text-slate-600" style={{ color: '#475569' }}>{pricePerUnit.toFixed(2)}</td>
+                              <td className="py-4 text-sm font-bold text-slate-900 text-left" style={{ color: '#0f172a' }}>{originalItemPrice.toLocaleString('ar-EG')} ج.م</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -537,6 +529,7 @@ export default function InvoicesAndReportsModal({ isOpen, onClose, role }: Invoi
                     <p style={{ color: '#94a3b8' }}>شكراً لتعاملكم معنا!</p>
                   </div>
                 </div>
+                </div>
 
                 <div className="p-4 bg-slate-900 flex flex-col sm:flex-row gap-3">
                    <button 
@@ -551,7 +544,7 @@ export default function InvoicesAndReportsModal({ isOpen, onClose, role }: Invoi
                     disabled={isSaving}
                     className="flex-1 bg-[var(--color-primary)] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 border border-white/20"
                    >
-                     <FileCheck className="w-4 h-4" /> حفظ كـ PDF
+                     <Printer className="w-4 h-4" /> طباعة / حفظ PDF
                    </button>
                    <button 
                     onClick={() => setSelectedInvoice(null)}

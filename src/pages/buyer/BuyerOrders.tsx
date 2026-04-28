@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Clock, CheckCircle2, ChevronLeft, MapPin, Loader2 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { Package, Clock, CheckCircle2, ChevronLeft, MapPin, Loader2, XCircle } from 'lucide-react';
+import { cn, isRequestExpired } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -58,22 +58,28 @@ export default function BuyerOrders() {
     };
   }, []);
 
+  const enhancedRequests = requests.map(r => ({
+    ...r,
+    _isExpired: isRequestExpired(r)
+  }));
+
   const activeStatuses = ['accepted', 'preparing', 'shipped'];
-  const activeOrders = requests.filter(r => activeStatuses.includes(r.status));
-  const historyOrders = requests.filter(r => r.status === 'delivered' || r.status === 'cancelled');
-  const pendingRequests = requests.filter(r => r.status === 'active');
+  const activeOrders = enhancedRequests.filter(r => activeStatuses.includes(r.status) && !r._isExpired);
+  const pendingRequests = enhancedRequests.filter(r => r.status === 'active' && !r._isExpired);
+  const historyOrders = enhancedRequests.filter(r => r.status === 'delivered' || r.status === 'cancelled' || r._isExpired);
 
   const filteredOrders = activeTab === 'active' ? [...activeOrders, ...pendingRequests] : historyOrders;
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'بانتظار العروض';
+  const getStatusText = (order: any) => {
+    if (order._isExpired) return 'لم يكتمل';
+    switch (order.status) {
+      case 'active': return order.requestType === 'bulk' ? 'مناقصة مفتوحة' : 'بانتظار العروض';
       case 'accepted': return 'تم قبول العرض';
       case 'preparing': return 'جاري التجهيز';
       case 'shipped': return 'في الطريق';
       case 'delivered': return 'تم التوصيل';
       case 'cancelled': return 'ملغي';
-      default: return status;
+      default: return order.status;
     }
   };
 
@@ -110,6 +116,11 @@ export default function BuyerOrders() {
           <Link key={order.id} to={order.status === 'active' ? `/buyer/request/${order.id}` : `/buyer/orders/${order.id}`} className="block bg-white rounded-3xl p-5 shadow-sm border border-slate-200 hover:border-[var(--color-primary)] transition-colors relative overflow-hidden group">
             {order.status === 'accepted' && <div className="absolute top-0 right-0 w-1 bg-[var(--color-accent)] h-full"></div>}
             {order.status === 'active' && <div className="absolute top-0 right-0 w-1 bg-[var(--color-primary)] h-full"></div>}
+            {order.requestType === 'bulk' && (
+              <div className="absolute top-0 left-0 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-br-xl flex items-center gap-1 border-r border-b border-slate-700">
+                <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+              </div>
+            )}
             
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -134,11 +145,12 @@ export default function BuyerOrders() {
 
             <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                <div className={cn("flex items-center gap-1.5 text-sm font-bold", 
+                  order._isExpired ? "text-slate-500" :
                   order.status === 'accepted' ? "text-[var(--color-accent)] animate-pulse" : 
                   order.status === 'active' ? "text-[var(--color-primary)]" : "text-[var(--color-success)]"
                )}>
-                 {order.status === 'delivered' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                 {getStatusText(order.status)}
+                 {order.status === 'delivered' ? <CheckCircle2 className="w-4 h-4" /> : order._isExpired ? <XCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                 {getStatusText(order)}
                </div>
                <span className="text-[10px] font-bold text-slate-400 flex items-center">التفاصيل <ChevronLeft className="w-3 h-3" /></span>
             </div>

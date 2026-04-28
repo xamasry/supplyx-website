@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Clock, Star, MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation } from 'lucide-react';
+import { ChevronRight, Clock, Star, MapPin, CheckCircle2, AlertTriangle, Loader2, Navigation, Package } from 'lucide-react';
 import { cn, calculateDistance } from '../../lib/utils';
 import { db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { doc, getDoc, collection, query, onSnapshot, orderBy, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
@@ -147,11 +147,31 @@ export default function RequestDetail() {
       {/* Request Summary Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1.5 bg-[var(--color-primary)] h-full"></div>
+        {request.requestType === 'bulk' && (
+          <div className="absolute top-0 left-0 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-br-xl flex items-center gap-1 border-r border-b border-slate-700">
+            <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+          </div>
+        )}
         <div className="flex justify-between items-start">
           <div>
             <span className="inline-block bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider mb-1">طلب #{request.id.slice(0,5)}</span>
             <h1 className="font-display font-bold text-xl text-slate-900">{request.productName}</h1>
-            <p className="font-semibold text-slate-700 mt-1">الكمية: {request.quantity}</p>
+            
+            {request.requestType !== 'bulk' ? (
+              <p className="font-semibold text-slate-700 mt-1">الكمية: {request.quantity} {request.unit}</p>
+            ) : (
+              <div className="mt-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
+                <p className="text-[10px] text-slate-500 font-bold mb-2">المنتجات المطلوبة ({Array.isArray(request.items) ? request.items.length : 0})</p>
+                <ul className="space-y-1 text-sm font-bold text-slate-800">
+                  {Array.isArray(request.items) && request.items.map((item: any, i: number) => (
+                    <li key={i} className="flex justify-between border-b border-slate-200/50 pb-1 last:border-0 last:pb-0">
+                      <span>{item.productName || 'منتج غير معروف'}</span>
+                      <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="bg-[var(--color-brand-bg)] p-2 rounded-xl text-center border border-slate-100">
@@ -225,10 +245,24 @@ export default function RequestDetail() {
                 <div className="border-r border-slate-200 pr-2 text-right">
                   <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">التوصيل خلال</span>
                   <div className="flex items-center gap-1 text-slate-900 font-bold justify-end">
-                    <Clock className="w-4 h-4 text-orange-500" /> {bid.deliveryTime} دقيقة
+                    <Clock className="w-4 h-4 text-orange-500" /> {bid.deliveryTime} {request.requestType === 'bulk' ? 'أيام' : 'دقيقة'}
                   </div>
                 </div>
               </div>
+
+              {request.requestType === 'bulk' && bid.itemsPrices && request.items && (
+                <div className="mb-4 bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
+                  <p className="text-[10px] text-slate-500 font-bold mb-2">تفصيل الأسعار</p>
+                  <ul className="space-y-1 text-xs">
+                    {request.items.map((item: any, idx: number) => (
+                      <li key={idx} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 font-bold text-slate-700">
+                        <span>{item.productName} <span className="text-slate-400 font-normal">({item.quantity} {item.unit})</span></span>
+                        <span className="text-[var(--color-primary)]">{bid.itemsPrices[idx] || 0} ج.م</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1 text-xs text-slate-500 font-semibold">

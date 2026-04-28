@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation } from 'lucide-react';
+import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation, Package } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -16,7 +16,16 @@ export default function SupplierRequestDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [price, setPrice] = useState('0');
   const [deliveryTime, setDeliveryTime] = useState('30');
+
+  useEffect(() => {
+    if (request?.requestType === 'bulk') {
+      setDeliveryTime('1');
+    } else {
+      setDeliveryTime('30');
+    }
+  }, [request?.requestType]);
   const [notes, setNotes] = useState('');
+  const [itemsPrices, setItemsPrices] = useState<{[key: number]: string}>({});
   const [existingBid, setExistingBid] = useState<any>(null);
   const { location: supplierLocation, getLocation } = useGeolocation();
 
@@ -32,23 +41,6 @@ export default function SupplierRequestDetail() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setRequest({ id: docSnap.id, ...docSnap.data() });
-          
-          // Check for existing bid
-          if (auth.currentUser) {
-            const bidsRef = collection(db, `requests/${id}/bids`);
-            const q = query(bidsRef, where('supplierId', '==', auth.currentUser.uid));
-            onSnapshot(q, (snapshot) => {
-              if (!snapshot.empty) {
-                const b = snapshot.docs[0];
-                setExistingBid({ id: b.id, ...b.data() });
-                setPrice(b.data().price.toString());
-                setDeliveryTime(b.data().deliveryTime.toString());
-                setNotes(b.data().notes || '');
-              }
-            }, (error) => {
-              console.error("Supplier Request Bids Error:", error);
-            });
-          }
         } else {
           toast.error("الطلب غير موجود");
           navigate('/supplier/home');
@@ -62,6 +54,41 @@ export default function SupplierRequestDetail() {
     fetchRequest();
   }, [id, navigate]);
 
+  useEffect(() => {
+    if (!id || !auth.currentUser || !request) return;
+
+    const bidsRef = collection(db, `requests/${id}/bids`);
+    const q = query(bidsRef, where('supplierId', '==', auth.currentUser.uid));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const b = snapshot.docs[0];
+        setExistingBid({ id: b.id, ...b.data() });
+        setPrice(b.data().price.toString());
+        setDeliveryTime(b.data().deliveryTime.toString());
+        setNotes(b.data().notes || '');
+        if (b.data().itemsPrices) {
+          setItemsPrices(b.data().itemsPrices);
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `requests/${id}/bids`);
+    });
+
+    return () => unsubscribe();
+  }, [id, request, auth.currentUser]);
+
+  useEffect(() => {
+    if (request?.requestType === 'bulk') {
+      const total = Object.values(itemsPrices).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+      setPrice(total.toString());
+    }
+  }, [itemsPrices, request]);
+
+  const handleItemPriceChange = (index: number, val: string) => {
+    setItemsPrices(prev => ({...prev, [index]: val}));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) {
@@ -73,12 +100,21 @@ export default function SupplierRequestDetail() {
     setSubmitting(true);
     const bidsCollectionPath = `requests/${id}/bids`;
     try {
+      if (request.requestType === 'bulk') {
+        if (request.items && Object.keys(itemsPrices).length !== request.items.length) {
+          toast.error('يرجى تسعير جميع المنتجات المطلوبة');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       if (existingBid) {
         // Update existing bid
         await updateDoc(doc(db, `requests/${id}/bids`, existingBid.id), {
           price: Number(price),
           deliveryTime: Number(deliveryTime),
           notes,
+          itemsPrices: request.requestType === 'bulk' ? itemsPrices : null,
           updatedAt: serverTimestamp(),
           coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
         });
@@ -92,6 +128,7 @@ export default function SupplierRequestDetail() {
           price: Number(price),
           deliveryTime: Number(deliveryTime),
           notes,
+          itemsPrices: request.requestType === 'bulk' ? itemsPrices : null,
           status: 'pending',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -152,19 +189,40 @@ export default function SupplierRequestDetail() {
         <div className="absolute top-0 right-0 w-1.5 bg-[var(--color-danger)] h-full"></div>
         <div className="flex justify-between items-start mb-4">
           <div>
-            <span className="text-xs font-bold text-[var(--color-danger)] flex items-center gap-1 mb-2">
-              <Clock className="w-4 h-4" /> طلب عاجل
-            </span>
+            {request.requestType === 'bulk' && !request.isUrgent && (
+              <span className="text-xs font-bold text-slate-700 bg-slate-100 flex items-center gap-1 mb-2 px-2 py-1 rounded w-fit border border-slate-200">
+                <Package className="w-4 h-4" /> مناقصة جملة
+              </span>
+            )}
+            {request.isUrgent && (
+              <span className="text-xs font-bold text-[var(--color-danger)] flex items-center gap-1 mb-2">
+                <Clock className="w-4 h-4" /> طلب عاجل
+              </span>
+            )}
             <h2 className="font-display font-bold text-2xl text-slate-900">{request.productName}</h2>
           </div>
         </div>
         
         <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-          <div>
-            <p className="text-[10px] text-slate-500 font-bold mb-1">الكمية المطلوبة</p>
-            <p className="font-bold text-lg text-[var(--color-primary)] drop-shadow-sm">{request.quantity}</p>
-          </div>
-          <div>
+          {request.requestType !== 'bulk' ? (
+            <div>
+              <p className="text-[10px] text-slate-500 font-bold mb-1">الكمية المطلوبة</p>
+              <p className="font-bold text-lg text-[var(--color-primary)] drop-shadow-sm">{request.quantity} <span className="text-sm">{request.unit}</span></p>
+            </div>
+          ) : (
+            <div className="col-span-2">
+              <p className="text-[10px] text-slate-500 font-bold mb-2">المنتجات المطلوبة ({request.items?.length})</p>
+              <ul className="space-y-1">
+                {request.items?.map((item: any, i: number) => (
+                  <li key={i} className="flex justify-between items-center text-sm bg-white p-2 border border-slate-100 rounded-lg">
+                    <span className="font-bold text-slate-800">{item.productName}</span>
+                    <span className="text-slate-500 font-bold">{item.quantity} {item.unit}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className={request.requestType === 'bulk' ? 'col-span-2 pt-2 border-t border-slate-200' : ''}>
             <p className="text-[10px] text-slate-500 font-bold mb-1">موقع التوصيل</p>
             <p className="font-bold text-sm text-slate-800 flex items-center gap-1">
               <MapPin className="w-4 h-4 text-slate-400" /> {request.buyerName}
@@ -192,13 +250,39 @@ export default function SupplierRequestDetail() {
         </h3>
         
         <div className="space-y-5">
+          {request.requestType === 'bulk' && request.items && (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-slate-700">تسعير المنتجات (لإجمالي الكمية المطلوبة)</p>
+              {request.items.map((item: any, idx: number) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <span className="block font-bold text-slate-800 text-sm">{item.productName}</span>
+                    <span className="text-xs text-slate-500">{item.quantity} {item.unit}</span>
+                  </div>
+                  <div className="w-1/3 relative">
+                    <input
+                      type="number"
+                      placeholder="السعر"
+                      value={itemsPrices[idx] || ''}
+                      onChange={(e) => handleItemPriceChange(idx, e.target.value)}
+                      className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-xl py-3 px-3 outline-none focus:ring-2 focus:ring-[var(--color-primary)] font-bold text-sm"
+                      required
+                    />
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">ج.م</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
           <div className="space-y-2 text-right">
             <label className="text-sm font-bold text-slate-700">السعر الإجمالي (بالجنيه)</label>
             <input 
               type="number" 
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] font-bold text-xl text-[var(--color-primary)] transition-all" 
+              disabled={request.requestType === 'bulk'}
+              className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] font-bold text-xl text-[var(--color-primary)] transition-all disabled:opacity-80 disabled:bg-slate-100" 
               required 
             />
           </div>
@@ -206,13 +290,15 @@ export default function SupplierRequestDetail() {
           <div className="space-y-2 text-right relative">
             <label className="text-sm font-bold text-slate-700 flex justify-between">
               <span>وقت التوصيل</span>
-              <span className="text-[var(--color-accent)]">{deliveryTime} دقيقة</span>
+              <span className="text-[var(--color-accent)]">
+                {request.requestType === 'bulk' ? `${deliveryTime} أيام` : `${deliveryTime} دقيقة`}
+              </span>
             </label>
             <input 
               type="range" 
-              min="5" 
-              max="120" 
-              step="5"
+              min={request.requestType === 'bulk' ? "1" : "5"} 
+              max={request.requestType === 'bulk' ? "14" : "120"} 
+              step={request.requestType === 'bulk' ? "1" : "5"}
               value={deliveryTime}
               onChange={(e) => setDeliveryTime(e.target.value)}
               className="w-full mt-2 accent-[var(--color-primary)]" 

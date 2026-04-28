@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft } from 'lucide-react';
-import { cn, calculateDistance } from '../../lib/utils';
+import { cn, calculateDistance, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
@@ -58,8 +58,8 @@ export default function SupplierHome() {
         });
 
         const filteredData = supplierLocation 
-          ? enhancedData.filter(req => !req.coordinates || (req.distance && req.distance <= 10))
-          : enhancedData;
+          ? enhancedData.filter(req => !isRequestExpired(req) && (!req.coordinates || (req.distance && req.distance <= 10)))
+          : enhancedData.filter(req => !isRequestExpired(req));
 
         setRequests(filteredData);
         setLoading(false);
@@ -72,7 +72,7 @@ export default function SupplierHome() {
       unsubOrders = onSnapshot(qOrders, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         data.sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
-        setOrders(data);
+        setOrders(data.filter(req => !isRequestExpired(req)));
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests_supplier_orders');
       });
@@ -171,6 +171,11 @@ export default function SupplierHome() {
         <div className="space-y-3">
           {requests.map(req => (
             <div key={req.id} className={cn("bg-white rounded-2xl shadow-sm border p-4 relative overflow-hidden", req.isUrgent ? "border-[var(--color-danger)]/50" : "border-slate-200")}>
+              {req.requestType === 'bulk' && !req.isUrgent && (
+                <div className="absolute top-0 right-0 bg-slate-900 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1 border border-slate-700">
+                  <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+                </div>
+              )}
               {req.isUrgent && (
                 <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1">
                   <Flame className="w-3 h-3 animate-pulse" /> طارئ
