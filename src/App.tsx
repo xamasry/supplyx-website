@@ -17,6 +17,7 @@ import SupplierLayout from './components/layout/SupplierLayout';
 import BuyerOrders from './pages/buyer/BuyerOrders';
 import BuyerOffers from './pages/buyer/BuyerOffers';
 import BuyerProfile from './pages/buyer/BuyerProfile';
+import BuyerWishlist from './pages/buyer/BuyerWishlist';
 import SupplierRequestDetail from './pages/supplier/SupplierRequestDetail';
 import SupplierOrders from './pages/supplier/SupplierOrders';
 import SupplierOffers from './pages/supplier/SupplierOffers';
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/buyer/orders/:id" element={<OrderTracking />} />
           <Route path="/buyer/offers" element={<BuyerOffers />} />
           <Route path="/buyer/profile" element={<BuyerProfile />} />
+          <Route path="/buyer/wishlist" element={<BuyerWishlist />} />
           <Route path="/buyer/notifications" element={<Notifications />} />
         </Route>
         

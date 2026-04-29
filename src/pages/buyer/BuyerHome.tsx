@@ -1,11 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2, Heart, Star } from 'lucide-react';
 import { cn, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 
@@ -14,28 +14,37 @@ export default function BuyerHome() {
   const [offers, setOffers] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     let unsubSnapshot: (() => void) | null = null;
     let unsubOffers: (() => void) | null = null;
+    let unsubProfile: (() => void) | null = null;
     
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
+      if (unsubProfile) unsubProfile();
 
       if (!user) {
         setRequests([]);
         setOffers([]);
         setUserProfile(null);
+        setWishlist([]);
         setLoading(false);
         return;
       }
 
-      // Fetch Profile
-      const userSnap = await getDoc(doc(db, 'users', user.uid));
-      if (userSnap.exists()) {
-        setUserProfile(userSnap.data());
-      }
+      // Fetch Profile Real-time for wishlist
+      unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          setUserProfile(data);
+          setWishlist(data.wishlist || []);
+        }
+      });
 
       // Fetch Requests
       const q = query(
@@ -67,10 +76,24 @@ export default function BuyerHome() {
       unsubAuth();
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
+      if (unsubProfile) unsubProfile();
     };
   }, []);
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    const offerId = searchParams.get('offerId');
+    if (offerId && offers.length > 0) {
+      const offer = offers.find(o => o.id === offerId);
+      if (offer) {
+        setSelectedOffer(offer);
+        setOrderQuantity(String(offer.quantity || 1));
+        setOrderAddress(userProfile?.address || '');
+        setOrderPhone(userProfile?.phone || '');
+        setShowOrderModal(true);
+      }
+    }
+  }, [searchParams, offers, userProfile]);
+
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -101,6 +124,19 @@ export default function BuyerHome() {
       },
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
+  };
+
+  const toggleWishlist = async (offerId: string) => {
+    if (!auth.currentUser) return;
+    const isFav = wishlist.includes(offerId);
+    try {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+        wishlist: isFav ? arrayRemove(offerId) : arrayUnion(offerId)
+      });
+      toast.success(isFav ? 'تم الإزالة من المفضلة' : 'تم الإضافة للمفضلة');
+    } catch (err) {
+      console.error('Wishlist error:', err);
+    }
   };
 
   const handleOrder = async () => {
@@ -207,26 +243,35 @@ export default function BuyerHome() {
         </div>
       </div>
 
-      {/* Stats Cards (Desktop Only) to fill grid */}
-      <div className="hidden md:flex flex-col gap-4 md:col-start-1 md:col-span-3 md:row-start-3 md:row-span-2">
-        <div className="flex-1 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-colors">
-          <div className="w-12 h-12 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-xl shrink-0">💰</div>
+      {/* Stats Cards - Horizontal on mobile, vertical on desktop */}
+      <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 hide-scrollbar md:col-start-1 md:col-span-3 md:row-start-3 md:row-span-2">
+        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-colors shrink-0">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0">💰</div>
           <div>
-            <p className="text-xs text-slate-500 font-semibold mb-1">رصيد المشتريات</p>
-            <p className="text-lg xl:text-xl font-bold text-slate-900 leading-tight">
-               12,450.50 <span className="text-[10px] xl:text-xs font-normal">ج.م</span>
+            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">رصيد المشتريات</p>
+            <p className="text-base md:text-lg xl:text-xl font-bold text-slate-900 leading-tight">
+               12,450.50 <span className="text-[8px] md:text-[10px] xl:text-xs font-normal">ج.م</span>
             </p>
           </div>
         </div>
-        <div className="flex-1 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[#22C55E] transition-colors">
-          <div className="w-12 h-12 bg-[#22C55E]/10 text-[#22C55E] rounded-2xl flex items-center justify-center text-xl shrink-0">⭐</div>
+        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[#22C55E] transition-colors shrink-0">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#22C55E]/10 text-[#22C55E] rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0">⭐</div>
           <div>
-            <p className="text-xs text-slate-500 font-semibold mb-1">تقييم المنشأة</p>
-            <p className="text-xl font-bold text-[#0B1D2A] leading-tight">
-              4.9 <span className="text-xs font-normal opacity-60">/ 5</span>
+            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">تقييم المنشأة</p>
+            <p className="text-base md:text-xl font-bold text-[#0B1D2A] leading-tight">
+              4.9 <span className="text-[10px] md:text-xs font-normal opacity-60">/ 5</span>
             </p>
           </div>
         </div>
+        <Link to="/buyer/wishlist" className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-danger)] transition-colors group shrink-0">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">❤️</div>
+          <div>
+            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">قائمة المفضلة</p>
+            <p className="text-base md:text-lg font-bold text-slate-900 leading-tight">
+               {wishlist.length} <span className="text-[10px] md:text-xs font-normal opacity-60">عرض محفوظ</span>
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* Active Requests */}
@@ -353,11 +398,29 @@ export default function BuyerHome() {
                 </div>
 
                 <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl z-10">خصم {offer.discount}</div>
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleWishlist(offer.id);
+                  }}
+                  className="absolute bottom-0 right-0 p-1.5 bg-white/90 backdrop-blur-sm rounded-tl-xl text-[var(--color-danger)] border-t border-l border-slate-100 shadow-sm z-10"
+                >
+                  <Heart className={cn("w-3.5 h-3.5", wishlist.includes(offer.id) ? "fill-current" : "")} />
+                </button>
               </div>
               <div className="flex-1 flex flex-col justify-between text-right">
                 <div>
                   <p className="text-sm font-bold text-slate-900 line-clamp-1 leading-tight">{offer.title}</p>
-                  <p className="text-xs text-slate-500 font-medium">المورد: {offer.supplierName}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <p className="text-[10px] text-slate-500 font-medium">المورد: {offer.supplierName}</p>
+                    {offer.supplierRating !== undefined && (
+                      <div className="flex items-center gap-0.5 bg-amber-50 px-1 rounded text-[8px] font-bold text-amber-600 border border-amber-100">
+                        <Star className="w-2 h-2 fill-current" />
+                        {Number(offer.supplierRating).toFixed(1)}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between items-end mt-1">
                   <div className="flex flex-col">

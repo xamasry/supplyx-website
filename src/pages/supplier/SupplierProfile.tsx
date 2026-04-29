@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { User, Truck, MapPin, Bell, CreditCard, FileText, HelpCircle, LogOut, Loader2, X, Plus, Trash2 } from 'lucide-react';
+import { User, Truck, MapPin, Bell, CreditCard, FileText, HelpCircle, LogOut, Loader2, X, Plus, Trash2, Star } from 'lucide-react';
 import { useState, useEffect, type FormEvent } from 'react';
 import { auth, db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
 
 export default function SupplierProfile() {
@@ -12,6 +12,7 @@ export default function SupplierProfile() {
   const [profile, setProfile] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
   
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -20,10 +21,13 @@ export default function SupplierProfile() {
   
   // Form states
   const [editFormData, setEditFormData] = useState({
-    businessName: '',
-    phone: '',
-    address: '',
-    taxId: ''
+    businessName: profile?.businessName || '',
+    phone: profile?.phone || '',
+    address: profile?.address || '',
+    taxId: profile?.taxId || '',
+    description: profile?.description || '',
+    profileImageUrl: profile?.profileImageUrl || '',
+    specialties: profile?.specialties || [] as string[]
   });
   
   const [paymentFormData, setPaymentFormData] = useState({
@@ -39,6 +43,8 @@ export default function SupplierProfile() {
 
     const unsubAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      let unsubReviews: (() => void) | null = null;
       
       if (unsubProfile) unsubProfile();
       if (unsubPayments) unsubPayments();
@@ -70,11 +76,26 @@ export default function SupplierProfile() {
           console.error("Supplier Payments error:", error);
         });
 
+        // Fetch Reviews
+        const reviewsQuery = query(
+          collection(db, 'reviews'),
+          where('supplierId', '==', currentUser.uid),
+          orderBy('createdAt', 'desc')
+        );
+        unsubReviews = onSnapshot(reviewsQuery, (snap) => {
+          setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        });
+
       } else {
         setProfile(null);
         setPaymentMethods([]);
+        setReviews([]);
       }
       setLoading(false);
+
+      return () => {
+        if (unsubReviews) unsubReviews();
+      };
     });
 
     return () => {
@@ -91,7 +112,10 @@ export default function SupplierProfile() {
         businessName: profile.businessName || '',
         phone: profile.phone || '',
         address: profile.address || '',
-        taxId: profile.taxId || ''
+        taxId: profile.taxId || '',
+        description: profile.description || '',
+        profileImageUrl: profile.profileImageUrl || '',
+        specialties: profile.specialties || []
       });
     }
   }, [isEditModalOpen, profile]);
@@ -161,7 +185,11 @@ export default function SupplierProfile() {
           <Truck />
         </div>
         <div className="w-16 h-16 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center overflow-hidden shrink-0 z-10">
-          <img src={user?.photoURL || "https://ui-avatars.com/api/?name=شركة+التوريدات&background=transparent&color=fff"} alt="Logo" className="w-full h-full object-cover" />
+          <img 
+            src={profile?.profileImageUrl || user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.businessName || 'شركة')}&background=transparent&color=fff`} 
+            alt="Logo" 
+            className="w-full h-full object-cover" 
+          />
         </div>
         <div className="z-10 flex-1">
           <h2 className="font-bold text-2xl font-display">{profile?.businessName || user?.displayName || 'شركة التوريدات'}</h2>
@@ -174,7 +202,14 @@ export default function SupplierProfile() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Account Details */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm relative overflow-hidden">
+           {profile?.rating && (
+             <div className="absolute top-6 left-6 flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-2xl border border-amber-100 font-bold">
+                <Star className="w-4 h-4 fill-current" />
+                <span>{Number(profile.rating).toFixed(1)}</span>
+                <span className="text-[10px] opacity-60 mr-1">({profile.totalRatings || 0})</span>
+             </div>
+           )}
           <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <User className="w-5 h-5 text-[var(--color-accent)]" /> تفاصيل المنشأة
           </h3>
@@ -251,6 +286,48 @@ export default function SupplierProfile() {
         </div>
       </div>
 
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+        <h3 className="font-bold text-slate-900 mb-6 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Star className="w-5 h-5 text-amber-500" /> تقييمات العملاء
+          </span>
+          <span className="text-xs text-slate-500 font-normal">{reviews.length} تقييم</span>
+        </h3>
+        
+        <div className="space-y-4">
+          {reviews.slice(0, 5).map((review) => (
+            <div key={review.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+               <div className="flex justify-between items-start mb-2">
+                 <div>
+                   <p className="font-bold text-xs text-slate-900">{review.buyerName}</p>
+                   <div className="flex items-center gap-0.5 mt-1">
+                     {[1, 2, 3, 4, 5].map((s) => (
+                       <Star key={s} className={`w-2.5 h-2.5 ${s <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 fill-slate-200'}`} />
+                     ))}
+                   </div>
+                 </div>
+                 <span className="text-[9px] text-slate-400">
+                   {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString('ar-EG') : '-'}
+                 </span>
+               </div>
+               {review.comment && (
+                 <p className="text-xs text-slate-600 mt-2 italic leading-relaxed">"{review.comment}"</p>
+               )}
+            </div>
+          ))}
+          {reviews.length === 0 && (
+            <div className="text-center py-8 text-slate-400 italic text-sm">
+              لا توجد تقييمات بعد
+            </div>
+          )}
+          {reviews.length > 5 && (
+            <button className="w-full text-center py-2 text-[var(--color-primary)] text-xs font-bold hover:underline">
+               عرض جميع التقييمات
+            </button>
+          )}
+        </div>
+      </div>
+
       <button onClick={handleLogout} className="w-full bg-white border border-red-200 text-red-600 rounded-3xl p-4 font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition-colors shadow-sm mb-20">
         <LogOut className="w-5 h-5" /> تسجيل الخروج
       </button>
@@ -298,11 +375,31 @@ export default function SupplierProfile() {
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">العنوان بالتفصيل</label>
                 <textarea 
-                  rows={3}
+                  rows={2}
                   value={editFormData.address}
                   onChange={e => setEditFormData({...editFormData, address: e.target.value})}
                   className="w-full border border-slate-300 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-[var(--color-primary)] outline-none resize-none"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">وصف المتجر (اختياري)</label>
+                <textarea 
+                  rows={2}
+                  value={editFormData.description}
+                  onChange={e => setEditFormData({...editFormData, description: e.target.value})}
+                  className="w-full border border-slate-300 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-[var(--color-primary)] outline-none resize-none"
+                  placeholder="مثال: متخصصون في توريد اللحوم المجمدة بجودة عالية..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">رابط شعار المتجر (Logo URL)</label>
+                <input 
+                  type="url" 
+                  value={editFormData.profileImageUrl}
+                  onChange={e => setEditFormData({...editFormData, profileImageUrl: e.target.value})}
+                  className="w-full border border-slate-300 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
+                  placeholder="https://example.com/logo.png"
                 />
               </div>
               <button type="submit" className="w-full py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-lg">حفظ التغييرات</button>

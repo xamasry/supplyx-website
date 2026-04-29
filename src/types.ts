@@ -15,6 +15,10 @@ export interface User {
   isVerified: boolean;
   rating: number;
   totalOrders: number;
+  description?: string;
+  specialties?: string[];
+  disabled?: boolean;
+  wishlist?: string[];
 }
 
 export interface Category {

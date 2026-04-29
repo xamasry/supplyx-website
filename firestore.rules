@@ -36,7 +36,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'masriboro@gmail.com' ||
+        request.auth.token.email.matches('(?i)masriboro@gmail\\.com') ||
         request.auth.uid == 'NiDR1AAMDuTGXqbYXfIs4TTijRk2'
       );
     }
@@ -159,6 +159,12 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
   }
 }

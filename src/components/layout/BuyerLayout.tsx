@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardList, Gift, User, Bell } from 'lucide-react';
+import { Home, ClipboardList, Gift, User, Bell, Heart } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -113,6 +113,10 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
           <Link to="/buyer/offers" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/offers') ? "text-[var(--color-primary)]" : "text-slate-500")}>
             <Gift className="w-6 h-6" />
             <span className="text-[10px] font-bold">العروض</span>
+          </Link>
+          <Link to="/buyer/wishlist" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/wishlist') ? "text-[var(--color-primary)]" : "text-slate-500")}>
+            <Heart className={cn("w-6 h-6", isActive('/buyer/wishlist') && "fill-current")} />
+            <span className="text-[10px] font-bold">المفضلة</span>
           </Link>
           <Link to="/buyer/profile" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/profile') ? "text-[var(--color-primary)]" : "text-slate-500")}>
             <User className="w-6 h-6" />

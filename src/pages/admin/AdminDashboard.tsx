@@ -108,6 +108,8 @@ export default function AdminDashboard() {
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
   const [editingBroadcastId, setEditingBroadcastId] = useState<string | null>(null);
   const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'new' | 'in_progress' | 'delivered' | 'cancelled'>('all');
+  const [financeTimeFilter, setFinanceTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
   const navigate = useNavigate();
   const unsubscribes = useRef<(() => void)[]>([]);
 
@@ -157,6 +159,30 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
+    // ... stats calculation logic ...
+    // (keeping original logic for requests stats)
+    
+    // User Growth Logic
+    const userGrowth = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const startOfDay = new Date(d.setHours(0,0,0,0)).getTime();
+      const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
+      
+      const count = users.filter(u => {
+        const timestamp = u.createdAt?.toMillis?.() || new Date(u.createdAt || 0).getTime();
+        return timestamp <= endOfDay;
+      }).length;
+      
+      userGrowth.push({
+        name: d.toLocaleDateString('ar-EG', { weekday: 'short' }),
+        users: count
+      });
+    }
+    setUserGrowthData(userGrowth);
+
     let totalRevenue = 0;
     let delivered = 0;
     let active = 0;
@@ -169,7 +195,20 @@ export default function AdminDashboard() {
     let bulkReport = { count: 0, revenue: 0, profit: 0 };
     let offerReport = { count: 0, revenue: 0, profit: 0 };
 
+    const nowTime = new Date().getTime();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const oneWeek = 7 * oneDay;
+    const oneMonth = 30 * oneDay;
+
     requests.forEach((r: any) => {
+      const rTime = r.createdAt?.toMillis?.() || new Date(r.createdAt || 0).getTime();
+      const diff = nowTime - rTime;
+
+      let isInFilter = true;
+      if (financeTimeFilter === 'today') isInFilter = diff <= oneDay;
+      else if (financeTimeFilter === 'week') isInFilter = diff <= oneWeek;
+      else if (financeTimeFilter === 'month') isInFilter = diff <= oneMonth;
+
       bidsCount += r.bidsCount || 0;
       
       if (r.status === 'active' && !r.supplierId) {
@@ -183,25 +222,29 @@ export default function AdminDashboard() {
 
       if (r.status === 'delivered') {
         const price = r.price || 0;
-        totalRevenue += price;
-        delivered++;
-        reqProfit = price * (reqRate / 100);
-        platformProfit += reqProfit;
+        
+        // Only add to financial reports if in time filter
+        if (isInFilter) {
+          totalRevenue += price;
+          reqProfit = price * (reqRate / 100);
+          platformProfit += reqProfit;
 
-        if (r.requestType === 'bulk') {
-          bulkReport.count++;
-          bulkReport.revenue += price;
-          bulkReport.profit += reqProfit;
-        } else if (r.offerId) {
-          offerReport.count++;
-          offerReport.revenue += price;
-          offerReport.profit += reqProfit;
-        } else {
-          fastReport.count++;
-          fastReport.revenue += price;
-          fastReport.profit += reqProfit;
+          if (r.requestType === 'bulk') {
+            bulkReport.count++;
+            bulkReport.revenue += price;
+            bulkReport.profit += reqProfit;
+          } else if (r.offerId) {
+            offerReport.count++;
+            offerReport.revenue += price;
+            offerReport.profit += reqProfit;
+          } else {
+            fastReport.count++;
+            fastReport.revenue += price;
+            fastReport.profit += reqProfit;
+          }
         }
 
+        delivered++;
       } else if (r.status === 'cancelled') {
         cancelled++;
       } else {
@@ -232,7 +275,6 @@ export default function AdminDashboard() {
       return;
     }
     
-    const now = new Date();
     let aggregatedData: any[] = [];
 
     const getReqProfit = (r: any) => {
@@ -323,7 +365,7 @@ export default function AdminDashboard() {
     }
     
     setChartData(aggregatedData);
-  }, [requests, reportType, rates]);
+  }, [requests, users, reportType, rates, financeTimeFilter]);
 
   const startStreamingData = () => {
     // Clear any existing unsubscribes
@@ -763,7 +805,7 @@ export default function AdminDashboard() {
                   {/* Orders Pie Chart */}
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h3 className="font-bold text-white mb-8">توزيع الطلبات</h3>
-                    <div className="h-[250px] flex items-center justify-center">
+                    <div className="h-[180px] flex items-center justify-center">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -772,8 +814,8 @@ export default function AdminDashboard() {
                               { name: 'نشطة', value: stats.activeOrders },
                               { name: 'ملغاة', value: stats.cancelledOrders }
                             ]}
-                            innerRadius={60}
-                            outerRadius={80}
+                            innerRadius={50}
+                            outerRadius={70}
                             paddingAngle={5}
                             dataKey="value"
                           >
@@ -785,10 +827,33 @@ export default function AdminDashboard() {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="space-y-3 mt-4">
+                    <div className="space-y-2 mt-4">
                       <LegendItem dot="bg-emerald-500" label="مكتملة" value={stats.deliveredOrders} />
                       <LegendItem dot="bg-sky-500" label="نشطة" value={stats.activeOrders} />
                       <LegendItem dot="bg-rose-500" label="ملغاة" value={stats.cancelledOrders} />
+                    </div>
+                  </div>
+
+                  {/* User Growth Chart */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 className="font-bold text-white mb-8">نمو قاعدة المستخدمين</h3>
+                    <div className="h-[180px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={userGrowthData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                          <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis hide />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
+                            itemStyle={{ color: '#fff' }}
+                          />
+                          <Bar dataKey="users" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center text-xs">
+                      <span className="text-slate-500">إجمالي المستخدمين</span>
+                      <span className="text-white font-bold">{users.length} مستخدم</span>
                     </div>
                   </div>
                 </div>
@@ -853,7 +918,17 @@ export default function AdminDashboard() {
 
             {activeTab === 'users' && (
               <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <div className="flex items-center justify-between bg-slate-900 p-4 border border-slate-800 rounded-2xl">
+                <div className="flex flex-col md:flex-row gap-4 bg-slate-900 p-4 border border-slate-800 rounded-2xl">
+                  <div className="relative flex-1">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="text"
+                      placeholder="بحث باسم المستخدم، البريد، أو الجوال..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pr-10 pl-4 py-2.5 text-sm outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex rounded-lg bg-slate-800 p-1">
                       <button onClick={() => setRoleFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${roleFilter === 'all' ? 'bg-primary-500 text-white' : 'text-slate-400 hover:text-white'}`}>الكل</button>
@@ -862,15 +937,15 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="flex rounded-lg bg-slate-800 p-1">
-                      <button onClick={() => setStatusFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'all' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>حالة مجهولة</button>
+                      <button onClick={() => setStatusFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'all' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>الكل</button>
                       <button onClick={() => setStatusFilter('pending')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'pending' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>انتظار</button>
                       <button onClick={() => setStatusFilter('approved')} className={`px-4 py-1.5 text-xs font-bold rounded-md ${statusFilter === 'approved' ? 'bg-amber-500 text-white' : 'text-slate-400 hover:text-white'}`}>مقبول</button>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setShowAddUserModal(true)} className="bg-emerald-600 hover:bg-emerald-500 transition text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                    <button onClick={() => setShowAddUserModal(true)} className="bg-emerald-600 hover:bg-emerald-500 transition text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 whitespace-nowrap">
                        <Users className="w-4 h-4" />
-                       إضافة مستخدم جديد
+                       إضافة مستخدم
                     </button>
                   </div>
                 </div>
@@ -940,12 +1015,13 @@ export default function AdminDashboard() {
                                 <span className="text-xs">
                                    {user.status === 'pending' ? 'معلق (بانتظار الموافقة)' : 
                                     user.status === 'rejected' ? 'مرفوض' : 
+                                    user.status === 'frozen' ? 'مجمد (مؤقتاً)' : 
                                     user.status === 'on_hold' ? 'معلق مؤقتاً' : 'موافق عليه'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1.5 opacity-60">
                                 <span className={`w-2 h-2 rounded-full ${user.disabled ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
-                                <span className="text-[10px]">{user.disabled ? 'الوصول محظور' : 'الوصول مسموح'}</span>
+                                <span className="text-[10px]">{user.disabled ? 'محظور / مجمد' : 'نشط'}</span>
                               </div>
                             </div>
                           </td>
@@ -977,6 +1053,18 @@ export default function AdminDashboard() {
 
             {activeTab === 'offers' && (
               <motion.div key="offers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                  <div className="relative max-w-md">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="text"
+                      placeholder="بحث عن عرض ترويجي (اسم المنتج)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl pr-10 pl-4 py-2 text-sm outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                </div>
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                   <table className="w-full text-right">
                     <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
@@ -990,7 +1078,12 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                      {offers.filter(o => (o.title || '').includes(searchQuery)).map((o: any) => (
+                      {offers.filter(o => {
+                        const s = searchQuery.toLowerCase();
+                        return (o.title || '').toLowerCase().includes(s) || 
+                               (o.supplierName || '').toLowerCase().includes(s) ||
+                               (o.productName || '').toLowerCase().includes(s);
+                      }).map((o: any) => (
                         <tr key={o.id} className="hover:bg-slate-800/30 transition">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -1037,7 +1130,17 @@ export default function AdminDashboard() {
             {activeTab === 'requests' && (
               <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 
-                <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex flex-col xl:flex-row gap-4 items-center">
+                  <div className="relative w-full xl:w-96">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="text"
+                      placeholder="بحث عن المنتج أو المشتري..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl pr-10 pl-4 py-2 text-sm outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
                   <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2 flex-1 overflow-x-auto hide-scrollbar">
                     <button 
                       onClick={() => setRequestFilter('fast')} 
@@ -1088,7 +1191,12 @@ export default function AdminDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-800">
                         {requests
-                          .filter(r => (r.productName || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                          .filter(r => {
+                            const s = searchQuery.toLowerCase();
+                            return (r.productName || '').toLowerCase().includes(s) ||
+                                   (r.buyerName || '').toLowerCase().includes(s) ||
+                                   (r.supplierName || '').toLowerCase().includes(s);
+                          })
                           .filter(r => {
                             if (requestFilter === 'bulk') return r.requestType === 'bulk';
                             if (requestFilter === 'offer') return !!r.offerId;
@@ -1322,7 +1430,16 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === 'finances' && (
-              <motion.div key="finances" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <motion.div key="finances" initial={{ opacity: 0 }} animate={{ opacity: 0.95 }} className="space-y-6">
+                <div className="flex justify-between items-center bg-slate-900 p-4 border border-slate-800 rounded-2xl">
+                   <h3 className="font-bold text-white">التقارير المالية</h3>
+                   <div className="flex rounded-lg bg-slate-800 p-1">
+                      <button onClick={() => setFinanceTimeFilter('all')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition ${financeTimeFilter === 'all' ? 'bg-primary-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>الكل</button>
+                      <button onClick={() => setFinanceTimeFilter('today')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition ${financeTimeFilter === 'today' ? 'bg-primary-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>اليوم</button>
+                      <button onClick={() => setFinanceTimeFilter('week')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition ${financeTimeFilter === 'week' ? 'bg-primary-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>الأسبوع</button>
+                      <button onClick={() => setFinanceTimeFilter('month')} className={`px-4 py-1.5 text-[10px] font-bold rounded-md transition ${financeTimeFilter === 'month' ? 'bg-primary-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>الشهر</button>
+                   </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <FinanceCard label="إجمالي حجم التداول" value={stats.totalRevenue} color="emerald" icon={<BarChart3 />} />
                    <FinanceCard label="عمولات المنصة" value={stats.platformProfit} color="sky" icon={<Percent />} />

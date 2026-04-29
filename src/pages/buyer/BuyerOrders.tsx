@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Clock, CheckCircle2, ChevronLeft, MapPin, Loader2, XCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle2, ChevronLeft, MapPin, Loader2, XCircle, Star } from 'lucide-react';
 import { cn, isRequestExpired } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import RatingModal from '../../components/RatingModal';
 
 export default function BuyerOrders() {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrderForRating, setSelectedOrderForRating] = useState<any>(null);
 
   useEffect(() => {
     let unsubSnapshot: (() => void) | null = null;
@@ -154,6 +156,27 @@ export default function BuyerOrders() {
                </div>
                <span className="text-[10px] font-bold text-slate-400 flex items-center">التفاصيل <ChevronLeft className="w-3 h-3" /></span>
             </div>
+
+            {order.status === 'delivered' && !order.isRated && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSelectedOrderForRating(order);
+                }}
+                className="w-full mt-4 py-2.5 bg-amber-50 text-amber-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-amber-100 hover:bg-amber-100 transition-colors"
+              >
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                تقييم تجربة التوريد
+              </button>
+            )}
+
+            {order.isRated && (
+              <div className="mt-4 py-2 px-3 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-bold flex items-center gap-2 border border-slate-100">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                تم التقييم بنجاح
+              </div>
+            )}
           </Link>
         ))}
 
@@ -165,6 +188,12 @@ export default function BuyerOrders() {
           </div>
         )}
       </div>
+
+      <RatingModal 
+        isOpen={!!selectedOrderForRating}
+        onClose={() => setSelectedOrderForRating(null)}
+        order={selectedOrderForRating}
+      />
     </div>
   );
 }

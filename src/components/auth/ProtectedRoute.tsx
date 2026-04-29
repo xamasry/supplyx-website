@@ -26,7 +26,13 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
             const docRef = doc(db, 'users', user.uid);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
-              setUserRole(docSnap.data().role);
+              const data = docSnap.data();
+              if (data.disabled) {
+                auth.signOut();
+                setIsAuthenticated(false);
+                alert('عذراً، تم تجميد حسابك حالياً. يرجى التواصل مع الإدارة.');
+              }
+              setUserRole(data.role);
             }
           }
         } catch (error) {

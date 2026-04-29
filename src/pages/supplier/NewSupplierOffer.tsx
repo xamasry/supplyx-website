@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Upload, Percent, Loader2 } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 
@@ -59,10 +59,15 @@ export default function NewSupplierOffer() {
     try {
       const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
       const category = CATEGORIES.find(c => c.id === categoryId);
+
+      const supplierSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const sData = supplierSnap.exists() ? supplierSnap.data() : {};
       
       const offerData = {
         supplierId: auth.currentUser.uid,
-        supplierName: auth.currentUser.displayName || 'مورد بنها',
+        supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
+        supplierRating: sData.rating || 0,
+        supplierTotalRatings: sData.totalRatings || 0,
         title: title.trim(),
         categoryId: categoryId,
         categoryName: category?.name || '',
