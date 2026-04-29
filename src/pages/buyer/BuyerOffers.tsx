@@ -58,10 +58,19 @@ export default function BuyerOffers() {
     return matchesSearch && matchesCategory;
   });
 
-  // Group offers by category for the "all" view
+  // Group offers by category for the "all" view, sorted by newest offer in each category
   const categoriesWithOffers = CATEGORIES.filter(cat => 
     offers.some(o => o.categoryId === cat.id || o.categoryName === cat.name || o.category === cat.name)
-  );
+  ).sort((a, b) => {
+    const firstA = offers.find(o => o.categoryId === a.id || o.category === a.name || o.categoryName === a.name);
+    const firstB = offers.find(o => o.categoryId === b.id || o.category === b.name || o.categoryName === b.name);
+    if (!firstA) return 1;
+    if (!firstB) return -1;
+    return offers.indexOf(firstA) - offers.indexOf(firstB);
+  });
+
+  // Newest offers (top 6 across all categories)
+  const newestOffers = offers.slice(0, 6);
 
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
@@ -218,23 +227,20 @@ export default function BuyerOffers() {
       ) : (
         <div className="space-y-12">
           {selectedCategory === 'all' && !searchTerm ? (
-            // Show sections for each category
-            categoriesWithOffers.map(cat => {
-              const categoryOffers = offers.filter(o => o.categoryId === cat.id || o.categoryName === cat.name || o.category === cat.name);
-              if (categoryOffers.length === 0) return null;
-              
-              return (
-                <section key={cat.id} className="space-y-4">
+            <>
+              {/* Newest Arrivals Section */}
+              {newestOffers.length > 0 && (
+                <section className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black flex items-center gap-2 text-slate-800">
-                      <span className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-xl">{cat.icon}</span>
-                      {cat.name}
+                      <span className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-xl">🆕</span>
+                      أحدث العروض الحصرية
                     </h2>
-                    <span className="text-xs font-bold text-slate-400 border border-slate-200 px-3 py-1 rounded-full">{categoryOffers.length} عرض</span>
+                    <span className="text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1 rounded-full animate-pulse">وصل حديثاً</span>
                   </div>
                   <div className="flex overflow-x-auto gap-4 pb-4 -mx-2 px-2 hide-scrollbar snap-x">
-                    {categoryOffers.map(offer => (
-                      <div key={offer.id} className="min-w-[280px] md:min-w-[320px] snap-start">
+                    {newestOffers.map((offer, idx) => (
+                      <div key={`newest-${offer.id || idx}`} className="min-w-[280px] md:min-w-[320px] snap-start">
                         <OfferCard offer={offer} isOrdering={isOrdering} handleOrder={() => {
                           setSelectedOffer(offer);
                           setOrderQuantity(String(offer.quantity || 1));
@@ -247,8 +253,40 @@ export default function BuyerOffers() {
                     ))}
                   </div>
                 </section>
-              );
-            })
+              )}
+
+              {/* Show sections for each category */}
+              {categoriesWithOffers.map(cat => {
+                const categoryOffers = offers.filter(o => o.categoryId === cat.id || o.categoryName === cat.name || o.category === cat.name);
+                if (categoryOffers.length === 0) return null;
+                
+                return (
+                  <section key={cat.id} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-black flex items-center gap-2 text-slate-800">
+                        <span className="w-10 h-10 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center text-xl">{cat.icon}</span>
+                        {cat.name}
+                      </h2>
+                      <span className="text-xs font-bold text-slate-400 border border-slate-200 px-3 py-1 rounded-full">{categoryOffers.length} عرض</span>
+                    </div>
+                    <div className="flex overflow-x-auto gap-4 pb-4 -mx-2 px-2 hide-scrollbar snap-x">
+                      {categoryOffers.map(offer => (
+                        <div key={offer.id} className="min-w-[280px] md:min-w-[320px] snap-start">
+                          <OfferCard offer={offer} isOrdering={isOrdering} handleOrder={() => {
+                            setSelectedOffer(offer);
+                            setOrderQuantity(String(offer.quantity || 1));
+                            setOrderAddress(userProfile?.address || '');
+                            setOrderPhone(userProfile?.phone || '');
+                            setShowOrderModal(true);
+                            requestLocation();
+                          }} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </>
           ) : (
             // Show flat filtered list
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
