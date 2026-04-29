@@ -43,7 +43,8 @@ import {
   BarChart3,
   Mail,
   Phone,
-  Store
+  Store,
+  Package
 } from 'lucide-react';
 import { CATEGORIES } from '../../constants';
 import { 
@@ -79,7 +80,8 @@ export default function AdminDashboard() {
     suppliersCount: 0,
     buyersCount: 0,
     bidsCount: 0,
-    pendingUsers: 0
+    pendingUsers: 0,
+    newRequestsCount: 0
   });
   
   const [users, setUsers] = useState<any[]>([]);
@@ -101,7 +103,7 @@ export default function AdminDashboard() {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' as 'all' | 'buyer' | 'supplier' });
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
-  const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'active' | 'delivered' | 'cancelled'>('all');
+  const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'new' | 'in_progress' | 'delivered' | 'cancelled'>('all');
   const navigate = useNavigate();
   const unsubscribes = useRef<(() => void)[]>([]);
 
@@ -155,6 +157,7 @@ export default function AdminDashboard() {
     let delivered = 0;
     let active = 0;
     let cancelled = 0;
+    let newRequests = 0;
     let platformProfit = 0;
     let bidsCount = 0;
     
@@ -164,6 +167,10 @@ export default function AdminDashboard() {
 
     requests.forEach((r: any) => {
       bidsCount += r.bidsCount || 0;
+      
+      if (r.status === 'active' && !r.supplierId) {
+        newRequests++;
+      }
       
       let reqProfit = 0;
       let reqRate = rates.fast;
@@ -206,7 +213,8 @@ export default function AdminDashboard() {
       cancelledOrders: cancelled,
       totalRevenue: totalRevenue,
       platformProfit: platformProfit,
-      bidsCount: bidsCount
+      bidsCount: bidsCount,
+      newRequestsCount: newRequests
     }));
 
     setReports({
@@ -612,10 +620,11 @@ export default function AdminDashboard() {
                 className="space-y-6"
               >
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                   <StatCard label="إجمالي الإيرادات" value={`${stats.totalRevenue.toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
                   <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="أرباح العمليات" color="sky" />
-                  <StatCard label="طلبات انتظار المراجعة" value={stats.pendingUsers} icon={<Users />} trend="مستخدم جديد" color="amber" />
+                  <StatCard label="طلبات جديدة" value={stats.newRequestsCount} icon={<Package />} trend="بانتظار مورد" color="blue" />
+                  <StatCard label="تفعيل مستخدمين" value={stats.pendingUsers} icon={<Users />} trend="مراجعة حسابات" color="amber" />
                   <StatCard label="قاعدة المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="متزايد" color="indigo" />
                 </div>
 
@@ -693,7 +702,11 @@ export default function AdminDashboard() {
                       <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-primary-500 hover:text-primary-400 bg-primary-500/10 px-3 py-1.5 rounded-lg transition-colors">جميع العملاء</button>
                     </div>
                     <div className="space-y-4">
-                      {users.slice(0, 4).map((user: any) => (
+                      {[...users].sort((a: any, b: any) => {
+                        const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+                        const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+                        return dateB.getTime() - dateA.getTime();
+                      }).slice(0, 4).map((user: any) => (
                         <div key={user.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center font-bold">
@@ -715,7 +728,11 @@ export default function AdminDashboard() {
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h3 className="font-bold text-white mb-4">الطلبات الأخيرة</h3>
                     <div className="space-y-4">
-                      {requests.slice(0, 4).map((req: any) => (
+                      {[...requests].sort((a: any, b: any) => {
+                        const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+                        const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+                        return dateB.getTime() - dateA.getTime();
+                      }).slice(0, 4).map((req: any) => (
                         <div key={req.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
@@ -723,7 +740,7 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <p className="text-sm font-bold text-white">{req.productName}</p>
-                              <p className="text-xs text-slate-500">{new Date(req.createdAt).toLocaleDateString('ar-EG')}</p>
+                              <p className="text-xs text-slate-500">{req.createdAt ? (req.createdAt.toDate ? req.createdAt.toDate() : new Date(req.createdAt)).toLocaleDateString('ar-EG') : '-'}</p>
                             </div>
                           </div>
                           <span className="font-bold text-emerald-500">{req.price || 0} ج.م</span>
@@ -921,33 +938,39 @@ export default function AdminDashboard() {
             {activeTab === 'requests' && (
               <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2 flex-1">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-2 gap-2 flex-1 overflow-x-auto hide-scrollbar">
                     <button 
                       onClick={() => setRequestFilter('fast')} 
-                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                      className={`flex-1 py-3 px-4 text-xs font-bold rounded-xl transition whitespace-nowrap ${requestFilter === 'fast' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
                     >
                       الطلبات السريعة
                     </button>
                     <button 
                       onClick={() => setRequestFilter('bulk')} 
-                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'bulk' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                      className={`flex-1 py-3 px-4 text-xs font-bold rounded-xl transition whitespace-nowrap ${requestFilter === 'bulk' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
                     >
                       مناقصات الجملة
                     </button>
                     <button 
                       onClick={() => setRequestFilter('offer')} 
-                      className={`flex-1 py-3 text-sm font-bold rounded-xl transition ${requestFilter === 'offer' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
+                      className={`flex-1 py-3 px-4 text-xs font-bold rounded-xl transition whitespace-nowrap ${requestFilter === 'offer' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-slate-800'}`}
                     >
                       عروض التجار
                     </button>
                   </div>
 
-                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-1 gap-1">
-                    <button onClick={() => setRequestsStatusFilter('all')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>الكل</button>
-                    <button onClick={() => setRequestsStatusFilter('active')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'active' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-white'}`}>نشط</button>
-                    <button onClick={() => setRequestsStatusFilter('delivered')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'delivered' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-white'}`}>مكتمل</button>
-                    <button onClick={() => setRequestsStatusFilter('cancelled')} className={`px-4 py-2 text-xs font-bold rounded-xl transition ${requestsStatusFilter === 'cancelled' ? 'bg-red-500 text-white' : 'text-slate-500 hover:text-white'}`}>ملغي</button>
+                  <div className="flex bg-slate-900 border border-slate-800 rounded-2xl p-1 gap-1 overflow-x-auto hide-scrollbar">
+                    <button onClick={() => setRequestsStatusFilter('all')} className={`px-4 py-2 text-[10px] font-bold rounded-xl transition whitespace-nowrap ${requestsStatusFilter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>الكل</button>
+                    <button onClick={() => setRequestsStatusFilter('new')} className={`px-4 py-2 text-[10px] font-bold rounded-xl transition whitespace-nowrap flex items-center gap-2 ${requestsStatusFilter === 'new' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:text-white'}`}>
+                      جديد
+                      {requests.filter(r => r.status === 'active' && !r.supplierId).length > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-white text-blue-600 flex items-center justify-center text-[8px]">{requests.filter(r => r.status === 'active' && !r.supplierId).length}</span>
+                      )}
+                    </button>
+                    <button onClick={() => setRequestsStatusFilter('in_progress')} className={`px-4 py-2 text-[10px] font-bold rounded-xl transition whitespace-nowrap ${requestsStatusFilter === 'in_progress' ? 'bg-amber-500 text-white' : 'text-slate-500 hover:text-white'}`}>قيد التنفيذ</button>
+                    <button onClick={() => setRequestsStatusFilter('delivered')} className={`px-4 py-2 text-[10px] font-bold rounded-xl transition whitespace-nowrap ${requestsStatusFilter === 'delivered' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-white'}`}>مكتمل</button>
+                    <button onClick={() => setRequestsStatusFilter('cancelled')} className={`px-4 py-2 text-[10px] font-bold rounded-xl transition whitespace-nowrap ${requestsStatusFilter === 'cancelled' ? 'bg-red-500 text-white' : 'text-slate-500 hover:text-white'}`}>ملغي</button>
                   </div>
                 </div>
 
@@ -974,8 +997,14 @@ export default function AdminDashboard() {
                           })
                           .filter(r => {
                             if (requestsStatusFilter === 'all') return true;
-                            if (requestsStatusFilter === 'active') return r.status !== 'delivered' && r.status !== 'cancelled';
+                            if (requestsStatusFilter === 'new') return r.status === 'active' && !r.supplierId;
+                            if (requestsStatusFilter === 'in_progress') return r.status === 'active' && !!r.supplierId;
                             return r.status === requestsStatusFilter;
+                          })
+                          .sort((a: any, b: any) => {
+                            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+                            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+                            return dateB.getTime() - dateA.getTime();
                           })
                           .map((r: any) => (
                           <tr key={r.id} className="hover:bg-slate-800/30 transition">
@@ -993,7 +1022,7 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-6 py-4 font-bold text-emerald-500 text-sm whitespace-nowrap">{r.price || 0} ج.م</td>
                             <td className="px-6 py-4 text-[10px] text-slate-500 italic whitespace-nowrap">
-                               {r.createdAt ? new Date(r.createdAt).toLocaleDateString('ar-EG') : '-'}
+                               {r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)).toLocaleDateString('ar-EG') : '-'}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${getStatusStyle(r.status)}`}>
@@ -1391,12 +1420,16 @@ function StatCard({ label, value, icon, trend, color }: any) {
     sky: 'text-sky-500 bg-sky-500/10 border-sky-500/20',
     amber: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
     indigo: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
+    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
   };
 
+  const style = colorStyles[color] || colorStyles.emerald;
+  const parts = style.split(' ');
+
   return (
-    <div className={`bg-slate-900 border ${colorStyles[color].split(' ')[2]} rounded-2xl p-6`}>
+    <div className={`bg-slate-900 border ${parts[2]} rounded-2xl p-6`}>
       <div className="flex items-center justify-between mb-4">
-        <div className={`p-2 rounded-lg ${colorStyles[color].split(' ').slice(0, 2).join(' ')}`}>
+        <div className={`p-2 rounded-lg ${parts.slice(0, 2).join(' ')}`}>
           {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
         </div>
         <span className="text-xs font-bold text-slate-500">{trend}</span>
@@ -1425,10 +1458,14 @@ function FinanceCard({ label, value, color, icon }: any) {
     sky: 'bg-sky-500/10 border-sky-500/20 text-sky-500',
     amber: 'bg-amber-500/10 border-amber-500/20 text-amber-500',
   };
+  
+  const style = styles[color] || styles.emerald;
+  const parts = style.split(' ');
+
   return (
-    <div className={`bg-slate-900 border ${styles[color].split(' ')[1]} p-6 rounded-2xl`}>
+    <div className={`bg-slate-900 border ${parts[1]} p-6 rounded-2xl`}>
       <div className="flex items-center gap-3 mb-2">
-        <div className={`p-2 rounded-lg ${styles[color].split(' ').slice(0, 1)}`}>{icon}</div>
+        <div className={`p-2 rounded-lg ${parts.slice(0, 1).join(' ')}`}>{icon}</div>
         <p className="text-slate-400 text-sm">{label}</p>
       </div>
       <h4 className="text-2xl font-bold text-white">{value.toLocaleString()} ج.م</h4>
