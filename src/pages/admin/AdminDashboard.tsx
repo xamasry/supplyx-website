@@ -4,6 +4,7 @@ import {
   collection, 
   query, 
   where,
+  orderBy,
   getDocs, 
   doc, 
   getDoc, 
@@ -44,7 +45,8 @@ import {
   Mail,
   Phone,
   Store,
-  Package
+  Package,
+  Edit
 } from 'lucide-react';
 import { CATEGORIES } from '../../constants';
 import { 
@@ -103,6 +105,8 @@ export default function AdminDashboard() {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' as 'all' | 'buyer' | 'supplier' });
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [editingBroadcastId, setEditingBroadcastId] = useState<string | null>(null);
   const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'new' | 'in_progress' | 'delivered' | 'cancelled'>('all');
   const navigate = useNavigate();
   const unsubscribes = useRef<(() => void)[]>([]);
@@ -373,6 +377,14 @@ export default function AdminDashboard() {
     });
     unsubscribes.current.push(unsubSettings);
 
+    // 5. Broadcasts Stream
+    const unsubBroadcasts = onSnapshot(query(collection(db, 'system_broadcasts'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setBroadcasts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'system_broadcasts');
+    });
+    unsubscribes.current.push(unsubBroadcasts);
+
     setLoading(false);
   };
 
@@ -482,27 +494,114 @@ export default function AdminDashboard() {
         ? users 
         : users.filter(u => u.role === broadcast.target);
       
-      const batch = writeBatch(db);
-      targetUsers.forEach(user => {
-        const notifRef = doc(collection(db, 'notifications'));
-        batch.set(notifRef, {
-          userId: user.id,
+      if (editingBroadcastId) {
+        // UPDATE existing broadcast
+        await updateDoc(doc(db, 'system_broadcasts', editingBroadcastId), {
           title: broadcast.title,
           message: broadcast.message,
-          type: 'broadcast',
-          read: false,
+          target: broadcast.target,
+          updatedAt: serverTimestamp()
+        });
+
+        // Update all associated user notifications
+        const notifQuery = query(collection(db, 'notifications'), where('broadcastId', '==', editingBroadcastId));
+        const notifSnap = await getDocs(notifQuery);
+        
+        // Split into chunks of 500 for batch operations
+        const chunks = [];
+        for (let i = 0; i < notifSnap.docs.length; i += 500) {
+          chunks.push(notifSnap.docs.slice(i, i + 500));
+        }
+
+        for (const chunk of chunks) {
+          const batch = writeBatch(db);
+          chunk.forEach(d => {
+            batch.update(d.ref, {
+              title: broadcast.title,
+              message: broadcast.message,
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
+        
+        toast.success('تم تحديث الإشعار بنجاح');
+        setEditingBroadcastId(null);
+      } else {
+        // CREATE new broadcast
+        const broadcastRef = doc(collection(db, 'system_broadcasts'));
+        const broadcastId = broadcastRef.id;
+
+        await setDoc(broadcastRef, {
+          title: broadcast.title,
+          message: broadcast.message,
+          target: broadcast.target,
           createdAt: serverTimestamp()
         });
-      });
 
-      await batch.commit();
-      toast.success(`تم إرسال الإشعار لـ ${targetUsers.length} مستخدم`);
+        // Split target users into chunks of 500 for batch operations
+        const userChunks = [];
+        for (let i = 0; i < targetUsers.length; i += 500) {
+          userChunks.push(targetUsers.slice(i, i + 500));
+        }
+
+        for (const chunk of userChunks) {
+          const batch = writeBatch(db);
+          chunk.forEach(user => {
+            const notifRef = doc(collection(db, 'notifications'));
+            batch.set(notifRef, {
+              broadcastId,
+              userId: user.id,
+              title: broadcast.title,
+              message: broadcast.message,
+              type: 'broadcast',
+              read: false,
+              createdAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
+
+        toast.success(`تم إرسال الإشعار لـ ${targetUsers.length} مستخدم`);
+      }
+      
       setBroadcast({ title: '', message: '', target: 'all' });
     } catch (err) {
       console.error("Error sending broadcast:", err);
       toast.error('فشل إرسال الإشعار');
     } finally {
       setIsSendingBroadcast(false);
+    }
+  };
+
+  const handleDeleteBroadcast = async (id: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا الإشعار من سجلات النظام ومن عند جميع المستخدمين؟')) return;
+    
+    try {
+      // Delete the broadcast history record
+      await deleteDoc(doc(db, 'system_broadcasts', id));
+      
+      // Delete all user notifications associated with this broadcast
+      const notifQuery = query(collection(db, 'notifications'), where('broadcastId', '==', id));
+      const notifSnap = await getDocs(notifQuery);
+      
+      const chunks = [];
+      for (let i = 0; i < notifSnap.docs.length; i += 500) {
+        chunks.push(notifSnap.docs.slice(i, i + 500));
+      }
+
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(d => {
+          batch.delete(d.ref);
+        });
+        await batch.commit();
+      }
+      
+      toast.success('تم حذف الإشعار بنجاح');
+    } catch (err) {
+      console.error("Error deleting broadcast:", err);
+      toast.error('فشل الحذف');
     }
   };
 
@@ -1085,16 +1184,32 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === 'broadcast' && (
-              <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-6">
+              <motion.div key="broadcast" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="p-3 bg-primary-500/10 rounded-2xl">
-                      <Mail className="w-8 h-8 text-primary-500" />
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary-500/10 rounded-2xl">
+                        <Mail className="w-8 h-8 text-primary-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">
+                          {editingBroadcastId ? 'تعديل الإشعار' : 'بث إشعار عام للنظام'}
+                        </h3>
+                        <p className="text-slate-400 text-sm">أرسل رسالة فورية إلى جميع المستخدمين أو فئة معينة</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-white">بث إشعار عام للنظام</h3>
-                      <p className="text-slate-400 text-sm">أرسل رسالة فورية إلى جميع المستخدمين أو فئة معينة</p>
-                    </div>
+                    {editingBroadcastId && (
+                      <button 
+                        onClick={() => {
+                          setEditingBroadcastId(null);
+                          setBroadcast({ title: '', message: '', target: 'all' });
+                        }}
+                        className="text-slate-400 hover:text-white flex items-center gap-2"
+                      >
+                        <XCircle className="w-5 h-5" />
+                        <span>إلغاء التعديل</span>
+                      </button>
+                    )}
                   </div>
 
                   <form onSubmit={handleBroadcast} className="space-y-6">
@@ -1147,9 +1262,61 @@ export default function AdminDashboard() {
                       disabled={isSendingBroadcast}
                       className="w-full py-4 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 text-white font-bold rounded-xl transition shadow-lg shadow-primary-500/20"
                     >
-                      {isSendingBroadcast ? 'جاري البث...' : 'إرسال الإشعار الآن'}
+                      {isSendingBroadcast ? 'جاري التنفيذ...' : editingBroadcastId ? 'تحديث الإشعار الآن' : 'إرسال الإشعار الآن'}
                     </button>
                   </form>
+                </div>
+
+                {/* Broadcast History */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="p-6 border-b border-slate-800">
+                    <h3 className="font-bold text-white">سجل الإشعارات المرسلة</h3>
+                  </div>
+                  <div className="divide-y divide-slate-800">
+                    {broadcasts.length > 0 ? (
+                      broadcasts.map((b) => (
+                        <div key={b.id} className="p-6 hover:bg-slate-800/30 transition group">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-3">
+                                <h4 className="font-bold text-white">{b.title}</h4>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  b.target === 'all' ? 'bg-slate-700 text-slate-300' : 
+                                  b.target === 'supplier' ? 'bg-purple-500/10 text-purple-500' : 'bg-blue-500/10 text-blue-500'
+                                }`}>
+                                  {b.target === 'all' ? 'الكل' : b.target === 'supplier' ? 'موردين' : 'مشترين'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-slate-400 line-clamp-2">{b.message}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)).toLocaleString('ar-EG') : '-'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+                              <button 
+                                onClick={() => {
+                                  setBroadcast({ title: b.title, message: b.message, target: b.target });
+                                  setEditingBroadcastId(b.id);
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="p-2 bg-slate-800 rounded-lg hover:bg-primary-500/10 text-slate-400 hover:text-primary-500 transition-colors"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteBroadcast(b.id)}
+                                className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-12 text-center text-slate-500 italic">لا يوجد سجل إشعارات بعد</div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}

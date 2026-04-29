@@ -46,6 +46,7 @@
         "message": { "type": "string" },
         "type": { "type": "string", "enum": ["bid_accepted", "new_bid", "system"] },
         "read": { "type": "boolean" },
+        "broadcastId": { "type": "string", "description": "ID of the parent broadcast if applicable" },
         "createdAt": { "type": "string", "format": "date-time" },
         "link": { "type": "string", "description": "Target path for navigation" }
       },
@@ -155,6 +156,19 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "senderId", "createdAt"]
+    },
+    "Broadcast": {
+      "title": "System Broadcast",
+      "description": "A global message sent by admin to users",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "target": { "type": "string", "enum": ["all", "buyer", "supplier"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "message", "target", "createdAt"]
     }
   },
   "firestore": {
@@ -193,6 +207,10 @@
     "/offers/{offerId}": {
       "schema": "Offer",
       "description": "Promotional offers created by suppliers"
+    },
+    "/system_broadcasts/{broadcastId}": {
+      "schema": "Broadcast",
+      "description": "History of admin broadcast messages"
     }
   }
 }
