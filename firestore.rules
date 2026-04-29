@@ -34,10 +34,14 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'masriboro@gmail.com';
+    }
+
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == 'masriboro@gmail.com'
+        isSuperAdmin()
       );
     }
 
@@ -73,7 +77,7 @@ service cloud.firestore {
 
     match /admins/{adminId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isSuperAdmin();
     }
 
     match /users/{userId} {
@@ -101,7 +105,11 @@ service cloud.firestore {
     }
 
     match /requests/{requestId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.buyerId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid || 
+        resource.data.status == 'active'
+      ));
       allow get: if isAdmin() || isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();

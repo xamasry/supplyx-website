@@ -18,7 +18,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, updateProfile as updateSecondaryProfile } from 'firebase/auth';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { Link, useNavigate } from 'react-router-dom';
-import { db, auth } from '../../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { 
   LayoutDashboard, 
   Users, 
@@ -117,6 +117,13 @@ export default function AdminDashboard() {
       const superAdminEmail = 'masriboro@gmail.com';
       if (user.email === superAdminEmail) {
         setIsAdmin(true);
+        // Ensure this user exists in the admins collection as well
+        setDoc(doc(db, 'admins', user.uid), {
+          email: user.email,
+          role: 'super_admin',
+          createdAt: serverTimestamp()
+        }, { merge: true }).catch(err => console.error("Error syncing super admin:", err));
+        
         startStreamingData();
         return;
       }
@@ -316,7 +323,7 @@ export default function AdminDashboard() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRequests(data);
     }, (error) => {
-      console.error("Admin Requests Snapshot Error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'requests');
     });
     unsubscribes.current.push(unsubRequests);
 
@@ -331,7 +338,7 @@ export default function AdminDashboard() {
         pendingUsers: data.filter((u: any) => u.status === 'pending').length
       }));
     }, (error) => {
-      console.error("Admin Users Snapshot Error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
     unsubscribes.current.push(unsubUsers);
 
@@ -339,7 +346,7 @@ export default function AdminDashboard() {
     const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
       setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      console.error("Admin Offers Snapshot Error:", error);
+      handleFirestoreError(error, OperationType.LIST, 'offers');
     });
     unsubscribes.current.push(unsubOffers);
 
@@ -354,7 +361,7 @@ export default function AdminDashboard() {
         });
       }
     }, (error) => {
-      console.error("Admin Settings Snapshot Error:", error);
+      handleFirestoreError(error, OperationType.GET, 'settings/general');
     });
     unsubscribes.current.push(unsubSettings);
 

@@ -28,14 +28,19 @@ export default function LoginPage() {
         return;
       }
 
-      // Auto-bootstrap for the specific owner email if they arrived via ordinary login
+      // Auto-bootstrap for the specific owner email
       if (userCredential.user.email === 'masriboro@gmail.com') {
-        const { setDoc } = await import('firebase/firestore');
-        await setDoc(doc(db, 'admins', userCredential.user.uid), {
-          email: userCredential.user.email,
-          addedAt: new Date().toISOString(),
-          isSuperAdmin: true
-        });
+        try {
+          const { setDoc, serverTimestamp } = await import('firebase/firestore');
+          await setDoc(doc(db, 'admins', userCredential.user.uid), {
+            email: userCredential.user.email,
+            addedAt: serverTimestamp(),
+            isSuperAdmin: true,
+            role: 'super_admin'
+          }, { merge: true });
+        } catch (err) {
+          console.error("Bootstrap failed but continuing:", err);
+        }
         navigate('/admin/dashboard');
         return;
       }

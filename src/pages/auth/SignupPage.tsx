@@ -21,50 +21,34 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !phone || !businessName) {
+    console.log("Signup attempt started with data:", { role, name, email, phone, businessName });
+    
+    if (!name.trim() || !email.trim() || !password || !phone.trim() || !businessName.trim()) {
+      console.warn("Validation failed: missing fields");
       toast.error('يرجى إكمال جميع البيانات المطلوبة');
       return;
     }
 
+    const toastId = toast.loading('جاري إنشاء الحساب...');
     setLoading(true);
     try {
-      let formattedPhone = phone;
+      let formattedPhone = phone.trim();
       if (formattedPhone.startsWith('01')) {
          formattedPhone = '2' + formattedPhone;
       } else if (formattedPhone.startsWith('1')) {
          formattedPhone = '20' + formattedPhone;
       }
 
-      // Check if phone number already exists in Firestore 'users' collection
-      const usersRef = collection(db, 'users');
-      const qPhone = query(usersRef, where('phone', '==', formattedPhone));
-      const qWhatsappPhone = query(usersRef, where('whatsappPhone', '==', formattedPhone));
-      
-      const [phoneSnap, whatsappPhoneSnap] = await Promise.all([
-        getDocs(qPhone),
-        getDocs(qWhatsappPhone)
-      ]);
-      
-      if (!phoneSnap.empty || !whatsappPhoneSnap.empty) {
-        toast.error('رقم الهاتف مسجل بالفعل في نظامنا. يرجى استخدام رقم آخر أو تسجيل الدخول.');
-        setLoading(false);
-        return;
-      }
+      console.log("Normalizing email...");
+      // Normalize email for creation
+      const normalizedEmail = email.trim().includes('@') ? email.trim().toLowerCase() : `${email.trim().toLowerCase()}@supplyx.com`;
 
-      // Normalize email for check
-      const normalizedEmail = email.includes('@') ? email.toLowerCase() : `${email.toLowerCase()}@supplyx.com`;
-
-      const qEmail = query(usersRef, where('email', '==', normalizedEmail));
-      const emailSnap = await getDocs(qEmail);
-      if (!emailSnap.empty) {
-        toast.error('البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول أو استخدام بريد آخر.');
-        setLoading(false);
-        return;
-      }
-
+      console.log("Creating auth user...");
       // Create account
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+      console.log("Auth user created:", userCredential.user.uid);
       
+      console.log("Updating profile...");
       // Update profile display name
       await updateProfile(userCredential.user, {
         displayName: businessName || name
@@ -72,9 +56,10 @@ export default function SignupPage() {
       
       const userId = userCredential.user.uid;
       
+      console.log("Setting firestore document...");
       await setDoc(doc(db, 'users', userId), {
-         name,
-         businessName,
+         name: name.trim(),
+         businessName: businessName.trim(),
          email: normalizedEmail,
          role,
          phone: formattedPhone,
@@ -84,19 +69,27 @@ export default function SignupPage() {
          disabled: true,
          createdAt: new Date().toISOString()
       }).catch(err => {
+         console.error("Firestore setDoc failed:", err);
          handleFirestoreError(err, OperationType.CREATE, 'users');
       });
+
+      console.log("User successfully registered in Firestore");
 
       // Sign out immediately because they are pending
       await auth.signOut();
       
-      toast.success('تم تسجيل الحساب بنجاح! حسابك الآن قيد المراجعة من الإدارة.');
+      toast.success('تم تسجيل الحساب بنجاح! حسابك الآن قيد المراجعة من الإدارة.', { id: toastId });
       navigate('/auth/login');
 
     } catch (error: any) {
-      console.error(error);
+      console.error("Signup error catch:", error);
+      toast.dismiss(toastId);
       if (error.code === 'auth/email-already-in-use') {
         toast.error('هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو تسجيل الدخول.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('كلمة المرور ضعيفة جداً. يرجى استخدام كلمة مرور أقوى.');
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('البريد الإلكتروني غير صالح.');
       } else {
         toast.error(`حدث خطأ أثناء إنشاء الحساب: ${error.message}`);
       }

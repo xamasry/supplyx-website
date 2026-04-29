@@ -54,13 +54,14 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('Firestore Error Detailed Object:', error);
+  console.error('Firestore Error Info JSON:', JSON.stringify(errInfo));
   if (errInfo.error.includes('permissions')) {
     toast.error("عذراً، لا نملك صلاحية تنفيذ هذه العملية. يرجى محاولة تسجيل الدخول مرة أخرى.");
   } else {
     toast.error("حدث خطأ أثناء التواصل مع قاعدة البيانات. يرجى المحاولة لاحقاً.");
   }
-  throw new Error(JSON.stringify(errInfo));
+  throw error; // Throw original error instead of new one for better stack trace
 }
 
 // Optional: Test connection to Firestore

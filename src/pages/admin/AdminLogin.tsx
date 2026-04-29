@@ -29,11 +29,13 @@ export default function AdminLogin() {
 
       // Auto-bootstrap for the specific owner email
       if (user.email === OWNER_EMAIL) {
+        const { serverTimestamp } = await import('firebase/firestore');
         await setDoc(doc(db, 'admins', user.uid), {
           email: user.email,
-          addedAt: new Date().toISOString(),
-          isSuperAdmin: true
-        });
+          addedAt: serverTimestamp(),
+          isSuperAdmin: true,
+          role: 'super_admin'
+        }, { merge: true });
         navigate('/admin/dashboard');
       } else {
         await auth.signOut();
