@@ -373,36 +373,38 @@ export default function AdminDashboard() {
     unsubscribes.current = [];
 
     // 1. Orders/Requests Stream
-    const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setRequests(data);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'requests');
-    });
-    unsubscribes.current.push(unsubRequests);
+      const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setRequests(data);
+        setLoading(false);
+      }, (err) => {
+        console.error('Requests stream error:', err);
+        handleFirestoreError(err, OperationType.LIST, 'requests', true);
+      });
+      unsubscribes.current.push(unsubRequests);
 
-    // 2. Users Stream
-    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUsers(data);
-      setStats(prev => ({
-        ...prev,
-        suppliersCount: data.filter((u: any) => u.role === 'supplier').length,
-        buyersCount: data.filter((u: any) => u.role === 'buyer').length,
-        pendingUsers: data.filter((u: any) => u.status === 'pending').length
-      }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users');
-    });
-    unsubscribes.current.push(unsubUsers);
+      const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setUsers(data);
+        setStats(prev => ({
+          ...prev,
+          suppliersCount: data.filter((u: any) => u.role === 'supplier').length,
+          buyersCount: data.filter((u: any) => u.role === 'buyer').length,
+          pendingUsers: data.filter((u: any) => u.status === 'pending').length
+        }));
+      }, (err) => {
+        console.error('Users stream error:', err);
+        handleFirestoreError(err, OperationType.LIST, 'users', true);
+      });
+      unsubscribes.current.push(unsubUsers);
 
-    // 3. Offers Stream
-    const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
-      setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'offers');
-    });
-    unsubscribes.current.push(unsubOffers);
+      const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
+        setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }, (err) => {
+        console.error('Offers stream error:', err);
+        handleFirestoreError(err, OperationType.LIST, 'offers', true);
+      });
+      unsubscribes.current.push(unsubOffers);
 
     // 4. Settings Stream
     const unsubSettings = onSnapshot(doc(db, 'settings', 'general'), (doc) => {
@@ -423,7 +425,7 @@ export default function AdminDashboard() {
     const unsubBroadcasts = onSnapshot(query(collection(db, 'system_broadcasts'), orderBy('createdAt', 'desc')), (snapshot) => {
       setBroadcasts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'system_broadcasts');
+      handleFirestoreError(error, OperationType.LIST, 'system_broadcasts', true);
     });
     unsubscribes.current.push(unsubBroadcasts);
 

@@ -51,7 +51,10 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         );
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
-        }, (err) => console.error("BuyerLayout Notif error:", err));
+        }, (err) => {
+          console.error("BuyerLayout Notif error:", err);
+          handleFirestoreError(err, OperationType.LIST, 'notifications', true);
+        });
       } else {
         setUnreadCount(0);
         setUserProfile(null);

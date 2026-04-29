@@ -58,7 +58,7 @@ export default function BuyerHome() {
         setRequests(data);
         setLoading(false);
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'requests');
+        handleFirestoreError(error, OperationType.LIST, 'requests', true);
       });
 
       // Fetch Offers
@@ -207,8 +207,9 @@ export default function BuyerHome() {
   const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status) && !isRequestExpired(r));
 
   return (
-    <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-4 pb-6 md:pb-0 relative">
-      {/* Search & Urgent Request */}
+    <div className="max-w-7xl mx-auto px-1 sm:px-4 lg:px-6">
+      <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-6 pb-6 md:pb-8 relative">
+        {/* Search & Urgent Request */}
       <div className="md:col-start-1 md:col-span-3 md:row-start-1 md:row-span-2 flex flex-col justify-between gap-4">
         <div className="relative">
           <input 
@@ -245,30 +246,30 @@ export default function BuyerHome() {
 
       {/* Stats Cards - Horizontal on mobile, vertical on desktop */}
       <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 hide-scrollbar md:col-start-1 md:col-span-3 md:row-start-3 md:row-span-2">
-        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-colors shrink-0">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0">💰</div>
+        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-all hover:shadow-md shrink-0 group/card">
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">💰</div>
           <div>
-            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">رصيد المشتريات</p>
-            <p className="text-base md:text-lg xl:text-xl font-bold text-slate-900 leading-tight">
-               12,450.50 <span className="text-[8px] md:text-[10px] xl:text-xs font-normal">ج.م</span>
+            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">رصيد المشتريات</p>
+            <p className="text-base md:text-xl xl:text-2xl font-black text-slate-900 leading-tight">
+               12,450.50 <span className="text-[10px] md:text-xs font-bold text-slate-400">ج.م</span>
             </p>
           </div>
         </div>
-        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[#22C55E] transition-colors shrink-0">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-[#22C55E]/10 text-[#22C55E] rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0">⭐</div>
+        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[#22C55E] transition-all hover:shadow-md shrink-0 group/card">
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-[#22C55E]/10 text-[#22C55E] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">⭐</div>
           <div>
-            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">تقييم المنشأة</p>
-            <p className="text-base md:text-xl font-bold text-[#0B1D2A] leading-tight">
-              4.9 <span className="text-[10px] md:text-xs font-normal opacity-60">/ 5</span>
+            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">تقييم المنشأة</p>
+            <p className="text-base md:text-xl xl:text-2xl font-black text-[#0B1D2A] leading-tight">
+              4.9 <span className="text-[10px] md:text-xs font-bold text-slate-400">/ 5</span>
             </p>
           </div>
         </div>
-        <Link to="/buyer/wishlist" className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-danger)] transition-colors group shrink-0">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-lg md:text-xl shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">❤️</div>
+        <Link to="/buyer/wishlist" className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-danger)] transition-all hover:shadow-md group shrink-0">
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">❤️</div>
           <div>
-            <p className="text-[10px] md:text-xs text-slate-500 font-semibold mb-1">قائمة المفضلة</p>
-            <p className="text-base md:text-lg font-bold text-slate-900 leading-tight">
-               {wishlist.length} <span className="text-[10px] md:text-xs font-normal opacity-60">عرض محفوظ</span>
+            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">قائمة المفضلة</p>
+            <p className="text-base md:text-xl xl:text-2xl font-black text-slate-900 leading-tight">
+               {wishlist.length} <span className="text-[10px] md:text-xs font-bold text-slate-400">محفوظ</span>
             </p>
           </div>
         </Link>
@@ -375,7 +376,7 @@ export default function BuyerHome() {
         <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
           {offers.map(offer => (
             <div key={offer.id} className="min-w-[280px] md:min-w-[320px] bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl p-3 flex gap-3 snap-start hover:border-[var(--color-primary)] transition-colors">
-              <div className="w-20 h-20 bg-white rounded-xl relative overflow-hidden shrink-0 flex items-center justify-center border border-slate-100">
+              <div className="w-20 h-20 bg-slate-100 rounded-xl relative overflow-hidden shrink-0 flex items-center justify-center border border-slate-200">
                 {offer.image ? (
                   <img 
                     src={offer.image} 
@@ -383,13 +384,17 @@ export default function BuyerHome() {
                     className="w-full h-full object-cover" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        parent.classList.add('bg-slate-50');
+                        parent.querySelector('.category-fallback')?.classList.remove('hidden');
+                      }
                     }}
                   />
                 ) : null}
                 
                 <div className={cn(
-                  "flex flex-col items-center justify-center",
+                  "category-fallback flex flex-col items-center justify-center",
                   offer.image ? "hidden" : ""
                 )}>
                   <span className="text-3xl filter drop-shadow-sm">
@@ -577,6 +582,7 @@ export default function BuyerHome() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

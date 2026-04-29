@@ -35,16 +35,18 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email.matches('(?i)masriboro@gmail\\.com') ||
-        request.auth.uid == 'NiDR1AAMDuTGXqbYXfIs4TTijRk2'
-      );
+      return isSignedIn() && 
+        request.auth.token.keys().contains('email') && 
+        (
+          request.auth.token.email.matches('(?i)masriboro@gmail\\.com') ||
+          request.auth.uid == 'NiDR1AAMDuTGXqbYXfIs4TTijRk2'
+        );
     }
 
     function isAdmin() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        isSuperAdmin()
+        isSuperAdmin() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
 

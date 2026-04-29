@@ -52,7 +52,7 @@ export default function Notifications() {
         setLoading(false);
       }, (error) => {
         console.error("Notifications list error:", error);
-        handleFirestoreError(error, OperationType.LIST, 'notifications');
+        handleFirestoreError(error, OperationType.LIST, 'notifications', true);
         setLoading(false);
       });
     });

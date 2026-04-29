@@ -37,7 +37,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, suppressThrow: boolean = false) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -61,7 +61,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   } else {
     toast.error("حدث خطأ أثناء التواصل مع قاعدة البيانات. يرجى المحاولة لاحقاً.");
   }
-  throw error; // Throw original error instead of new one for better stack trace
+  if (!suppressThrow) {
+    throw error; 
+  }
 }
 
 // Optional: Test connection to Firestore

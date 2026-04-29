@@ -113,7 +113,7 @@ export default function BuyerWishlist() {
           {offers.map(offer => (
             <div key={offer.id} className="bg-white rounded-[2.5rem] p-4 border border-slate-100 shadow-sm flex gap-5 relative group overflow-hidden">
               {/* Image Section */}
-              <div className="w-28 h-28 bg-slate-50 rounded-3xl overflow-hidden flex-shrink-0 border border-slate-50 flex items-center justify-center relative">
+              <div className="w-28 h-28 bg-slate-100 rounded-3xl overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center relative">
                 {(offer.image || offer.imageUrl) ? (
                   <img 
                     src={offer.image || offer.imageUrl} 
@@ -121,16 +121,20 @@ export default function BuyerWishlist() {
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        parent.classList.add('bg-slate-50');
+                        parent.querySelector('.category-fallback')?.classList.remove('hidden');
+                      }
                     }}
                   />
                 ) : null}
                 
                 <div className={cn(
-                  "flex flex-col items-center justify-center",
+                  "category-fallback flex flex-col items-center justify-center",
                   (offer.image || offer.imageUrl) ? "hidden" : ""
                 )}>
-                  <span className="text-4xl filter drop-shadow-sm">
+                  <span className="text-4xl filter drop-shadow-sm transform group-hover:scale-125 transition-transform">
                     {offer.categoryIcon || CATEGORIES.find((c: any) => c.id === offer.categoryId || c.name === offer.category)?.icon || '✨'}
                   </span>
                 </div>
@@ -162,14 +166,15 @@ export default function BuyerWishlist() {
 
                 <div className="flex items-end justify-between mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-lg font-black text-[var(--color-primary)] leading-none">{offer.offerPrice} جنيه</span>
-                    <span className="text-xs text-slate-400 font-bold mt-1">لكل {offer.quantity || 1} {offer.unit}</span>
+                    <span className="text-lg font-black text-[var(--color-primary)] leading-none">{offer.offerPrice} <span className="text-[10px]">ج.م</span></span>
+                    <span className="text-[10px] text-slate-400 font-bold mt-1 tracking-tight">لكل {offer.quantity || 1} {offer.unit}</span>
                   </div>
                   <Link 
                     to={`/buyer/home?offerId=${offer.id}`} 
-                    className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-primary-600 transition-colors shadow-lg shadow-slate-200"
+                    className="px-5 h-12 bg-slate-900 shadow-[0_8px_16px_rgba(0,0,0,0.1)] text-white rounded-2xl flex items-center justify-center gap-2 hover:bg-[var(--color-primary)] transition-all font-bold group/btn"
                   >
-                    <ShoppingBag className="w-5 h-5" />
+                    <span className="text-sm">اطلب الآن</span>
+                    <ShoppingBag className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                   </Link>
                 </div>
               </div>

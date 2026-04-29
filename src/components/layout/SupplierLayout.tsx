@@ -51,7 +51,10 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
         );
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
-        }, (err) => console.error("SupplierLayout Notif error:", err));
+        }, (err) => {
+          console.error("SupplierLayout Notif error:", err);
+          handleFirestoreError(err, OperationType.LIST, 'notifications', true);
+        });
       } else {
         setUnreadCount(0);
         setUserProfile(null);
