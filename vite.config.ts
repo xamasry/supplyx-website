@@ -12,7 +12,7 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'icon.svg'],
         manifest: {
           name: 'supplyX | منصة إمدادات المطاعم',
           short_name: 'supplyX',
@@ -21,8 +21,11 @@ export default defineConfig(({mode}) => {
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait',
+          start_url: '/',
+          scope: '/',
           dir: 'rtl',
           lang: 'ar',
+          categories: ['business', 'shopping'],
           icons: [
             {
               src: '/icon.svg',

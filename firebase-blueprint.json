@@ -109,6 +109,8 @@
         "address": { "type": "string" },
         "role": { "type": "string", "enum": ["buyer", "supplier"] },
         "avatarUrl": { "type": "string" },
+        "fcmTokens": { "type": "array", "items": { "type": "string" }, "description": "Device tokens for push notifications" },
+        "notificationsEnabled": { "type": "boolean" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },

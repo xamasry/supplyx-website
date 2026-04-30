@@ -1,6 +1,12 @@
 import { db } from '../../src/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { sendNewRequestNotification } from '../whatsapp/templates';
+import admin from 'firebase-admin';
+
+// Initialize admin if not already
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
 interface Request {
   id: string;
@@ -28,17 +34,16 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 
 export async function notifyNearbySuppliers(request: Request): Promise<void> {
   try {
-    // جلب كل الموردين النشطين اللي عندهم واتساب
+    // جلب كل الموردين النشطين
     const suppliersQuery = query(
       collection(db, 'users'),
       where('role', '==', 'supplier'),
-      where('whatsappOptIn', '==', true),
       where('isAvailable', '==', true)
     );
     
     const suppliersSnap = await getDocs(suppliersQuery);
     if (suppliersSnap.empty) {
-      console.log('No available WhatsApp suppliers found');
+      console.log('No available suppliers found');
       return;
     }
     
@@ -51,7 +56,7 @@ export async function notifyNearbySuppliers(request: Request): Promise<void> {
     const currentTime = currentHour * 60 + currentMinute;
 
     for (const supplier of suppliers) {
-      // التحقق من أوقات العمل
+      // 1. التحقق من أوقات العمل
       if (supplier.availableHoursStart && supplier.availableHoursEnd) {
         const [startH, startM] = supplier.availableHoursStart.split(':').map(Number);
         const [endH, endM] = supplier.availableHoursEnd.split(':').map(Number);
@@ -60,7 +65,7 @@ export async function notifyNearbySuppliers(request: Request): Promise<void> {
         if (currentTime < startTime || currentTime > endTime) continue;
       }
 
-      // التحقق من التخصص
+      // 2. التحقق من التخصص
       if (supplier.specialties?.length > 0 && request.categoryName) {
         const hasSpecialty = supplier.specialties.some(
           (s: string) => s === request.categoryName || s === 'الكل'
@@ -68,7 +73,7 @@ export async function notifyNearbySuppliers(request: Request): Promise<void> {
         if (!hasSpecialty) continue;
       }
 
-      // حساب المسافة
+      // 3. حساب المسافة
       let distanceKm = 5; // افتراضي لو مفيش إحداثيات
       if (request.coordinates && supplier.locationLat && supplier.locationLng) {
         distanceKm = calculateDistance(
@@ -83,25 +88,56 @@ export async function notifyNearbySuppliers(request: Request): Promise<void> {
         if (distanceKm > radius) continue;
       }
 
-      // إرسال الإشعار
-      const expiresInMinutes = 120; // ساعتين
-      await sendNewRequestNotification(supplier.whatsappPhone, {
-        id: request.id,
-        productName: request.productName,
-        quantity: String(request.quantity),
-        unit: request.unit,
-        categoryName: request.categoryName,
-        buyerName: request.buyerName,
-        distanceKm,
-        notes: request.notes,
-        maxPrice: request.maxPrice,
-        expiresInMinutes
-      });
+      // 4. إرسال إشعار دفع (Push Notification)
+      if (supplier.fcmTokens && supplier.fcmTokens.length > 0) {
+        const message = {
+          notification: {
+            title: `طلب جديد: ${request.productName}`,
+            body: `الكمية: ${request.quantity} ${request.unit} - من: ${request.buyerName}`,
+          },
+          data: {
+            requestId: request.id,
+            type: 'new_request',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK', // Legacy but common
+            link: `/supplier/request/${request.id}`
+          },
+          tokens: supplier.fcmTokens,
+        };
+
+        try {
+          const response = await admin.messaging().sendEachForMulticast(message);
+          console.log(`Successfully sent FCM messages: ${response.successCount}`);
+          
+          // Clean up failed tokens if needed
+          if (response.failureCount > 0) {
+            console.log(`Failed FCM tokens: ${response.failureCount}`);
+          }
+        } catch (error) {
+          console.error('Error sending FCM:', error);
+        }
+      }
+
+      // 5. إرسال إشعار واتساب
+      if (supplier.whatsappOptIn && supplier.whatsappPhone) {
+        const expiresInMinutes = 120; // ساعتين
+        await sendNewRequestNotification(supplier.whatsappPhone, {
+          id: request.id,
+          productName: request.productName,
+          quantity: String(request.quantity),
+          unit: request.unit,
+          categoryName: request.categoryName,
+          buyerName: request.buyerName,
+          distanceKm,
+          notes: request.notes,
+          maxPrice: request.maxPrice,
+          expiresInMinutes
+        });
+      }
       
       notifiedCount++;
       
-      // Delay بين كل رسالة وتانية (عشان مش تتحجب من Meta)
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Delay لتجنب الضغط على السيرفرات
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
     
     console.log(`📱 Notified ${notifiedCount} suppliers for request ${request.id}`);
