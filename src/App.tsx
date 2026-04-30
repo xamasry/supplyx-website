@@ -29,11 +29,13 @@ import OrderTracking from './pages/OrderTracking';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/admin/AdminLogin';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import ReloadPrompt from './components/pwa/ReloadPrompt';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-center" />
+      <ReloadPrompt />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         
