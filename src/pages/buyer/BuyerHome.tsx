@@ -3,7 +3,7 @@ import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, 
 import { cn, isRequestExpired, convertArabicNumerals } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, increment, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
 import { trackEvent } from '../../lib/analytics';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -14,6 +14,7 @@ export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -27,6 +28,7 @@ export default function BuyerHome() {
     let unsubSuppliers: (() => void) | null = null;
     
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      // Cleanup previous listeners
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
       if (unsubProfile) unsubProfile();
@@ -39,19 +41,24 @@ export default function BuyerHome() {
         setUserProfile(null);
         setWishlist([]);
         setLoading(false);
+        setLoadingSuppliers(false);
         return;
       }
       
-      // Fetch Trusted Suppliers
+      // Fetch Trusted Suppliers - Within Auth changed to ensure request.auth is available for rules
       const qSuppliers = query(
         collection(db, 'users'), 
         where('role', '==', 'supplier'), 
         where('isVerified', '==', true),
-        limit(10)
+        limit(12)
       );
       unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSuppliers(data);
+        setLoadingSuppliers(false);
+      }, (err) => {
+        console.error('Suppliers Fetch Error:', err);
+        setLoadingSuppliers(false);
       });
 
       // Fetch Profile Real-time for wishlist
@@ -77,6 +84,7 @@ export default function BuyerHome() {
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests', true);
+        setLoading(false);
       });
 
       // Fetch Offers
@@ -88,8 +96,6 @@ export default function BuyerHome() {
       }, (error) => {
         console.error('Error fetching offers:', error);
       });
-
-      // Pass bName to context or state if needed
     });
 
     return () => {
@@ -100,20 +106,6 @@ export default function BuyerHome() {
       if (unsubSuppliers) unsubSuppliers();
     };
   }, []);
-
-  useEffect(() => {
-    const offerId = searchParams.get('offerId');
-    if (offerId && offers.length > 0) {
-      const offer = offers.find(o => o.id === offerId);
-      if (offer) {
-        setSelectedOffer(offer);
-        setOrderQuantity(String(offer.quantity || 1));
-        setOrderAddress(userProfile?.address || '');
-        setOrderPhone(userProfile?.phone || '');
-        setShowOrderModal(true);
-      }
-    }
-  }, [searchParams, offers, userProfile]);
 
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
@@ -129,14 +121,10 @@ export default function BuyerHome() {
       toast.error('المتصفح لا يدعم تحديد الموقع');
       return;
     }
-
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
+        setLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
         setIsGettingLocation(false);
       },
       (error) => {
@@ -162,7 +150,6 @@ export default function BuyerHome() {
 
   const handleOrder = async () => {
     if (!selectedOffer || !auth.currentUser) return;
-
     setIsOrdering(selectedOffer.id);
     try {
       const orderRef = collection(db, 'requests');
@@ -187,41 +174,23 @@ export default function BuyerHome() {
         totalAmount: (Number(selectedOffer.offerPrice) * Number(orderQuantity)) / (Number(selectedOffer.quantity) || 1),
         coordinates: location
       };
-
       await addDoc(orderRef, newOrder);
-      
       if (selectedOffer.id) {
-        try {
-          await updateDoc(doc(db, 'offers', selectedOffer.id), {
-            orders: increment(1),
-            updatedAt: serverTimestamp()
-          });
-        } catch (err) {
-          console.error('Error updating offer orders count:', err);
-        }
-      }
-      
-      try {
-        await addDoc(collection(db, 'notifications'), {
-          userId: selectedOffer.supplierId,
-          title: 'طلب جديد من عرضك!',
-          message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء ${orderQuantity} ${selectedOffer.unit} من عرضك "${selectedOffer.title}".`,
-          type: 'bid_accepted',
-          read: false,
-          createdAt: serverTimestamp(),
-          link: `/supplier/orders`
+        await updateDoc(doc(db, 'offers', selectedOffer.id), {
+          orders: increment(1),
+          updatedAt: serverTimestamp()
         });
-      } catch (err) {
-        console.error('Error sending notification:', err);
       }
-
-      trackEvent('order_created', {
-        type: 'offer_direct',
-        amount: newOrder.totalAmount,
-        quantity: orderQuantity,
-        productId: selectedOffer.id
+      await addDoc(collection(db, 'notifications'), {
+        userId: selectedOffer.supplierId,
+        title: 'طلب جديد من عرضك!',
+        message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء ${orderQuantity} ${selectedOffer.unit} من عرضك "${selectedOffer.title}".`,
+        type: 'bid_accepted',
+        read: false,
+        createdAt: serverTimestamp(),
+        link: `/supplier/orders`
       });
-
+      trackEvent('order_created', { type: 'offer_direct', amount: newOrder.totalAmount });
       toast.success('تم إرسال الطلب بنجاح!');
       setShowOrderModal(false);
       navigate('/buyer/orders');
@@ -235,421 +204,286 @@ export default function BuyerHome() {
   const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status) && !isRequestExpired(r));
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-4 lg:px-6">
-      <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-6 pb-6 md:pb-8 relative">
-        {/* Search & Urgent Request */}
-      <div className="md:col-start-1 md:col-span-3 md:row-start-1 md:row-span-2 flex flex-col justify-between gap-4">
-        <div className="relative">
-          <input 
-            type="text" 
-            placeholder="ابحث عن خامة..." 
-            className="w-full bg-white border border-slate-300 rounded-3xl py-3.5 px-5 pr-12 shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none font-bold"
-          />
-          <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-        </div>
+    <div className="max-w-7xl mx-auto px-1 sm:px-4 lg:px-6 pb-20">
+      <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-6 relative">
         
-        <div className="flex gap-4 h-[140px] md:h-auto md:flex-1">
-          <Link 
-            to="/buyer/request/new"
-            className="flex-1 bg-[var(--color-danger)] text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform"
-          >
-            <div className="relative z-10 flex flex-col items-center">
-               <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded mb-1">سريع (ساعات)</span>
-               <h2 className="text-lg font-bold font-display text-center leading-tight">طلب طارئ</h2>
-            </div>
-            <Flame className="absolute -right-4 -bottom-4 w-20 h-20 opacity-10 rotate-12" />
-          </Link>
-          <Link 
-            to="/buyer/request/new?type=bulk"
-            className="flex-1 bg-slate-900 text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg relative overflow-hidden group hover:scale-[1.02] transition-transform border border-slate-700"
-          >
-            <div className="relative z-10 flex flex-col items-center">
-               <span className="text-[10px] font-bold bg-white/10 px-2 py-1 rounded mb-1 border border-white/10">مناقصة 48h</span>
-               <h2 className="text-lg font-bold font-display text-center leading-tight">صفقة جملة</h2>
-            </div>
-            <Package className="absolute -left-4 -bottom-4 w-20 h-20 opacity-5 -rotate-12" />
-          </Link>
+        {/* Top Section: Search & Actions */}
+        <div className="md:col-span-3 space-y-4">
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="ابحث عن خامة..." 
+              className="w-full bg-white border border-slate-300 rounded-3xl py-3.5 px-5 pr-12 shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none font-bold"
+            />
+            <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+          </div>
+          
+          <div className="flex gap-4 h-[110px] md:h-auto">
+            <Link to="/buyer/request/new" className="flex-1 bg-[var(--color-danger)] text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-lg group hover:scale-[1.02] transition-transform overflow-hidden relative">
+              <span className="text-[9px] font-bold bg-white/20 px-2 py-0.5 rounded relative z-10">سريع جداً</span>
+              <h2 className="text-lg font-bold font-display relative z-10">طلب طارئ</h2>
+              <Flame className="absolute -right-4 -bottom-4 w-20 h-20 opacity-10 rotate-12" />
+            </Link>
+            <Link to="/buyer/request/new?type=bulk" className="flex-1 bg-slate-900 text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-lg group hover:scale-[1.02] transition-transform overflow-hidden relative border border-slate-700">
+              <span className="text-[9px] font-bold bg-white/10 px-2 py-0.5 rounded border border-white/10 relative z-10">مناقصة جملة</span>
+              <h2 className="text-lg font-bold font-display relative z-10">صفقة كبيرة</h2>
+              <Package className="absolute -left-4 -bottom-4 w-20 h-20 opacity-5 -rotate-12" />
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Cards - Horizontal on mobile, vertical on desktop */}
-      <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 hide-scrollbar md:col-start-1 md:col-span-3 md:row-start-3 md:row-span-2">
-        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-all hover:shadow-md shrink-0 group/card">
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">💰</div>
-          <div>
-            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">رصيد المشتريات</p>
-            <p className="text-base md:text-xl xl:text-2xl font-black text-slate-900 leading-tight">
-               12,450.50 <span className="text-[10px] md:text-xs font-bold text-slate-400">ج.م</span>
-            </p>
-          </div>
-        </div>
-        <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[#22C55E] transition-all hover:shadow-md shrink-0 group/card">
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-[#22C55E]/10 text-[#22C55E] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">⭐</div>
-          <div>
-            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">تقييم المنشأة</p>
-            <p className="text-base md:text-xl xl:text-2xl font-black text-[#0B1D2A] leading-tight">
-              4.9 <span className="text-[10px] md:text-xs font-bold text-slate-400">/ 5</span>
-            </p>
-          </div>
-        </div>
-        <Link to="/buyer/wishlist" className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-danger)] transition-all hover:shadow-md group shrink-0">
-          <div className="w-10 h-10 md:w-14 md:h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover:bg-rose-500 group-hover:text-white transition-colors">❤️</div>
-          <div>
-            <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">قائمة المفضلة</p>
-            <p className="text-base md:text-xl xl:text-2xl font-black text-slate-900 leading-tight">
-               {wishlist.length} <span className="text-[10px] md:text-xs font-bold text-slate-400">محفوظ</span>
-            </p>
-          </div>
-        </Link>
-      </div>
-
-      {/* Active Requests */}
-      <section className="md:col-start-4 md:col-span-6 md:row-start-1 md:row-span-4 bg-white border-2 border-[var(--color-primary)]/10 rounded-3xl p-6 shadow-sm flex flex-col min-h-[400px]">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--color-primary)] font-display">طلبات نشطة الآن</h2>
-          </div>
-          <Link to="/buyer/orders" className="text-xs font-bold text-[var(--color-primary)] bg-[var(--color-brand-bg)] px-3 py-1 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors">الكل</Link>
-        </div>
-        
-        <div className="space-y-3 flex-1 overflow-auto hide-scrollbar">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12">
-              <Loader2 className="w-8 h-8 animate-spin mb-2" />
-              <p className="text-sm font-bold">جاري تحميل طلباتك...</p>
+        {/* Categories Section (Mobile Side-scroll, Desktop Grid) */}
+        <div className="md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-4 order-last md:order-none">
+          <section className="bg-[var(--color-primary)] text-white rounded-3xl p-5 shadow-lg flex flex-col h-full">
+            <h3 className="text-lg font-bold mb-4 flex justify-between items-center font-display">
+              التصنيفات
+              <span className="text-[10px] opacity-60">تصفح</span>
+            </h3>
+            <div className="grid grid-cols-2 gap-2 w-full overflow-y-auto hide-scrollbar max-h-[350px]">
+              {CATEGORIES.map((c, i) => (
+                <div key={c.id} onClick={() => navigate(`/buyer/request/new`)} className={cn("bg-white/10 p-3 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/20 transition-all", i === CATEGORIES.length - 1 && "text-[var(--color-accent)]")}>
+                  <span className="text-2xl mb-1">{c.icon}</span>
+                  <span className="text-[10px] font-bold leading-tight">{c.name}</span>
+                </div>
+              ))}
             </div>
-          ) : activeRequests.length > 0 ? (
-            activeRequests.map(req => (
-              <Link key={req.id} to={`/buyer/request/${req.id}`} className="block bg-[var(--color-brand-bg)] border border-[var(--color-primary)]/10 p-4 rounded-2xl flex items-start justify-between hover:bg-slate-100 transition-colors relative overflow-hidden shrink-0">
-                <div className={cn("absolute top-0 right-0 w-1 h-full bg-[var(--color-danger)]")}></div>
-                {req.requestType === 'bulk' && (
-                  <div className="absolute top-0 left-0 bg-slate-900 text-white text-[9px] font-bold px-2 py-1 rounded-br-xl flex items-center gap-1 border-r border-b border-slate-700">
-                    <Package className="w-3 h-3 text-slate-300" /> مناقصة جملة
+          </section>
+        </div>
+
+        {/* Trusted Suppliers Section - MOVED UP for Mobile visibility */}
+        <div className="md:col-span-12 order-1 md:order-none">
+          <section className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold font-display text-lg text-slate-900 border-r-4 border-[var(--color-primary)] pr-2">موردينا الموثوقين</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase">الشركات المعتمدة</p>
+            </div>
+            
+            <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar min-h-[120px]">
+              {loadingSuppliers ? (
+                 <div className="w-full flex items-center justify-center py-8 gap-2 text-slate-400 font-bold text-xs">
+                   <Loader2 className="w-4 h-4 animate-spin" />
+                   <span>جاري جلب الموردين المعتمدين...</span>
+                 </div>
+              ) : suppliers.length > 0 ? (
+                suppliers.map(s => (
+                  <Link key={s.id} to={`/buyer/supplier/${s.id}`} className="min-w-[110px] md:min-w-[130px] flex flex-col items-center group snap-start">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-2xl border-2 border-slate-100 group-hover:border-[var(--color-primary)] transition-all p-1.5 overflow-hidden shadow-sm relative">
+                      <img 
+                        src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} 
+                        alt={s.businessName} 
+                        className="w-full h-full object-cover rounded-xl"
+                      />
+                      {s.isVerified && <CheckCircle2 className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full border-2 border-white p-0.5" />}
+                    </div>
+                    <p className="mt-2 text-[10px] font-black text-slate-800 text-center line-clamp-1 group-hover:text-[var(--color-primary)]">{s.businessName}</p>
+                    <div className="flex items-center gap-0.5 text-[9px] text-amber-500 font-bold">
+                      <Star size={10} className="fill-current" />
+                      {s.rating || 4.8}
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="w-full py-8 text-center text-slate-400 font-bold text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  لا توجد شركات معتمدة نشطة حالياً
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Stats Section */}
+        <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-x-visible pb-2 hide-scrollbar md:col-span-3 order-2 md:order-none">
+          <div className="flex-1 min-w-[160px] bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3 shrink-0">
+             <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-xl shrink-0">💰</div>
+             <div>
+               <p className="text-[10px] text-slate-400 font-bold">رصيدك</p>
+               <p className="text-sm font-black text-slate-900 leading-none">12,450 <span className="text-[9px]">جم</span></p>
+             </div>
+          </div>
+          <div className="flex-1 min-w-[160px] bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3 shrink-0">
+             <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl shrink-0">⭐</div>
+             <div>
+               <p className="text-[10px] text-slate-400 font-bold">تقييمك</p>
+               <p className="text-sm font-black text-slate-900 leading-none">4.9 <span className="text-[9px]">/ 5</span></p>
+             </div>
+          </div>
+          <Link to="/buyer/wishlist" className="flex-1 min-w-[160px] bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex items-center gap-3 shrink-0 hover:bg-rose-50 transition-colors">
+             <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center text-xl shrink-0">❤️</div>
+             <div>
+               <p className="text-[10px] text-slate-400 font-bold">المحفوظات</p>
+               <p className="text-sm font-black text-slate-900 leading-none">{wishlist.length} <span className="text-[9px]">عروض</span></p>
+             </div>
+          </Link>
+        </div>
+
+        {/* Active Requests Main Feed */}
+        <div className="md:col-start-4 md:col-span-6 md:row-start-1 md:row-span-4 order-3 md:order-none">
+          <section className="bg-white border-2 border-[var(--color-primary)]/10 rounded-3xl p-5 shadow-sm h-full flex flex-col min-h-[400px]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-[var(--color-primary)] font-display">طلبات نشطة</h2>
+              <Link to="/buyer/orders" className="text-[10px] font-bold text-slate-500 underline">عرض السجل</Link>
+            </div>
+            
+            <div className="space-y-3 flex-1 overflow-auto hide-scrollbar">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12">
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                  <p className="text-sm font-bold">جاري المزامنة...</p>
+                </div>
+              ) : activeRequests.length > 0 ? (
+                activeRequests.map(req => (
+                  <Link key={req.id} to={`/buyer/request/${req.id}`} className="block bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-start justify-between hover:bg-slate-100 transition-colors relative overflow-hidden shrink-0">
+                    <div className="absolute top-0 right-0 w-1 h-full bg-[var(--color-danger)]"></div>
+                    <div>
+                      <h3 className="font-bold text-sm text-slate-900 leading-tight">{req.productName}</h3>
+                      <p className="text-[10px] text-slate-600 mt-1">الكمية: {req.quantity} {req.unit}</p>
+                      <div className="flex items-center gap-1 text-[9px] font-bold text-[var(--color-danger)] mt-2">
+                        <Clock className="w-3 h-3" />
+                        <span>نشط حالياً</span>
+                      </div>
+                    </div>
+                    <div className="text-center bg-white px-3 py-2 rounded-xl border border-slate-200 min-w-[65px]">
+                      {req.status === 'active' ? (
+                        <>
+                          <span className="block text-lg font-black text-[var(--color-primary)] leading-none">{req.bidsCount || 0}</span>
+                          <span className="block text-[8px] font-bold text-slate-400 mt-1">عروض</span>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 py-1">
+                           <span className="text-[8px] font-bold text-green-600">طلب مؤكد</span>
+                           <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                  <Package className="w-10 h-10 mb-3 opacity-10" />
+                  <p className="text-sm font-bold">ابدأ بطلب خاماتك الآن</p>
+                  <Link to="/buyer/request/new" className="text-xs text-[var(--color-primary)] font-bold mt-3 px-6 py-2 bg-white border border-[var(--color-primary)]/20 rounded-full shadow-sm">طلب صناعي جديد</Link>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Offers Feed Header & Grid */}
+        <div className="md:col-span-12 order-4 md:order-none mt-4 md:mt-0">
+          <section className="bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-sm">
+             <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="font-black font-display text-lg text-slate-900">أقوى عروض اليوم</h3>
+                  <p className="text-[10px] text-slate-400 font-bold">خامات بأقل الأسعار لفترة محدودة</p>
+                </div>
+                <Link to="/buyer/offers" className="text-xs text-[var(--color-primary)] font-bold flex items-center bg-white px-3 py-1.5 rounded-full border border-slate-200">
+                  الكل <ChevronLeft className="w-4 h-4 mr-1" />
+                </Link>
+             </div>
+
+             <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+                {offers.map(offer => (
+                  <div key={offer.id} className="min-w-[280px] md:min-w-[320px] bg-white border border-slate-200 rounded-2xl p-3 flex gap-3 snap-start hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="w-24 h-24 bg-slate-100 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center">
+                      <img 
+                        src={offer.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.title)}&background=f1f5f9&color=64748b`} 
+                        alt={offer.title} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg z-10 animate-pulse">-{offer.discount}</div>
+                      <button onClick={(e) => { e.preventDefault(); toggleWishlist(offer.id); }} className="absolute bottom-1 right-1 p-1.5 bg-white/90 rounded-lg text-rose-500 shadow-sm transition-transform active:scale-90">
+                        <Heart className={cn("w-3.5 h-3.5", wishlist.includes(offer.id) ? "fill-current" : "")} />
+                      </button>
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between py-1">
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 line-clamp-1">{offer.title}</h4>
+                        <Link to={`/buyer/supplier/${offer.supplierId}`} className="text-[10px] text-[var(--color-primary)] font-bold mt-1 inline-block hover:underline">{offer.supplierName}</Link>
+                      </div>
+                      <div className="flex items-end justify-between">
+                         <div className="flex flex-col">
+                            <span className="text-[var(--color-danger)] font-black text-base leading-none">{offer.offerPrice} <span className="text-[9px]">جم</span></span>
+                            <span className="text-[9px] text-slate-400 line-through mt-0.5">{offer.originalPrice} جم</span>
+                         </div>
+                         <button 
+                           onClick={() => { setSelectedOffer(offer); setShowOrderModal(true); requestLocation(); }} 
+                           className="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl hover:bg-slate-800"
+                         >
+                           اطلب الآن
+                         </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {offers.length === 0 && (
+                  <div className="w-full text-center py-10 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200 italic font-bold">
+                    لا توجد عروض ترويجية نشطة حالياً
                   </div>
                 )}
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 leading-tight">{req.productName}</h3>
-                  <p className="text-xs text-slate-600 mt-1 mb-2">الكمية: {req.quantity}</p>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-[var(--color-danger)] animate-pulse">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>نشط الآن</span>
-                    {req.createdAt && (
-                      <span className="mr-1 opacity-60">
-                        • {req.createdAt.toDate?.().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-center bg-[var(--color-accent)]/10 px-4 py-2 rounded-xl text-[var(--color-accent)] min-w-[70px]">
-                  {req.status === 'active' ? (
-                    <>
-                      <span className="block text-xl font-bold leading-none">
-                        {req.bidsCount || 0}
-                      </span>
-                      <span className="block text-[10px] font-bold mt-1">عروض</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="block text-[10px] font-black leading-tight">
-                        {req.status === 'accepted' ? 'تم القبول' : req.status === 'preparing' ? 'جاري التحضير' : 'في الطريق'}
-                      </span>
-                      <Clock className="w-4 h-4 mx-auto mt-1" />
-                    </>
-                  )}
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12 border-2 border-dashed border-slate-100 rounded-2xl">
-              <Package className="w-12 h-12 mb-3 opacity-10" />
-              <p className="text-sm font-bold">لا توجد طلبات نشطة حالياً</p>
-              <Link to="/buyer/request/new" className="text-xs text-[var(--color-primary)] font-bold mt-2 underline">ابدأ طلب جديد</Link>
-            </div>
-          )}
+             </div>
+          </section>
         </div>
-      </section>
+      </div>
 
-      {/* Categories */}
-      <section className="md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-4 bg-[var(--color-primary)] text-white rounded-3xl p-6 shadow-inner flex flex-col items-center overflow-hidden">
-        <h3 className="w-full text-lg font-bold mb-4 flex justify-between items-center font-display">
-          التصنيفات
-          <span className="text-[10px] opacity-60 font-normal">عرض الكل</span>
-        </h3>
-        <div className="grid grid-cols-2 gap-3 w-full pb-2 overflow-y-auto hide-scrollbar max-h-[500px]">
-          {CATEGORIES.map((c, i) => (
-            <div 
-              key={c.id} 
-              onClick={() => navigate(`/buyer/request/new`)}
-              className={cn(
-                "bg-white/10 p-3 lg:p-4 rounded-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/20 transition-colors transform hover:scale-95 active:scale-90",
-                i === CATEGORIES.length - 1 && "text-[var(--color-accent)]"
-              )}
-            >
-              <span className="text-2xl lg:text-3xl mb-1">{c.icon}</span>
-              <span className="text-[11px] font-bold leading-tight">{c.name}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-      
-      {/* Trusted Suppliers Storefronts */}
-      <section className="md:col-start-1 md:col-span-12 bg-white border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold font-display text-lg text-slate-900">موردينا الموثوقين</h3>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">تصفح متاجر الموردين المتخصصين</p>
-        </div>
-        
-        <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
-          {suppliers.map(s => (
-            <Link 
-              key={s.id} 
-              to={`/buyer/supplier/${s.id}`} 
-              className="min-w-[120px] md:min-w-[140px] flex flex-col items-center group snap-start"
-            >
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-2xl border-2 border-slate-100 group-hover:border-[var(--color-primary)] transition-all p-1 overflow-hidden shadow-sm">
-                <img 
-                  src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName)}&background=22C55E&color=fff`} 
-                  alt={s.businessName} 
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              </div>
-              <p className="mt-2 text-[11px] font-black text-slate-900 text-center line-clamp-1 leading-tight group-hover:text-[var(--color-primary)]">{s.businessName}</p>
-              <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--color-accent)] font-bold">
-                <Star size={10} className="fill-current" />
-                {s.rating || 4.8}
-              </div>
-            </Link>
-          ))}
-          {suppliers.length === 0 && (
-            <div className="w-full py-6 text-center text-slate-400 font-bold text-sm">
-              جاري تحميل الموردين...
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Supplier Offers Feed */}
-      <section className="md:col-start-1 md:col-span-12 md:row-start-5 md:row-span-2 bg-white border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold font-display text-lg text-slate-900">أحدث عروض الموردين الموفرة</h3>
-          <Link to="/buyer/offers" className="text-xs text-[var(--color-primary)] font-bold flex items-center hover:underline">
-            تصفح المزيد <ChevronLeft className="w-4 h-4 ml-1" />
-          </Link>
-        </div>
-        
-        <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
-          {offers.map(offer => (
-            <div key={offer.id} className="min-w-[280px] md:min-w-[320px] bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl p-3 flex gap-3 snap-start hover:border-[var(--color-primary)] transition-colors">
-              <div className="w-20 h-20 bg-slate-100 rounded-xl relative overflow-hidden shrink-0 flex items-center justify-center border border-slate-200">
-                {offer.image ? (
-                  <img 
-                    src={offer.image} 
-                    alt={offer.title} 
-                    className="w-full h-full object-cover" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      const parent = (e.target as HTMLElement).parentElement;
-                      if (parent) {
-                        parent.classList.add('bg-slate-50');
-                        parent.querySelector('.category-fallback')?.classList.remove('hidden');
-                      }
-                    }}
-                  />
-                ) : null}
-                
-                <div className={cn(
-                  "category-fallback flex flex-col items-center justify-center",
-                  offer.image ? "hidden" : ""
-                )}>
-                  <span className="text-3xl filter drop-shadow-sm">
-                    {offer.categoryIcon || CATEGORIES.find(c => c.id === offer.categoryId || c.name === offer.category)?.icon || '✨'}
-                  </span>
-                </div>
-
-                <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-bl-lg rounded-tr-xl z-10">خصم {offer.discount}</div>
-                <button 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleWishlist(offer.id);
-                  }}
-                  className="absolute bottom-0 right-0 p-1.5 bg-white/90 backdrop-blur-sm rounded-tl-xl text-[var(--color-danger)] border-t border-l border-slate-100 shadow-sm z-10"
-                >
-                  <Heart className={cn("w-3.5 h-3.5", wishlist.includes(offer.id) ? "fill-current" : "")} />
-                </button>
-              </div>
-              <div className="flex-1 flex flex-col justify-between text-right">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 line-clamp-1 leading-tight">{offer.title}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Link to={`/buyer/supplier/${offer.supplierId}`} className="text-[10px] text-[var(--color-primary)] font-bold hover:underline">
-                      المورد: {offer.supplierName}
-                    </Link>
-                    {offer.supplierRating !== undefined && (
-                      <div className="flex items-center gap-0.5 bg-amber-50 px-1 rounded text-[8px] font-bold text-amber-600 border border-amber-100">
-                        <Star className="w-2 h-2 fill-current" />
-                        {Number(offer.supplierRating).toFixed(1)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between items-end mt-1">
-                  <div className="flex flex-col">
-                     <div className="flex items-center gap-1">
-                       <span className="text-[var(--color-danger)] font-bold">{offer.offerPrice} ج.م</span>
-                       {offer.unit && (
-                         <span className="text-[9px] text-slate-500 font-medium">/ {offer.quantity || 1} {offer.unit}</span>
-                       )}
-                     </div>
-                     <span className="text-[10px] text-slate-400 line-through">{offer.originalPrice} ج</span>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setSelectedOffer(offer);
-                      setOrderQuantity(String(offer.quantity || 1));
-                      setOrderAddress(userProfile?.address || '');
-                      setOrderPhone(userProfile?.phone || '');
-                      setShowOrderModal(true);
-                      requestLocation();
-                    }}
-                    disabled={!!isOrdering}
-                    className="text-[10px] bg-[var(--color-primary)] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
-                  >
-                    اطلب الآن
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {offers.length === 0 && (
-            <div className="w-full text-center py-6 text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 italic">
-               لا توجد عروض ترويجية نشطة حالياً من الموردين
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Order Confirmation Modal */}
+      {/* Confirmation Modal */}
       {showOrderModal && selectedOffer && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-            <div className="relative h-32 bg-[var(--color-primary)] flex items-center justify-center overflow-hidden">
-               <div className="absolute inset-0 opacity-10">
-                 <div className="absolute top-0 left-0 w-24 h-24 bg-white rounded-full -mt-12 -ml-12" />
-                 <div className="absolute bottom-0 right-0 w-32 h-32 bg-white rounded-full -mb-16 -mr-16" />
-               </div>
-               <h2 className="text-white text-2xl font-black relative z-10">تأكيد طلب العرض</h2>
-               <button 
-                 onClick={() => setShowOrderModal(false)}
-                 className="absolute top-6 left-6 bg-white/20 hover:bg-white/30 p-2 rounded-full text-white transition-colors"
-                >
-                 <X className="w-5 h-5" />
-               </button>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in duration-200">
+            <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+              <h2 className="text-xl font-black text-slate-900">تأكيد طلب العرض</h2>
+              <button onClick={() => setShowOrderModal(false)} className="bg-slate-200 p-2 rounded-full text-slate-600"><X size={20}/></button>
             </div>
+            <div className="p-6 space-y-5 text-right">
+               <div className="bg-green-50 p-4 rounded-2xl border border-green-100 flex items-center gap-4">
+                 <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shrink-0">✨</div>
+                 <div className="flex-1">
+                   <h3 className="font-bold text-slate-800">{selectedOffer.title}</h3>
+                   <p className="text-xs text-green-700 font-bold mt-1">السعر الموفر: {selectedOffer.offerPrice} ج.م</p>
+                 </div>
+               </div>
+               
+               <div className="space-y-4">
+                 <div>
+                   <label className="text-xs font-bold text-slate-500 mb-1 block">الكمية المطلوبة ({selectedOffer.unit})</label>
+                   <input 
+                     type="number" 
+                     value={orderQuantity} 
+                     onChange={(e) => setOrderQuantity(e.target.value)} 
+                     className="w-full border border-slate-200 rounded-xl p-3 text-right font-black focus:ring-2 focus:ring-green-500 outline-none"
+                   />
+                 </div>
+                 <div>
+                   <label className="text-xs font-bold text-slate-500 mb-1 block">عنوان التوصيل</label>
+                   <input 
+                     type="text" 
+                     value={orderAddress} 
+                     onChange={(e) => setOrderAddress(e.target.value)} 
+                     placeholder="ادخل عنوانك بالتفصيل..."
+                     className="w-full border border-slate-200 rounded-xl p-3 text-right font-bold focus:ring-2 focus:ring-green-500 outline-none"
+                   />
+                 </div>
+                 <div>
+                   <button onClick={requestLocation} className={cn("w-full py-2.5 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition-all", location ? "bg-green-50 border-green-200 text-green-700" : "bg-slate-50 border-slate-200 text-slate-600")}>
+                     {isGettingLocation ? <Loader2 size={14} className="animate-spin"/> : <MapPin size={14}/>}
+                     {location ? 'تم تحديد الموقع بنجاح' : 'تحديد بموقعي الجغرافي الحالي'}
+                   </button>
+                 </div>
+               </div>
 
-            <div className="p-8 space-y-6 text-right">
-              <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
-                <div className="w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center text-3xl shrink-0">
-                  {selectedOffer.categoryIcon || CATEGORIES.find(c => c.id === selectedOffer.categoryId || c.name === selectedOffer.category || c.name === selectedOffer.categoryName)?.icon || '✨'}
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800 leading-tight">{selectedOffer.title}</h3>
-                  <p className="text-xs text-slate-500 font-bold mt-1">السعر: {selectedOffer.offerPrice} ج.م / {selectedOffer.quantity} {selectedOffer.unit}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
-                    الكمية المطلوبة ({selectedOffer.unit})
-                    <ShoppingBag className="w-4 h-4 text-[var(--color-primary)]" />
-                  </label>
-                  <input 
-                    type="text"
-                    inputMode="numeric"
-                    value={orderQuantity}
-                    onChange={(e) => setOrderQuantity(convertArabicNumerals(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
-                    min="1"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
-                    عنوان التوصيل
-                    <MapPin className="w-4 h-4 text-[var(--color-primary)]" />
-                  </label>
-                  <input 
-                    type="text"
-                    value={orderAddress}
-                    onChange={(e) => setOrderAddress(e.target.value)}
-                    placeholder="ادخل عنوان التوصيل بالتفصيل..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-bold focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-black text-slate-700 flex items-center justify-end gap-2">
-                    رقم الهاتف للتواصل
-                    <Phone className="w-4 h-4 text-[var(--color-primary)]" />
-                  </label>
-                  <input 
-                    type="tel"
-                    value={orderPhone}
-                    onChange={(e) => setOrderPhone(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all font-mono"
-                  />
-                </div>
-
-                <div className="pt-2">
-                  {!location ? (
-                    <button 
-                      onClick={requestLocation}
-                      disabled={isGettingLocation}
-                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold transition-all border border-slate-200"
-                    >
-                      {isGettingLocation ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <MapPin className="w-3.5 h-3.5" />
-                      )}
-                      {isGettingLocation ? 'جاري تحديد موقعك...' : 'تحديد موقعي الحالي للتوصيل بدقة'}
-                    </button>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2 py-3 px-4 bg-green-50 text-green-700 rounded-2xl text-xs font-bold border border-green-100">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      تم تحديد موقعك بنجاح
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <div className="flex justify-between items-center mb-6 px-2">
-                  <span className="text-2xl font-black text-[var(--color-primary)]">
-                    {((Number(selectedOffer.offerPrice) * Number(orderQuantity)) / (Number(selectedOffer.quantity) || 1)).toFixed(2)} ج.م
-                  </span>
-                  <span className="text-slate-500 font-black">إجمالي المبلغ التقريبي</span>
-                </div>
-
-                <button 
+               <div className="pt-4 border-t border-slate-100 mt-2">
+                 <button 
                   onClick={handleOrder}
-                  disabled={!orderQuantity || !orderAddress || !orderPhone || !!isOrdering}
-                  className="w-full bg-[var(--color-primary)] text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-[var(--color-primary)]/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-3"
-                >
-                  {isOrdering ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-6 h-6" />
-                  )}
-                  {isOrdering ? 'جاري الطلب...' : 'تأكيد وإرسال الطلب'}
-                </button>
-              </div>
+                  disabled={!!isOrdering || !orderQuantity || !orderAddress}
+                  className="w-full bg-[var(--color-primary)] text-white py-4 rounded-2xl font-black text-lg shadow-lg hover:shadow-green-200 disabled:opacity-50 flex items-center justify-center gap-3 transition-all"
+                 >
+                   {isOrdering ? <Loader2 className="animate-spin"/> : <CheckCircle2 size={22}/>}
+                   {isOrdering ? 'جاري إرسال الطلب...' : 'تأكيد وإتمام الشراء'}
+                 </button>
+               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 }
