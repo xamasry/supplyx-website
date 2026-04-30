@@ -315,10 +315,11 @@ export default function NewRequest() {
                       <div className="space-y-1.5 text-right">
                         <label className="text-sm font-bold text-slate-600">الكمية</label>
                         <input 
-                          type="number" 
+                          type="text" 
+                          inputMode="numeric"
                           min="1"
                           value={quantity} 
-                          onChange={(e) => setQuantity(e.target.value)} 
+                          onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
                           className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
                         />
                       </div>
@@ -365,10 +366,11 @@ export default function NewRequest() {
                 <div className="space-y-1.5 text-right">
                   <label className="text-sm font-bold text-slate-600">الكمية</label>
                   <input 
-                    type="number" 
+                    type="text" 
+                    inputMode="numeric"
                     min="1"
                     value={quantity} 
-                    onChange={(e) => setQuantity(e.target.value)} 
+                    onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
                     className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
                   />
                 </div>
@@ -393,9 +395,10 @@ export default function NewRequest() {
               <label className="text-sm font-bold text-slate-600">أقصى سعر مقبول (اختياري)</label>
               <div className="relative">
                 <input 
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
+                  onChange={(e) => setMaxPrice(convertArabicNumerals(e.target.value))}
                   placeholder="مثال: 150"
                   className="w-full px-4 py-3 pb-3 pr-10 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold"
                 />

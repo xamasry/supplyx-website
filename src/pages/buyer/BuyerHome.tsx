@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2, Heart, Star } from 'lucide-react';
-import { cn, isRequestExpired } from '../../lib/utils';
+import { cn, isRequestExpired, convertArabicNumerals } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
@@ -510,9 +510,10 @@ export default function BuyerHome() {
                     <ShoppingBag className="w-4 h-4 text-[var(--color-primary)]" />
                   </label>
                   <input 
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={orderQuantity}
-                    onChange={(e) => setOrderQuantity(e.target.value)}
+                    onChange={(e) => setOrderQuantity(convertArabicNumerals(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
                     min="1"
                   />

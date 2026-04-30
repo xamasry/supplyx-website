@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Upload, Percent, Loader2 } from 'lucide-react';
+import { ChevronRight, Upload, Percent, Loader2, ImagePlus } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
+import { convertArabicNumerals, resizeImage } from '../../lib/utils';
 
 export default function NewSupplierOffer() {
   const navigate = useNavigate();
@@ -140,12 +141,12 @@ export default function NewSupplierOffer() {
          <div className="grid grid-cols-2 gap-4">
            <div className="space-y-2 text-right relative">
              <label className="text-sm font-bold text-slate-700">السعر الأصلي</label>
-             <input type="number" value={originalPrice} onChange={(e)=>setOriginalPrice(e.target.value)} className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all" required/>
+             <input type="text" inputMode="numeric" value={originalPrice} onChange={(e)=>setOriginalPrice(convertArabicNumerals(e.target.value))} className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all" required/>
              <span className="absolute left-4 bottom-3 text-xs text-slate-400 font-bold">ج.م</span>
            </div>
            <div className="space-y-2 text-right relative">
              <label className="text-sm font-bold text-[var(--color-danger)]">سعر العرض</label>
-             <input type="number" value={offerPrice} onChange={(e)=>setOfferPrice(e.target.value)} className="w-full bg-red-50 border border-red-200 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-danger)] transition-all font-bold text-[var(--color-danger)]" required/>
+             <input type="text" inputMode="numeric" value={offerPrice} onChange={(e)=>setOfferPrice(convertArabicNumerals(e.target.value))} className="w-full bg-red-50 border border-red-200 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-danger)] transition-all font-bold text-[var(--color-danger)]" required/>
            </div>
          </div>
 
@@ -153,9 +154,10 @@ export default function NewSupplierOffer() {
             <div className="space-y-2 text-right">
                <label className="text-sm font-bold text-slate-700">الكمية (لكل سعر)</label>
                <input 
-                 type="number" 
+                 type="text" 
+                 inputMode="numeric"
                  value={quantity}
-                 onChange={(e) => setQuantity(e.target.value)}
+                 onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))}
                  className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-bold text-right" 
                  required
                />
@@ -189,18 +191,40 @@ export default function NewSupplierOffer() {
          )}
 
          <div className="space-y-2 text-right">
-            <label className="text-sm font-bold text-slate-700">رابط صورة المنتج (اختياري)</label>
+            <label className="text-sm font-bold text-slate-700">صورة العرض (اختياري)</label>
             <div className="relative">
               <input 
-               type="url" 
-               value={imageUrl}
-               onChange={(e) => setImageUrl(e.target.value)}
-               placeholder="https://example.com/image.jpg" 
-               className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-mono text-sm pl-12" 
+                type="file" 
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                     try {
+                        const base64 = await resizeImage(file, 800, 800);
+                        setImageUrl(base64);
+                     } catch (err) {
+                        console.error('Error resizing image', err);
+                        toast.error('حدث خطأ أثناء معالجة الصورة');
+                     }
+                  }
+                }}
+                className="hidden" 
+                id="offer-image"
               />
-              <Upload className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+              <label 
+                htmlFor="offer-image" 
+                className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all flex items-center justify-center gap-2 cursor-pointer text-slate-500 font-bold hover:bg-slate-50"
+              >
+                <ImagePlus className="w-5 h-5" />
+                {imageUrl && imageUrl.startsWith('data:image') ? 'تم اختيار الصورة - اضغط للتغيير' : 'اضغط لاختيار صورة من جهازك'}
+              </label>
             </div>
-            <p className="text-[10px] text-slate-400 font-medium">إذا لم تضع صورة، سنقوم باستخدام أيقونة التصنيف تلقائياً</p>
+            {imageUrl && imageUrl.startsWith('data:image') && (
+               <div className="mt-2 w-full flex justify-center">
+                  <img src={imageUrl} alt="Preview" className="h-32 object-contain rounded-xl border border-slate-200" />
+               </div>
+            )}
+            <p className="text-[10px] text-slate-400 font-medium mt-1">يمكنك رفع صورة من الجوال أو استخدام أيقونة التصنيف التلقائية.</p>
          </div>
 
          <button 

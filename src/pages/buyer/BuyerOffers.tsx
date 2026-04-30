@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Flame, Tag, Loader2, CheckCircle2, X, MapPin, Phone, ShoppingBag } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, convertArabicNumerals } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import toast from 'react-hot-toast';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -347,9 +347,10 @@ export default function BuyerOffers() {
                     <ShoppingBag className="w-4 h-4 text-[var(--color-primary)]" />
                   </label>
                   <input 
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={orderQuantity}
-                    onChange={(e) => setOrderQuantity(e.target.value)}
+                    onChange={(e) => setOrderQuantity(convertArabicNumerals(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 px-6 text-right font-black focus:ring-2 focus:ring-[var(--color-primary)] outline-none transition-all"
                     min="1"
                   />

@@ -5,7 +5,7 @@ import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebas
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useGeolocation } from '../../hooks/useGeolocation';
-import { calculateDistance } from '../../lib/utils';
+import { calculateDistance, convertArabicNumerals } from '../../lib/utils';
 import { trackEvent } from '../../lib/analytics';
 
 export default function SupplierRequestDetail() {
@@ -87,7 +87,7 @@ export default function SupplierRequestDetail() {
   }, [itemsPrices, request]);
 
   const handleItemPriceChange = (index: number, val: string) => {
-    setItemsPrices(prev => ({...prev, [index]: val}));
+    setItemsPrices(prev => ({...prev, [index]: convertArabicNumerals(val)}));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -270,7 +270,8 @@ export default function SupplierRequestDetail() {
                   </div>
                   <div className="w-1/3 relative">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="السعر"
                       value={itemsPrices[idx] || ''}
                       onChange={(e) => handleItemPriceChange(idx, e.target.value)}
@@ -287,9 +288,10 @@ export default function SupplierRequestDetail() {
           <div className="space-y-2 text-right">
             <label className="text-sm font-bold text-slate-700">السعر الإجمالي (بالجنيه)</label>
             <input 
-              type="number" 
+              type="text" 
+              inputMode="numeric"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => setPrice(convertArabicNumerals(e.target.value))}
               disabled={request.requestType === 'bulk'}
               className="w-full bg-[var(--color-brand-bg)] border border-slate-300 rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)] font-bold text-xl text-[var(--color-primary)] transition-all disabled:opacity-80 disabled:bg-slate-100" 
               required 
