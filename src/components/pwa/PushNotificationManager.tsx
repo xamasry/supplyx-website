@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 const PushNotificationManager: React.FC = () => {
   const [permission, setPermission] = useState<NotificationPermission>(
-    typeof window !== 'undefined' ? Notification.permission : 'default'
+    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   );
   const [loading, setLoading] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -28,7 +28,8 @@ const PushNotificationManager: React.FC = () => {
   const handleRequestPermission = async () => {
     setLoading(true);
     const token = await requestNotificationPermission();
-    setPermission(Notification.permission);
+    const permission = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
+    setPermission(permission);
     setLoading(false);
     setShowPrompt(false);
     localStorage.setItem('push_prompted', 'true');
