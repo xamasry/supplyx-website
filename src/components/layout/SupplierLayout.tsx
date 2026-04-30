@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import { useNotifications } from '../../hooks/useNotifications';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 export default function SupplierLayout({ children }: { children?: React.ReactNode }) {
   useNotifications();
   const location = useLocation();
@@ -40,9 +42,6 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
           if (snap.exists()) {
             const data = snap.data();
             setUserProfile(data);
-            if (data.status === 'pending' && !location.pathname.includes('/auth/pending')) {
-              navigate('/auth/pending');
-            }
           }
         });
 
@@ -54,7 +53,6 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
         }, (err) => {
-          console.error("SupplierLayout Notif error:", err);
           handleFirestoreError(err, OperationType.LIST, 'notifications', true);
         });
       } else {
@@ -70,82 +68,122 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
     };
   }, []);
 
-  const isActive = (p: string) => path.includes(p);
+  const isActive = (p: string) => path === p || path.startsWith(p + '/');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans pb-20">
-      <header className="bg-white border-b border-slate-100 px-4 py-4 sticky top-0 z-40 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans pb-24 md:pb-0">
+      <header className="h-16 md:h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-4">
-          <Logo size="sm" className="hidden md:flex" />
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#22C55E]/10 border-2 border-white overflow-hidden shadow-sm">
-              <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || user?.displayName || 'مورد')}&background=22C55E&color=fff`} alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h1 className="font-bold text-[#0B1D2A] leading-tight">
-                {userProfile?.businessName || user?.displayName || 'الشركة المتحدة'}
-              </h1>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="relative flex h-2 w-2">
-                  {isOnline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                  <span className={cn("relative inline-flex rounded-full h-2 w-2", isOnline ? "bg-green-500" : "bg-slate-300")}></span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{isOnline ? 'متاح للطلب' : 'مغلق حالياً'}</span>
-              </div>
-            </div>
-          </div>
+          <Logo size="sm" />
+          <div className="hidden md:block h-6 w-px bg-slate-200 mx-2" />
+          
+          {/* Desktop Nav Links */}
+          <nav className="hidden md:flex items-center gap-4">
+            {[
+              { to: '/supplier/home', icon: Home, label: 'الرئيسية' },
+              { to: '/supplier/orders', icon: Package, label: 'الطلبات' },
+              { to: '/supplier/products', icon: LayoutGrid, label: 'الكتالوج' },
+              { to: '/supplier/analytics', icon: BarChart2, label: 'التقارير' },
+              { to: '/supplier/profile', icon: User, label: 'حسابي' },
+            ].map((item) => (
+              <Link 
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm",
+                  isActive(item.to) ? "bg-green-50 text-green-600" : "text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
+
         <div className="flex items-center gap-3">
-          <Link to="/supplier/notifications" className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors">
-            <Bell className="w-6 h-6" />
+          <button 
+            onClick={() => setIsOnline(!isOnline)}
+            className={cn(
+              "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-[10px] font-bold",
+              isOnline ? "bg-green-50 border-green-200 text-green-700" : "bg-slate-50 border-slate-200 text-slate-600"
+            )}
+          >
+            {isOnline ? 'استقبال الطلبات مفعل' : 'استقبال الطلبات معطل'}
+            <div className={cn("w-2 h-2 rounded-full", isOnline ? "bg-green-500 animate-pulse" : "bg-slate-400")} />
+          </button>
+
+          <Link to="/supplier/notifications" className="relative w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 hover:text-[var(--color-primary)] transition-all">
+            <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[var(--color-danger)] text-white text-[8px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-sm">
-                {unreadCount > 9 ? '+9' : unreadCount}
+              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">
+                {unreadCount}
               </span>
             )}
           </Link>
-          <button 
-            onClick={() => setIsOnline(!isOnline)}
-            className={cn("w-12 h-6 rounded-full relative transition-colors", isOnline ? "bg-[var(--color-success)]" : "bg-slate-300")}
-          >
-            <span className={cn("absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform", isOnline ? "translate-x-6" : "")}></span>
-          </button>
+
+          <Link to="/supplier/profile" className="flex items-center gap-2 md:gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200 group-hover:border-[var(--color-primary)] transition-all overflow-hidden">
+               <img 
+                src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || 'S')}&background=22C55E&color=fff`} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </Link>
         </div>
       </header>
 
-      <main className="flex-1 p-4 w-full max-w-lg mx-auto">
-        {children || <Outlet />}
+      <main className="flex-1 w-full lg:max-w-6xl mx-auto pt-6 px-4 md:px-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="w-full"
+          >
+            {children || <Outlet />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe z-50">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-1">
-          <Link to="/supplier/home" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/home') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Home className={cn("w-6 h-6", isActive('/supplier/home') && "fill-current")} />
-            <span className="text-[10px] font-bold">الرئيسية</span>
-          </Link>
-          <Link to="/supplier/orders" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/orders') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Package className="w-6 h-6" />
-            <span className="text-[10px] font-bold">الطلبات</span>
-          </Link>
-          <Link to="/supplier/products" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/products') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <LayoutGrid className="w-6 h-6" />
-            <span className="text-[10px] font-bold">الكتالوج</span>
-          </Link>
-          <Link to="/supplier/analytics" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/analytics') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <BarChart2 className="w-6 h-6" />
-            <span className="text-[10px] font-bold">التقارير</span>
-          </Link>
-          <Link to="/supplier/profile" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/profile') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <User className="w-6 h-6" />
-            <span className="text-[10px] font-bold">حسابي</span>
-          </Link>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200 px-4 pb-safe z-50 md:hidden">
+        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+          {[
+            { to: '/supplier/home', icon: Home, label: 'الرئيسية' },
+            { to: '/supplier/orders', icon: Package, label: 'الطلبات' },
+            { to: '/supplier/products', icon: LayoutGrid, label: 'الكتالوج' },
+            { to: '/supplier/analytics', icon: BarChart2, label: 'التقارير' },
+            { to: '/supplier/profile', icon: User, label: 'حسابي' },
+          ].map((item) => (
+            <Link 
+              key={item.to}
+              to={item.to} 
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 w-14 transition-all duration-300 relative", 
+                isActive(item.to) ? "text-[var(--color-primary)] -translate-y-1" : "text-slate-400"
+              )}
+            >
+              <item.icon className={cn("w-5 h-5 transition-all", isActive(item.to) && "scale-110")} />
+              <span className={cn("text-[9px] font-bold transition-all", isActive(item.to) ? "opacity-100" : "opacity-70")}>{item.label}</span>
+              {isActive(item.to) && (
+                <motion.div 
+                  layoutId="indicator-supplier" 
+                  className="absolute -bottom-2 w-1 h-1 bg-[var(--color-primary)] rounded-full"
+                />
+              )}
+            </Link>
+          ))}
         </div>
       </nav>
       
-      {/* Floating Action Button */}
-      <Link to="/supplier/offers/new" className="fixed bottom-20 right-4 w-14 h-14 bg-[var(--color-accent)] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform z-40">
-        <span className="text-2xl leading-none mb-1">+</span>
+      {/* Supplier Specific FAB */}
+      <Link to="/supplier/offers/new" className="fixed bottom-20 right-6 w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all z-40 md:bottom-10 md:right-10">
+        <span className="text-3xl leading-none font-light">+</span>
       </Link>
     </div>
   );
 }
+

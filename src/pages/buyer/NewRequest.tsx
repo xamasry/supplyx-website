@@ -9,6 +9,8 @@ import { useGeolocation } from '../../hooks/useGeolocation';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 export default function NewRequest() {
   const navigate = useNavigate();
   const locationSearch = useLocation().search;
@@ -194,333 +196,348 @@ export default function NewRequest() {
         </div>
       </div>
 
-      <div className="flex-1 p-5 mt-6">
-        {step === 1 && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            {isBulk && bulkItems.length > 0 && (
-              <div className="mb-6 space-y-3 bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
-                <h3 className="font-bold text-blue-900 border-b border-blue-200/50 pb-2">عناصر المناقصة المضافة ({bulkItems.length}):</h3>
-                <ul className="space-y-2">
-                  {bulkItems.map((item, index) => (
-                    <li key={index} className="flex justify-between items-center text-sm font-bold bg-white p-2 rounded-lg border border-blue-50">
-                      <span>{item.productName}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-slate-500">{item.quantity} {item.unit}</span>
-                        <button onClick={() => handleRemoveBulkItem(index)} className="text-red-500 hover:text-red-700 text-xs">إزالة</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            <h2 className="font-bold text-slate-900">عن ماذا تبحث؟</h2>
-            <div className="relative mb-6">
-              <input 
-                type="text" 
-                placeholder="ابحث عن خامة أو قسم..." 
-                value={searchQuery} 
-                onChange={(e) => setSearchQuery(e.target.value)} 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 pr-11 outline-none focus:ring-2 focus:ring-primary-500 transition-shadow" 
-              />
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-            </div>
-
-            {!selectedCategory ? (
-              <div className="space-y-3">
-                <p className="text-sm font-bold text-slate-500">اختر القسم أولاً:</p>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {filteredCategories.map(cat => (
-                    <button 
-                      key={cat.id} 
-                      onClick={() => {
-                        setSelectedCategory(cat);
-                        setProductName('');
-                        setShowCustomProductInput(false);
-                      }}
-                      className="p-3 rounded-xl border border-slate-100 bg-white flex flex-col items-center gap-2 hover:border-primary-300 hover:bg-primary-50 transition-colors shadow-sm"
-                    >
-                      <span className="text-2xl">{cat.icon}</span>
-                      <span className="text-[10px] font-bold text-slate-700 text-center leading-tight">{cat.name}</span>
-                    </button>
-                  ))}
-                  {filteredCategories.length === 0 && (
-                    <div className="col-span-full py-8 text-center text-slate-400 text-sm">
-                      لم يتم العثور على نتائج
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{selectedCategory.icon}</span>
-                    <h3 className="font-bold text-slate-800">{selectedCategory.name}</h3>
-                  </div>
-                  <button onClick={() => setSelectedCategory(null)} className="text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg">تغيير القسم</button>
-                </div>
-                
-                <p className="text-sm font-bold text-slate-500">اختر المنتج أو اكتبه:</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCategory.products.map((p: string) => (
-                    <button 
-                      key={p} 
-                      onClick={() => {
-                        setProductName(p);
-                        setShowCustomProductInput(false);
-                      }} 
-                      className={cn(
-                        "px-3 py-2 rounded-xl border text-sm font-bold transition-colors",
-                        productName === p && !showCustomProductInput
-                          ? "border-primary-500 bg-primary-50 text-primary-700" 
-                          : "border-slate-200 bg-white text-slate-700 hover:border-primary-300"
-                      )}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button 
-                      onClick={() => {
-                        setProductName('');
-                        setShowCustomProductInput(true);
-                      }} 
-                      className={cn(
-                        "px-3 py-2 rounded-xl border text-sm font-bold transition-colors border-dashed",
-                        showCustomProductInput
-                          ? "border-primary-500 bg-primary-50 text-primary-700" 
-                          : "border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400"
-                      )}
-                    >
-                      + مش لاقي المنتج؟
-                    </button>
-                </div>
-
-                {showCustomProductInput && (
-                  <div className="mt-4 animate-in slide-in-from-top-2">
-                    <input 
-                      type="text" 
-                      placeholder="اكتب اسم المنتج..."
-                      value={customProductValue}
-                      onChange={(e) => setCustomProductValue(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-primary-500 font-bold"
-                      autoFocus
-                    />
-                  </div>
-                )}
-                
-                {isBulk && (selectedCategory || showCustomProductInput) && (
-                  <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-4 animate-in slide-in-from-bottom-2">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5 text-right">
-                        <label className="text-sm font-bold text-slate-600">الكمية</label>
-                        <input 
-                          type="text" 
-                          inputMode="numeric"
-                          min="1"
-                          value={quantity} 
-                          onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
-                          className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
-                        />
-                      </div>
-                      <div className="space-y-1.5 text-right">
-                        <label className="text-sm font-bold text-slate-600">الوحدة</label>
-                        <select 
-                          value={unit} 
-                          onChange={(e) => setUnit(e.target.value)} 
-                          className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
-                        >
-                          <option value="كرتونه">كرتونه</option>
-                          <option value="كيلو">كيلو</option>
-                          <option value="لتر">لتر</option>
-                          <option value="قطعة">قطعة</option>
-                          <option value="عبوة">عبوة</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <button 
-                      id="add-to-bulk-btn"
-                      onClick={handleAddBulkItem}
-                      disabled={!finalProductName}
-                      className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors disabled:opacity-50 shadow-lg"
-                    >
-                      {finalProductName ? `إضافة (${finalProductName}) للمناقصة +` : 'اختر المنتج لإضافته'}
-                    </button>
-                    {finalProductName && (
-                      <p className="text-[10px] text-center text-slate-400 font-bold">يمكنك الضغط على "التالي" للإضافة والمتابعة مباشرة</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className="font-bold text-slate-900">تفاصيل الطلب الإضافية</h2>
-            
-            {!isBulk && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5 text-right">
-                  <label className="text-sm font-bold text-slate-600">الكمية</label>
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    min="1"
-                    value={quantity} 
-                    onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
-                    className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
-                  />
-                </div>
-                <div className="space-y-1.5 text-right">
-                  <label className="text-sm font-bold text-slate-600">الوحدة</label>
-                  <select 
-                    value={unit} 
-                    onChange={(e) => setUnit(e.target.value)} 
-                    className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
-                  >
-                    <option value="كرتونه">كرتونه</option>
-                    <option value="كيلو">كيلو</option>
-                    <option value="لتر">لتر</option>
-                    <option value="قطعة">قطعة</option>
-                    <option value="عبوة">عبوة</option>
-                  </select>
-                </div>
-              </div>
-            )}
-            
-            <div className="space-y-1.5 text-right">
-              <label className="text-sm font-bold text-slate-600">أقصى سعر مقبول (اختياري)</label>
-              <div className="relative">
-                <input 
-                  type="text"
-                  inputMode="numeric"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(convertArabicNumerals(e.target.value))}
-                  placeholder="مثال: 150"
-                  className="w-full px-4 py-3 pb-3 pr-10 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold"
-                />
-                <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">ج.م</span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-right">
-              <label className="text-sm font-bold text-slate-600">ملاحظات إضافية (اختياري)</label>
-              <textarea 
-                value={notes} 
-                onChange={(e) => setNotes(e.target.value)} 
-                placeholder="تاريخ إنتاج حديث، مواصفات خاصة..." 
-                className="w-full h-24 px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 resize-none font-medium"
-              ></textarea>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className="font-bold text-slate-900">ملخص وموقع التوصيل</h2>
-            
-            <div className="bg-primary-50/50 border border-primary-100 rounded-2xl p-5 space-y-4">
-              <div>
-                 {!isBulk ? (
-                   <>
-                     <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md">{selectedCategory?.name}</span>
-                     <h3 className="font-display font-bold text-xl text-slate-900 mt-2">{finalProductName}</h3>
-                   </>
-                 ) : (
-                   <>
-                     <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md">صفقة جملة</span>
-                     <h3 className="font-display font-bold text-xl text-slate-900 mt-2">مناقصة جملة: {bulkItems.length} منتجات</h3>
-                   </>
-                 )}
-              </div>
-              
-              {!isBulk ? (
-                <div className="flex gap-4">
-                   <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-500 mb-1">الكمية</p>
-                      <p className="font-bold text-slate-800">{quantity} <span className="text-xs">{unit}</span></p>
-                   </div>
-                   {maxPrice && (
-                   <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-500 mb-1">السعر المستهدف</p>
-                      <p className="font-bold text-slate-800">{maxPrice} <span className="text-xs">ج.م للمنتج</span></p>
-                   </div>
-                   )}
-                </div>
-              ) : (
-                <div className="bg-white p-3 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-500 mb-2">المنتجات المطلوبة</p>
-                  <ul className="space-y-1 text-sm font-bold text-slate-800">
-                    {bulkItems.map((item, i) => (
-                      <li key={i} className="flex justify-between border-b border-slate-50 pb-1 last:border-0 last:pb-0">
+      <div className="flex-1 p-5 mt-6 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div 
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
+            >
+              {isBulk && bulkItems.length > 0 && (
+                <div className="mb-6 space-y-3 bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
+                  <h3 className="font-bold text-blue-900 border-b border-blue-200/50 pb-2">عناصر المناقصة المضافة ({bulkItems.length}):</h3>
+                  <ul className="space-y-2">
+                    {bulkItems.map((item, index) => (
+                      <li key={index} className="flex justify-between items-center text-sm font-bold bg-white p-2 rounded-lg border border-blue-50">
                         <span>{item.productName}</span>
-                        <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                          <button onClick={() => handleRemoveBulkItem(index)} className="text-red-500 hover:text-red-700 text-xs">إزالة</button>
+                        </div>
                       </li>
                     ))}
                   </ul>
-                  {maxPrice && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center text-sm">
-                      <span className="text-slate-500">إجمالي الميزانية:</span>
-                      <span className="font-bold text-primary-600">{maxPrice} ج.م</span>
+                </div>
+              )}
+              
+              <h2 className="font-bold text-slate-900">عن ماذا تبحث؟</h2>
+              <div className="relative mb-6">
+                <input 
+                  type="text" 
+                  placeholder="ابحث عن خامة أو قسم..." 
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 pr-11 outline-none focus:ring-2 focus:ring-primary-500 transition-shadow" 
+                />
+                <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+              </div>
+
+              {!selectedCategory ? (
+                <div className="space-y-3">
+                  <p className="text-sm font-bold text-slate-500">اختر القسم أولاً:</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {filteredCategories.map(cat => (
+                      <button 
+                        key={cat.id} 
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setProductName('');
+                          setShowCustomProductInput(false);
+                        }}
+                        className="p-3 rounded-xl border border-slate-100 bg-white flex flex-col items-center gap-2 hover:border-primary-300 hover:bg-primary-50 transition-colors shadow-sm"
+                      >
+                        <span className="text-2xl">{cat.icon}</span>
+                        <span className="text-[10px] font-bold text-slate-700 text-center leading-tight">{cat.name}</span>
+                      </button>
+                    ))}
+                    {filteredCategories.length === 0 && (
+                      <div className="col-span-full py-8 text-center text-slate-400 text-sm">
+                        لم يتم العثور على نتائج
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{selectedCategory.icon}</span>
+                      <h3 className="font-bold text-slate-800">{selectedCategory.name}</h3>
                     </div>
+                    <button onClick={() => setSelectedCategory(null)} className="text-xs font-bold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">تغيير القسم</button>
+                  </div>
+                  
+                  <p className="text-sm font-bold text-slate-500">اختر المنتج أو اكتبه:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCategory.products.map((p: string) => (
+                      <button 
+                        key={p} 
+                        onClick={() => {
+                          setProductName(p);
+                          setShowCustomProductInput(false);
+                        }} 
+                        className={cn(
+                          "px-3 py-2 rounded-xl border text-sm font-bold transition-all",
+                          productName === p && !showCustomProductInput
+                            ? "border-primary-500 bg-primary-500 text-white shadow-md shadow-primary-100 scale-105" 
+                            : "border-slate-200 bg-white text-slate-700 hover:border-primary-300 active:scale-95"
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button 
+                        onClick={() => {
+                          setProductName('');
+                          setShowCustomProductInput(true);
+                        }} 
+                        className={cn(
+                          "px-3 py-2 rounded-xl border text-sm font-bold transition-all border-dashed",
+                          showCustomProductInput
+                            ? "border-primary-500 bg-primary-50 text-primary-700 scale-105" 
+                            : "border-slate-300 bg-slate-50 text-slate-600 hover:border-slate-400 active:scale-95"
+                        )}
+                      >
+                        + مش لاقي المنتج؟
+                      </button>
+                  </div>
+
+                  {showCustomProductInput && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="mt-4"
+                    >
+                      <input 
+                        type="text" 
+                        placeholder="اكتب اسم المنتج..."
+                        value={customProductValue}
+                        onChange={(e) => setCustomProductValue(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-primary-500 font-bold"
+                        autoFocus
+                      />
+                    </motion.div>
+                  )}
+                  
+                  {isBulk && (selectedCategory || showCustomProductInput) && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-6 pt-4 border-t border-slate-100 flex flex-col gap-4"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5 text-right">
+                          <label className="text-sm font-bold text-slate-600">الكمية</label>
+                          <input 
+                            type="text" 
+                            inputMode="numeric"
+                            min="1"
+                            value={quantity} 
+                            onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
+                            className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
+                          />
+                        </div>
+                        <div className="space-y-1.5 text-right">
+                          <label className="text-sm font-bold text-slate-600">الوحدة</label>
+                          <select 
+                            value={unit} 
+                            onChange={(e) => setUnit(e.target.value)} 
+                            className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
+                          >
+                            <option value="كرتونه">كرتونه</option>
+                            <option value="كيلو">كيلو</option>
+                            <option value="لتر">لتر</option>
+                            <option value="قطعة">قطعة</option>
+                            <option value="عبوة">عبوة</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        id="add-to-bulk-btn"
+                        onClick={handleAddBulkItem}
+                        disabled={!finalProductName}
+                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50 shadow-lg active:scale-95"
+                      >
+                        {finalProductName ? `إضافة (${finalProductName}) للمناقصة +` : 'اختر المنتج لإضافته'}
+                      </button>
+                    </motion.div>
                   )}
                 </div>
               )}
-            </div>
+            </motion.div>
+          )}
 
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-4">
-              <div className="flex items-start gap-3">
-                <MapPin className="text-danger w-6 h-6 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">{auth.currentUser?.displayName || 'مستخدم جديد'}</h3>
-                  <p className="text-xs text-slate-500 mt-1 font-medium leading-relaxed">حدد موقعك الدقيق ليصل تنبيه للموردين في محيط منطقتك.</p>
+          {step === 2 && (
+            <motion.div 
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-5"
+            >
+              <h2 className="font-bold text-slate-900">تفاصيل الطلب الإضافية</h2>
+              
+              {!isBulk && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5 text-right">
+                    <label className="text-sm font-bold text-slate-600">الكمية</label>
+                    <input 
+                      type="text" 
+                      inputMode="numeric"
+                      min="1"
+                      value={quantity} 
+                      onChange={(e) => setQuantity(convertArabicNumerals(e.target.value))} 
+                      className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold" 
+                    />
+                  </div>
+                  <div className="space-y-1.5 text-right">
+                    <label className="text-sm font-bold text-slate-600">الوحدة</label>
+                    <select 
+                      value={unit} 
+                      onChange={(e) => setUnit(e.target.value)} 
+                      className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 appearance-none font-bold text-slate-700"
+                    >
+                      <option value="كرتونه">كرتونه</option>
+                      <option value="كيلو">كيلو</option>
+                      <option value="لتر">لتر</option>
+                      <option value="قطعة">قطعة</option>
+                      <option value="عبوة">عبوة</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-1.5 text-right">
+                <label className="text-sm font-bold text-slate-600">أقصى سعر مقبول (اختياري)</label>
+                <div className="relative">
+                  <input 
+                    type="text"
+                    inputMode="numeric"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(convertArabicNumerals(e.target.value))}
+                    placeholder="مثال: 150"
+                    className="w-full px-4 py-3 pb-3 pr-10 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 font-bold"
+                  />
+                  <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">ج.م</span>
                 </div>
               </div>
 
-              {location ? (
-                <div className="bg-green-50 border border-green-200 p-3 rounded-xl flex items-center justify-between">
-                  <span className="text-xs font-bold text-green-700">✓ تم تحديد الإحداثيات بنجاح</span>
-                  <button onClick={getLocation} className="text-[10px] bg-white px-3 py-1.5 rounded-lg border border-green-200 font-bold hover:bg-green-100">تحديث</button>
-                </div>
-              ) : (
-                <button 
-                  onClick={getLocation}
-                  disabled={geoLoading}
-                  className="w-full py-3.5 bg-white border-2 border-danger text-danger rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-danger hover:text-white transition-all disabled:opacity-50"
-                >
-                  {geoLoading ? (
+              <div className="space-y-1.5 text-right">
+                <label className="text-sm font-bold text-slate-600">ملاحظات إضافية (اختياري)</label>
+                <textarea 
+                  value={notes} 
+                  onChange={(e) => setNotes(e.target.value)} 
+                  placeholder="تاريخ إنتاج حديث، مواصفات خاصة..." 
+                  className="w-full h-32 px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 resize-none font-medium text-sm"
+                ></textarea>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 3 && (
+            <motion.div 
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <h2 className="font-bold text-slate-900">ملخص وموقع التوصيل</h2>
+              
+              <div className="bg-primary-50/50 border border-primary-100 rounded-2xl p-5 space-y-4">
+                <div>
+                  {!isBulk ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>جاري تحديد موقعك...</span>
+                      <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md tracking-tight uppercase">{selectedCategory?.name}</span>
+                      <h3 className="font-display font-medium text-xl text-slate-900 mt-2">{finalProductName}</h3>
                     </>
                   ) : (
                     <>
-                      <MapPin className="w-5 h-5" />
-                      <span>اضغط لتحديد موقعك الحالي</span>
+                      <span className="text-[10px] font-bold text-primary-600 bg-primary-100 px-2 py-1 rounded-md tracking-tight uppercase">صفقة جملة</span>
+                      <h3 className="font-display font-medium text-xl text-slate-900 mt-2">مناقصة جملة: {bulkItems.length} منتجات</h3>
                     </>
                   )}
-                </button>
-              )}
-              {geoError && <p className="text-[10px] text-red-500 font-bold mt-1">خطأ: غير قادر على تحديد الموقع</p>}
-            </div>
+                </div>
+                
+                {!isBulk ? (
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">الكمية</p>
+                        <p className="font-black text-slate-800 tracking-tight">{quantity} <span className="text-[10px] text-slate-400">{unit}</span></p>
+                    </div>
+                    {maxPrice && (
+                    <div className="flex-1 bg-white p-3 rounded-xl border border-slate-100">
+                        <p className="text-[10px] font-bold text-slate-400 mb-1">السعر المستهدف</p>
+                        <p className="font-black text-slate-800 tracking-tight">{maxPrice} <span className="text-[10px] text-slate-400 font-bold">ج.م</span></p>
+                    </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white p-3 rounded-xl border border-slate-100 overflow-hidden">
+                    <p className="text-[10px] font-bold text-slate-400 mb-2">المنتجات المطلوبة</p>
+                    <ul className="space-y-1.5">
+                      {bulkItems.map((item, i) => (
+                        <li key={i} className="flex justify-between items-center bg-slate-50 px-2 py-1.5 rounded-lg">
+                          <span className="text-[13px] font-bold text-slate-700">{item.productName}</span>
+                          <span className="text-[11px] font-black text-slate-400">{item.quantity} {item.unit}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
 
-            {isBulk && (
-               <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl flex items-start gap-3">
-                 <Package className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
-                 <div>
-                   <h4 className="font-bold text-blue-900 text-sm">تبدأ المناقصة الآن</h4>
-                   <p className="text-xs text-blue-700 font-medium leading-relaxed mt-1">
-                     سيتم فتح باب تلقي العروض لهذه الصفقة الكبيرة لمدة <span className="font-bold">٤٨ ساعة</span>، أو حتى تقوم باختيار وقبول عرض معين.
-                   </p>
-                 </div>
-               </div>
-            )}
-          </div>
-        )}
+              <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 flex flex-col gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm shrink-0">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900">{auth.currentUser?.displayName || 'مستخدم جديد'}</h3>
+                    <p className="text-[11px] text-slate-500 mt-1 font-bold leading-relaxed">حدد موقعك الدقيق ليصل تنبيه للموردين في محيط منطقتك لضمان سرعة التوصيل.</p>
+                  </div>
+                </div>
+
+                {location ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-green-50 border border-green-200 p-4 rounded-xl flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-xs font-bold text-green-700">تم تحديد الإحداثيات بنجاح</span>
+                    </div>
+                    <button onClick={getLocation} className="text-[10px] bg-white px-3 py-1.5 rounded-lg border border-green-200 font-black text-green-700 hover:bg-green-100">تحديث</button>
+                  </motion.div>
+                ) : (
+                  <button 
+                    onClick={getLocation}
+                    disabled={geoLoading}
+                    className="w-full py-4 bg-white border-2 border-red-500 text-red-500 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-red-50 transition-all disabled:opacity-50 active:scale-95"
+                  >
+                    {geoLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>جاري تحديد موقعك...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-5 h-5" />
+                        <span>اضغط لتحديد موقعك الحالي</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="p-5 border-t border-slate-100 flex gap-3">

@@ -10,6 +10,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
@@ -203,269 +205,161 @@ export default function BuyerHome() {
   const activeRequests = requests.filter(r => ['active', 'accepted', 'preparing', 'shipped'].includes(r.status) && !isRequestExpired(r));
 
   return (
-    <div className="max-w-7xl mx-auto px-1 sm:px-4 lg:px-6 pb-20">
-      <div className="flex flex-col md:grid md:grid-cols-12 md:auto-rows-min gap-4 md:gap-6 relative">
+    <div className="max-w-7xl mx-auto px-1 sm:px-4 lg:px-6 pb-24 overflow-x-hidden">
+      <div className="flex flex-col gap-6">
         
-        {/* Top Section: Search & Actions */}
-        <div className="md:col-span-3 space-y-4">
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="ابحث عن خامة..." 
-              className="w-full bg-white border border-slate-300 rounded-3xl py-3.5 px-5 pr-12 shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none font-bold"
-            />
-            <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          </div>
-          
-          <div className="flex gap-4 h-[110px] md:h-auto">
-            <Link to="/buyer/request/new" className="flex-1 bg-[var(--color-danger)] text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-lg group hover:scale-[1.02] transition-transform overflow-hidden relative">
-              <span className="text-[9px] font-bold bg-white/20 px-2 py-0.5 rounded relative z-10">سريع جداً</span>
-              <h2 className="text-lg font-bold font-display relative z-10">طلب طارئ</h2>
-              <Flame className="absolute -right-4 -bottom-4 w-20 h-20 opacity-10 rotate-12" />
-            </Link>
-            <Link to="/buyer/request/new?type=bulk" className="flex-1 bg-slate-900 text-white p-4 rounded-3xl flex flex-col items-center justify-center gap-1 shadow-lg group hover:scale-[1.02] transition-transform overflow-hidden relative border border-slate-700">
-              <span className="text-[9px] font-bold bg-white/10 px-2 py-0.5 rounded border border-white/10 relative z-10">مناقصة جملة</span>
-              <h2 className="text-lg font-bold font-display relative z-10">صفقة كبيرة</h2>
-              <Package className="absolute -left-4 -bottom-4 w-20 h-20 opacity-5 -rotate-12" />
-            </Link>
-          </div>
+        {/* Search Bar - Traditional Top position */}
+        <div className="relative group max-w-2xl mx-auto w-full">
+          <input 
+            type="text" 
+            placeholder="ابحث عن خامة أو مورد..." 
+            className="w-full bg-white border border-slate-300 rounded-3xl py-3.5 px-5 pr-12 shadow-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none font-bold transition-all"
+          />
+          <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 transition-colors" />
         </div>
 
-        {/* Stats Cards - ORIGINAL BENTO POSITIONING */}
-        <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 hide-scrollbar md:col-start-1 md:col-span-3 md:row-start-3 md:row-span-2 order-2 md:order-none">
-          <div className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-all hover:shadow-md shrink-0 group/card">
-            <div className="w-10 h-10 md:w-14 md:h-14 bg-[#27AE60]/10 text-[#27AE60] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">💰</div>
+        {/* Action Buttons */}
+        <div className="flex gap-4 max-w-2xl mx-auto w-full">
+          <Link to="/buyer/request/new" className="flex-1 bg-[var(--color-danger)] text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all overflow-hidden relative group">
+            <Flame className="w-6 h-6 animate-pulse" />
+            <h2 className="text-xl font-bold font-display">طلب طارئ</h2>
+            <p className="text-[10px] font-bold opacity-80">عروض خلال دقائق</p>
+          </Link>
+          <Link to="/buyer/request/new?type=bulk" className="flex-1 bg-slate-900 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all overflow-hidden relative group">
+            <Package className="w-6 h-6" />
+            <h2 className="text-xl font-bold font-display">صفقة كبيرة</h2>
+            <p className="text-[10px] font-bold opacity-70">أفضل سعر للكميات</p>
+          </Link>
+        </div>
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+            <div className="w-10 h-10 bg-green-50 text-[var(--color-primary)] rounded-xl flex items-center justify-center">💰</div>
             <div>
-              <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5">رصيد المشتريات</p>
-              <p className="text-lg xl:text-2xl font-black text-slate-900 leading-tight">
-                 12,450 <span className="text-[10px] md:text-sm font-bold text-slate-400">جم</span>
-              </p>
+              <p className="text-[10px] text-slate-400 font-bold">المشتريات</p>
+              <p className="text-lg font-black text-slate-900">12,450 <span className="text-[10px]">جم</span></p>
             </div>
           </div>
-          
-          <Link 
-            to="/buyer/wishlist"
-            className="flex-1 min-w-[180px] md:min-w-0 bg-white border border-slate-300 rounded-3xl p-5 shadow-sm flex items-center justify-center gap-3 xl:gap-4 hover:border-[var(--color-primary)] transition-all hover:shadow-md shrink-0 group/card"
-          >
-            <div className="w-10 h-10 md:w-14 md:h-14 bg-[#EB5757]/10 text-[#EB5757] rounded-2xl flex items-center justify-center text-xl md:text-2xl shrink-0 group-hover/card:scale-110 transition-transform">❤️</div>
+          <Link to="/buyer/wishlist" className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+            <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center">❤️</div>
             <div>
-              <p className="text-[10px] md:text-xs text-slate-400 font-bold mb-0.5">العروض المحفوظة</p>
-              <p className="text-lg xl:text-2xl font-black text-slate-900 leading-tight">
-                 {wishlist.length} <span className="text-[10px] md:text-sm font-bold text-slate-400">عروض</span>
-              </p>
+              <p className="text-[10px] text-slate-400 font-bold">المفضلة</p>
+              <p className="text-lg font-black text-slate-900">{wishlist.length} <span className="text-[10px]">عروض</span></p>
             </div>
           </Link>
         </div>
 
-        {/* Active Requests Feed - ORIGINAL BENTO POSITIONING (Center) */}
-        <div className="md:col-start-4 md:col-span-6 md:row-start-1 md:row-span-4 order-3 md:order-none">
-          <section className="bg-white border-2 border-[var(--color-primary)]/10 rounded-3xl p-6 shadow-sm h-full flex flex-col min-h-[400px]">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-[var(--color-primary)] font-display">طلباتي النشطة</h2>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                  <p className="text-xs text-slate-500 font-bold">تحديث فوري للعروض</p>
-                </div>
-              </div>
-              <Link to="/buyer/orders" className="text-xs font-bold text-slate-400 hover:text-[var(--color-primary)] transition-colors underline decoration-slate-200">سجل الطلبات</Link>
-            </div>
-            
-            <div className="space-y-3 flex-1 overflow-auto hide-scrollbar pb-2">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 py-20">
-                  <Loader2 className="w-10 h-10 animate-spin mb-4 text-[var(--color-primary)] opacity-40" />
-                  <p className="text-sm font-bold animate-pulse">جاري جلب بياناتك...</p>
-                </div>
-              ) : activeRequests.length > 0 ? (
-                activeRequests.map(req => (
-                  <Link 
-                    key={req.id} 
-                    to={`/buyer/request/${req.id}`} 
-                    className="block bg-slate-50 border border-slate-200 p-4 rounded-2xl flex items-start justify-between hover:bg-slate-100 transition-colors relative overflow-hidden group"
-                  >
-                    <div className="absolute top-0 right-0 w-1.5 h-full bg-[var(--color-danger)]"></div>
-                    <div>
-                      <h3 className="font-bold text-sm md:text-base text-slate-900 group-hover:text-[var(--color-primary)] transition-colors">{req.productName}</h3>
-                      <p className="text-xs text-slate-500 font-bold mt-1">الكمية المطلوبة: {req.quantity} {req.unit}</p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <span className="text-[10px] bg-white border border-slate-200 px-2.5 py-1 rounded-full font-bold text-slate-500 flex items-center gap-1.5">
-                           <Clock className="w-3 h-3" />
-                           منذ {convertArabicNumerals(Math.floor((Date.now() - (req.createdAt?.toMillis?.() || Date.now())) / 60000).toString())} دقيقة
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-center bg-white px-4 py-2.5 rounded-xl border-2 border-slate-100 group-hover:border-[var(--color-primary)]/20 transition-all flex flex-col items-center justify-center min-w-[70px]">
-                      {req.status === 'active' ? (
-                        <>
-                          <span className="block text-xl font-black text-[var(--color-primary)] leading-none">{req.bidsCount || 0}</span>
-                          <span className="block text-[10px] font-bold text-slate-400 mt-1 uppercase">عروض</span>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1">
-                           <CheckCircle2 className="w-5 h-5 text-green-500" />
-                           <span className="text-[10px] font-bold text-green-600">طلب جاهز</span>
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 pb-10">
-                  <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mb-4">
-                     <Package className="w-10 h-10 opacity-10" />
-                  </div>
-                  <p className="text-sm font-bold text-slate-500">لا يوجد طلبات نشطة حالياً</p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-[180px] text-center font-medium">ابدأ بطلب خاماتك الآن ليصلك عروض الموردين</p>
-                  <Link to="/buyer/request/new" className="mt-6 px-8 py-3 bg-[var(--color-primary)] text-white rounded-2xl font-bold text-sm shadow-lg hover:shadow-green-100 transition-all">اطلب الآن</Link>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
+        {/* Active Requests section */}
+        <section className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto w-full min-h-[300px]">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-slate-900 pr-3 border-r-4 border-[var(--color-primary)]">طلباتي النشطة</h3>
+            <Link to="/buyer/orders" className="text-xs font-bold text-[var(--color-primary)]">المزيد</Link>
+          </div>
 
-        {/* Categories Section - ORIGINAL BENTO POSITIONING (Right) */}
-        <div className="md:col-start-10 md:col-span-3 md:row-start-1 md:row-span-4 order-4 md:order-none">
-          <section className="bg-[var(--color-primary)] text-white rounded-3xl p-6 shadow-sm flex flex-col h-full bg-gradient-to-br from-[var(--color-primary)] to-[#1E824C]">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold font-display">التصنيفات</h3>
-              <div className="w-8 h-8 bg-white/10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-white/20">
-                <Search size={16} />
+          <div className="space-y-3">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <Loader2 className="animate-spin mb-2" />
+                <p className="text-xs font-bold">جاري التحميل...</p>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 flex-1">
-              {CATEGORIES.slice(0, 8).map((c) => (
+            ) : activeRequests.length > 0 ? (
+              activeRequests.map((req) => (
                 <Link 
-                  key={c.id} 
-                  to={`/buyer/products?cat=${c.id}`} 
-                  className="bg-white/10 hover:bg-white/20 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center group border border-white/5"
+                  key={req.id} 
+                  to={`/buyer/request/${req.id}`} 
+                  className="block bg-slate-50 border border-slate-100 p-4 rounded-2xl hover:bg-slate-100 transition-colors"
                 >
-                  <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">{c.icon}</span>
-                  <span className="text-[11px] font-bold leading-tight opacity-90">{c.name}</span>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-900">{req.productName}</h4>
+                      <p className="text-xs text-slate-500 font-bold mt-1">{req.quantity} {req.unit}</p>
+                    </div>
+                    <div className="bg-white px-3 py-1 rounded-lg border border-slate-200 text-center min-w-[50px]">
+                      <span className="text-lg font-black text-[var(--color-primary)] leading-none">{req.bidsCount || 0}</span>
+                      <span className="block text-[8px] font-bold text-slate-400">عروض</span>
+                    </div>
+                  </div>
                 </Link>
-              ))}
-              <Link
-                to="/buyer/request/new"
-                className="col-span-2 bg-white text-[var(--color-primary)] p-4 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-sm hover:bg-slate-50 transition-all mt-2"
+              ))
+            ) : (
+              <div className="text-center py-12 text-slate-400 font-bold text-xs italic">لا يوجد طلبات نشطة حالياً</div>
+            )}
+          </div>
+        </section>
+
+        {/* Categories Horizontal Scroll */}
+        <section className="max-w-2xl mx-auto w-full">
+           <h3 className="text-sm font-bold text-slate-900 mb-4 px-2">استكشف حسب التصنيف</h3>
+           <div className="flex overflow-x-auto gap-3 pb-2 hide-scrollbar px-2">
+             {CATEGORIES.map(c => (
+               <Link 
+                key={c.id} 
+                to={`/buyer/products?cat=${c.id}`} 
+                className="min-w-[90px] bg-white border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-[var(--color-primary)] transition-all"
+               >
+                 <span className="text-2xl mb-1">{c.icon}</span>
+                 <span className="text-[10px] font-bold text-slate-700 whitespace-nowrap">{c.name}</span>
+               </Link>
+             ))}
+           </div>
+        </section>
+
+        {/* Trusted Suppliers */}
+        <section className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto w-full">
+           <h3 className="text-base font-bold text-slate-900 mb-4 pr-3 border-r-4 border-slate-900">موردينا الموثوقين</h3>
+           <div className="flex overflow-x-auto gap-4 py-2 hide-scrollbar">
+             {suppliers.map(s => (
+               <Link key={s.id} to={`/buyer/supplier/${s.id}`} className="flex flex-col items-center min-w-[100px] group">
+                 <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 group-hover:border-[var(--color-primary)] transition-all">
+                   <img 
+                    src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} 
+                    alt={s.businessName} 
+                    className="w-full h-full object-cover rounded-xl"
+                   />
+                 </div>
+                 <p className="text-[10px] font-bold text-slate-800 mt-2 text-center line-clamp-1">{s.businessName}</p>
+               </Link>
+             ))}
+           </div>
+        </section>
+
+        {/* Daily Offers */}
+        <section className="max-w-2xl mx-auto w-full pb-10">
+          <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-base font-black text-slate-900">أقوى العروض الحالية</h3>
+            <Link to="/buyer/offers" className="text-xs text-[var(--color-primary)] font-bold">شاهد الكل</Link>
+          </div>
+          <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar px-2">
+            {offers.map(offer => (
+              <div 
+                key={offer.id} 
+                className="min-w-[260px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all shrink-0"
               >
-                <span>تصفح الكل</span>
-                <ChevronLeft size={16} />
-              </Link>
-            </div>
-          </section>
-        </div>
-
-        {/* Trusted Suppliers Storefronts - ENSURE VISIBILITY ON MOBILE */}
-        <div className="md:col-span-12 order-5">
-           <section className="bg-white border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold font-display text-lg text-slate-900 border-r-4 border-[var(--color-primary)] pr-2">موردينا الموثوقين</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">تصفح المتاجر المعتمدة</p>
-            </div>
-            
-            <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar min-h-[120px]">
-              {loadingSuppliers ? (
-                <div className="w-full flex items-center justify-center py-8 text-slate-400 font-bold text-xs gap-2">
-                   <Loader2 size={16} className="animate-spin" />
-                   جاري تحميل القائمة...
+                <div className="h-32 bg-slate-100 relative">
+                  <img src={offer.image} className="w-full h-full object-cover" />
+                  <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">-{offer.discount}</div>
                 </div>
-              ) : suppliers.length > 0 ? (
-                suppliers.map(s => (
-                  <Link 
-                    key={s.id} 
-                    to={`/buyer/supplier/${s.id}`} 
-                    className="min-w-[120px] md:min-w-[140px] flex flex-col items-center group snap-start"
-                  >
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-2xl border-2 border-slate-100 group-hover:border-[var(--color-primary)] transition-all p-1.5 overflow-hidden shadow-sm relative">
-                      <img 
-                        src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} 
-                        alt={s.businessName} 
-                        className="w-full h-full object-cover rounded-xl"
-                      />
-                      {s.isVerified && <CheckCircle2 className="absolute -top-1 -right-1 w-5 h-5 text-white bg-green-500 rounded-full border-2 border-white p-0.5" />}
+                <div className="p-4">
+                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{offer.title}</h4>
+                  <div className="flex justify-between items-end mt-3">
+                    <div>
+                      <span className="text-rose-500 font-black text-lg">{offer.offerPrice} <span className="text-[10px]">جم</span></span>
                     </div>
-                    <p className="mt-2 text-[11px] font-black text-slate-800 text-center line-clamp-1 group-hover:text-[var(--color-primary)]">{s.businessName}</p>
-                    <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-500 font-bold">
-                      <Star size={10} className="fill-current" />
-                      {s.rating || 4.8}
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="w-full py-8 text-center text-slate-400 font-bold text-sm italic">
-                   لا يوجد موردين موثوقين حالياً
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Supplier Offers Feed - FULL WIDTH BOTTOM */}
-         <div className="md:col-span-12 order-6">
-           <section className="bg-slate-50 border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col mb-4">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="font-black font-display text-lg text-slate-900 border-r-4 border-[var(--color-danger)] pr-2">أقوى عروض اليوم</h3>
-                  <p className="text-[10px] text-slate-400 font-bold mt-1">خامات بأسعار مخفضة لفترة محدودة</p>
-                </div>
-                <Link to="/buyer/offers" className="text-xs text-[var(--color-primary)] font-bold flex items-center bg-white px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm">
-                  عرض الكل <ChevronLeft className="w-4 h-4 mr-1" />
-                </Link>
-              </div>
-
-              <div className="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
-                {offers.map(offer => (
-                  <div 
-                    key={offer.id} 
-                    className="min-w-[280px] md:min-w-[320px] bg-white border border-slate-200 rounded-2xl p-3 flex gap-3 snap-start hover:shadow-md transition-all relative overflow-hidden group border-b-4 border-b-[var(--color-danger)]/20"
-                  >
-                    <div className="w-24 h-24 bg-slate-100 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center">
-                      <img 
-                        src={offer.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.title)}&background=f1f5f9&color=64748b`} 
-                        alt={offer.title} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute top-0 right-0 bg-[var(--color-danger)] text-white text-[10px] font-black px-2 py-1 rounded-bl-lg z-10 shadow-sm">-{offer.discount}</div>
-                      <button 
-                        onClick={(e) => { e.preventDefault(); toggleWishlist(offer.id); }} 
-                        className="absolute bottom-1 right-1 p-1.5 bg-white/90 rounded-lg text-rose-500 shadow-sm transition-transform active:scale-90 hover:bg-white"
-                      >
-                        <Heart className={cn("w-4 h-4", wishlist.includes(offer.id) ? "fill-current" : "")} />
-                      </button>
-                    </div>
-                    <div className="flex-1 flex flex-col justify-between py-1">
-                      <div>
-                        <h4 className="text-sm md:text-base font-black text-slate-900 line-clamp-1 leading-tight">{offer.title}</h4>
-                        <Link to={`/buyer/supplier/${offer.supplierId}`} className="text-[10px] text-[var(--color-primary)] font-bold mt-1.5 flex items-center gap-1 hover:underline">
-                           <ShoppingBag size={10} />
-                           {offer.supplierName}
-                        </Link>
-                      </div>
-                      <div className="flex items-end justify-between mt-2">
-                         <div className="flex flex-col">
-                            <span className="text-[var(--color-danger)] font-black text-lg leading-none">{offer.offerPrice} <span className="text-[10px]">جم</span></span>
-                            <span className="text-[10px] text-slate-400 line-through mt-1 font-bold">{offer.originalPrice} جم</span>
-                         </div>
-                         <button 
-                           onClick={() => { setSelectedOffer(offer); setShowOrderModal(true); requestLocation(); }} 
-                           className="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors shadow-sm"
-                         >
-                           اطلب الآن
-                         </button>
-                      </div>
-                    </div>
+                    <button 
+                      onClick={() => { setSelectedOffer(offer); setShowOrderModal(true); requestLocation(); }}
+                      className="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl"
+                    >
+                      اطلب الآن
+                    </button>
                   </div>
-                ))}
-                {offers.length === 0 && (
-                  <div className="w-full text-center py-12 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-100 italic font-bold">
-                    لا يوجد عروض ترويجية نشطة حالياً
-                  </div>
-                )}
+                </div>
               </div>
-           </section>
-        </div>
+            ))}
+          </div>
+        </section>
       </div>
+
 
       {/* Confirmation Modal */}
       {showOrderModal && selectedOffer && (

@@ -8,24 +8,16 @@ import { SupplierStoreProduct, User } from '../../types';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = [
-  'لحوم ودواجن',
-  'خضروات وفواكه',
-  'ألبان وأجبان',
-  'بقوليات وحبوب',
-  'زيوت وسمن',
-  'معلبات',
-  'توابل وبهارات',
-  'مجمدات',
-  'أخرى'
-];
+import { CATEGORIES as APP_CATEGORIES } from '../../constants';
+
+const CATEGORIES = APP_CATEGORIES.map(c => c.name);
 
 const CATEGORY_IMAGES: Record<string, string> = {
   'لحوم ودواجن': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=200',
-  'خضروات وفواكه': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200',
+  'خضار وفاكهة': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200',
   'ألبان وأجبان': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=200',
-  'بقوليات وحبوب': 'https://images.unsplash.com/photo-1551462147-37885acc3c41?auto=format&fit=crop&q=80&w=200',
-  'زيوت وسمن': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=200',
+  'حبوب وبقوليات': 'https://images.unsplash.com/photo-1551462147-37885acc3c41?auto=format&fit=crop&q=80&w=200',
+  'زيوت وتوابل': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=200',
   'معلبات': 'https://images.unsplash.com/photo-1595231712325-9fdec2147879?auto=format&fit=crop&q=80&w=200',
   'توابل وبهارات': 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&q=80&w=200',
   'مجمدات': 'https://images.unsplash.com/photo-1584263343327-cc599f161724?auto=format&fit=crop&q=80&w=200',

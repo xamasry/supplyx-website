@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import { useNotifications } from '../../hooks/useNotifications';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 export default function BuyerLayout({ children }: { children?: React.ReactNode }) {
   useNotifications();
   const location = useLocation();
@@ -40,9 +42,6 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
           if (snap.exists()) {
              const data = snap.data();
              setUserProfile(data);
-             if (data.status === 'pending' && !location.pathname.includes('/auth/pending')) {
-               navigate('/auth/pending');
-             }
           }
         });
 
@@ -54,7 +53,6 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         unsubNotifs = onSnapshot(q, (snapshot) => {
           setUnreadCount(snapshot.size);
         }, (err) => {
-          console.error("BuyerLayout Notif error:", err);
           handleFirestoreError(err, OperationType.LIST, 'notifications', true);
         });
       } else {
@@ -70,65 +68,110 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
     };
   }, []);
 
-  const isActive = (p: string) => path.includes(p);
+  const isActive = (p: string) => path === p || path.startsWith(p + '/');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans pb-20 md:pb-0">
-      <header className="h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center gap-6">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans pb-24 md:pb-0">
+      {/* Desktop Navigation Side - Optional, but keeping current top header for consistency */}
+      <header className="h-16 md:h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center gap-4">
           <Logo size="sm" />
-          <div className="hidden md:flex items-center gap-3 pl-6 border-l border-slate-100">
-            <div className="w-10 h-10 bg-[#22C55E]/10 text-[#22C55E] rounded-xl flex items-center justify-center font-black text-xl">
-              {userProfile?.businessName?.[0] || user?.displayName?.[0] || 'S'}
-            </div>
-            <div>
-              <h1 className="font-bold text-[#0B1D2A] leading-tight truncate max-w-[150px] md:max-w-none">
-                {userProfile?.businessName || user?.displayName || 'مستخدم جديد'}
-              </h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                {user?.email || 'حساب مطعم'}
-              </p>
-            </div>
-          </div>
+          <div className="hidden md:block h-6 w-px bg-slate-200 mx-2" />
+          
+          {/* Desktop Nav Links */}
+          <nav className="hidden md:flex items-center gap-4">
+            {[
+              { to: '/buyer/home', icon: Home, label: 'الرئيسية' },
+              { to: '/buyer/orders', icon: ClipboardList, label: 'طلباتي' },
+              { to: '/buyer/offers', icon: Gift, label: 'العروض' },
+              { to: '/buyer/wishlist', icon: Heart, label: 'المفضلة' },
+              { to: '/buyer/profile', icon: User, label: 'حسابي' },
+            ].map((item) => (
+              <Link 
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl transition-all font-bold text-sm",
+                  isActive(item.to) ? "bg-green-50 text-green-600" : "text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                <item.icon size={18} />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
-        <Link to="/buyer/notifications" className="relative w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 text-[#0B1D2A] cursor-pointer hover:bg-slate-100 transition-colors">
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--color-danger)] text-[8px] flex items-center justify-center rounded-full border-2 border-[var(--color-primary)] font-bold">
-              {unreadCount > 9 ? '+9' : unreadCount}
-            </span>
-          )}
-        </Link>
+
+        <div className="flex items-center gap-2 md:gap-4">
+          <Link to="/buyer/notifications" className="relative w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 hover:text-[var(--color-primary)] transition-all">
+            <Bell size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </Link>
+          <Link to="/buyer/profile" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200 group-hover:border-[var(--color-primary)] transition-all">
+              {userProfile?.businessName?.[0] || user?.displayName?.[0] || 'U'}
+            </div>
+          </Link>
+        </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-6 w-full lg:max-w-5xl mx-auto overflow-hidden">
-        {children || <Outlet />}
+      <main className="flex-1 w-full lg:max-w-7xl mx-auto overflow-x-hidden pt-4 px-2 md:px-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="w-full"
+          >
+            {children || <Outlet />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-300 pb-safe z-50 md:sticky md:h-16 md:flex md:items-center">
-        <div className="flex items-center justify-around h-16 w-full lg:max-w-5xl mx-auto px-2 md:px-20">
-          <Link to="/buyer/home" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/home') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Home className={cn("w-6 h-6", isActive('/buyer/home') && "fill-current")} />
-            <span className="text-[10px] font-bold">الرئيسية</span>
-          </Link>
-          <Link to="/buyer/orders" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/orders') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <ClipboardList className="w-6 h-6" />
-            <span className="text-[10px] font-bold">طلباتي</span>
-          </Link>
-          <Link to="/buyer/offers" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/offers') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Gift className="w-6 h-6" />
-            <span className="text-[10px] font-bold">العروض</span>
-          </Link>
-          <Link to="/buyer/wishlist" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/wishlist') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Heart className={cn("w-6 h-6", isActive('/buyer/wishlist') && "fill-current")} />
-            <span className="text-[10px] font-bold">المفضلة</span>
-          </Link>
-          <Link to="/buyer/profile" className={cn("flex flex-col items-center justify-center gap-1 w-16", isActive('/buyer/profile') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <User className="w-6 h-6" />
-            <span className="text-[10px] font-bold">حسابي</span>
-          </Link>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200 px-4 pb-safe z-50 md:hidden">
+        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+          {[
+            { to: '/buyer/home', icon: Home, label: 'الرئيسية' },
+            { to: '/buyer/orders', icon: ClipboardList, label: 'طلباتي' },
+            { to: '/buyer/offers', icon: Gift, label: 'العروض' },
+            { to: '/buyer/wishlist', icon: Heart, label: 'المفضلة' },
+            { to: '/buyer/profile', icon: User, label: 'حسابي' },
+          ].map((item) => (
+            <Link 
+              key={item.to}
+              to={item.to} 
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 w-14 transition-all duration-300 relative", 
+                isActive(item.to) ? "text-[var(--color-primary)] -translate-y-1" : "text-slate-400"
+              )}
+            >
+              <item.icon className={cn("w-5 h-5 transition-all", isActive(item.to) && "scale-110")} />
+              <span className={cn("text-[9px] font-bold transition-all", isActive(item.to) ? "opacity-100" : "opacity-70")}>{item.label}</span>
+              {isActive(item.to) && (
+                <motion.div 
+                  layoutId="indicator" 
+                  className="absolute -bottom-2 w-1 h-1 bg-[var(--color-primary)] rounded-full"
+                />
+              )}
+            </Link>
+          ))}
         </div>
       </nav>
+      
+      {/* Desktop Footer Nav - Subtle */}
+      <footer className="hidden md:block py-10 mt-12 border-t border-slate-100 bg-white">
+        <div className="max-w-7xl mx-auto px-8 flex justify-between items-center opacity-50">
+           <Logo size="xs" grayscale />
+           <p className="text-[10px] font-bold">بوابة المشتري الصناعية الذكية © ٢٠٢٤</p>
+        </div>
+      </footer>
     </div>
   );
 }
+

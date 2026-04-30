@@ -7,24 +7,16 @@ import { SupplierStoreProduct } from '../../types';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = [
-  'لحوم ودواجن',
-  'خضروات وفواكه',
-  'ألبان وأجبان',
-  'بقوليات وحبوب',
-  'زيوت وسمن',
-  'معلبات',
-  'توابل وبهارات',
-  'مجمدات',
-  'أخرى'
-];
+import { CATEGORIES as APP_CATEGORIES } from '../../constants';
+
+const CATEGORIES = APP_CATEGORIES.map(c => c.name);
 
 const CATEGORY_IMAGES: Record<string, string> = {
   'لحوم ودواجن': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=200',
-  'خضروات وفواكه': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200',
+  'خضار وفاكهة': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200',
   'ألبان وأجبان': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=200',
-  'بقوليات وحبوب': 'https://images.unsplash.com/photo-1551462147-37885acc3c41?auto=format&fit=crop&q=80&w=200',
-  'زيوت وسمن': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=200',
+  'حبوب وبقوليات': 'https://images.unsplash.com/photo-1551462147-37885acc3c41?auto=format&fit=crop&q=80&w=200',
+  'زيوت وتوابل': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=200',
   'معلبات': 'https://images.unsplash.com/photo-1595231712325-9fdec2147879?auto=format&fit=crop&q=80&w=200',
   'توابل وبهارات': 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&q=80&w=200',
   'مجمدات': 'https://images.unsplash.com/photo-1584263343327-cc599f161724?auto=format&fit=crop&q=80&w=200',
@@ -145,16 +137,25 @@ export default function ManageCatalog() {
     setEditingProduct(null);
   };
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const groupedProducts = products.reduce((acc, p) => {
+    const cat = CATEGORIES.includes(p.category) ? p.category : 'أخرى';
+    if (!acc[cat]) {
+      acc[cat] = [];
+    }
+    acc[cat].push(p);
+    return acc;
+  }, {} as Record<string, SupplierStoreProduct[]>);
 
-  const groupedProducts = CATEGORIES.reduce((acc, cat) => {
-    const catProducts = filteredProducts.filter(p => p.category === cat);
-    if (catProducts.length > 0) {
-      acc[cat] = catProducts;
+  // Filter based on search and selected category
+  const finalGroupedProducts = Object.entries(groupedProducts).reduce((acc, [cat, catProducts]) => {
+    if (selectedCategory && cat !== selectedCategory) return acc;
+    
+    const filtered = catProducts.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (filtered.length > 0) {
+      acc[cat] = filtered;
     }
     return acc;
   }, {} as Record<string, SupplierStoreProduct[]>);
@@ -225,7 +226,7 @@ export default function ManageCatalog() {
 
       {/* Products List By Category */}
       <div className="space-y-8">
-        {Object.entries(groupedProducts).map(([category, catProducts]) => (
+        {Object.entries(finalGroupedProducts).map(([category, catProducts]) => (
           <div key={category} className="space-y-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-display font-bold text-slate-900">{category}</h2>
@@ -276,7 +277,7 @@ export default function ManageCatalog() {
           </div>
         ))}
 
-        {Object.keys(groupedProducts).length === 0 && (
+        {Object.keys(finalGroupedProducts).length === 0 && (
           <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200">
             <Package size={48} className="mx-auto text-slate-200 mb-4" />
             <p className="text-slate-500 font-bold">لا يوجد منتجات تطابق بحثك</p>

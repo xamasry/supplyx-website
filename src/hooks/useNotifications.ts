@@ -12,8 +12,7 @@ export function useNotifications() {
       collection(db, 'notifications'),
       where('userId', '==', auth.currentUser.uid),
       where('read', '==', false),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      limit(5)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -21,17 +20,19 @@ export function useNotifications() {
         if (change.type === 'added') {
           const data = change.doc.data();
           // Check if it's a very fresh notification to avoid toast storm on initial load
-          const createdAt = data.createdAt?.toMillis?.() || new Date(data.createdAt).getTime();
+          const createdAt = data.createdAt?.toMillis?.() || (data.createdAt instanceof Date ? data.createdAt.getTime() : new Date(data.createdAt).getTime());
           const now = Date.now();
           
-          if (now - createdAt < 10000) { // Only show for notifications created in the last 10 seconds
-             toast(`${data.title}: ${data.body}`, {
+          if (now - createdAt < 15000) { // Only show for notifications created in the last 15 seconds
+             toast(`${data.title}: ${data.message || data.body}`, {
                icon: '🔔',
-               duration: 6000,
+               duration: 5000,
              });
           }
         }
       });
+    }, (err) => {
+      console.warn("Notification listener error (likely missing index):", err);
     });
 
     return () => unsubscribe();

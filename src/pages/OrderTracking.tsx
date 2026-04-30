@@ -7,6 +7,8 @@ import { doc, onSnapshot, updateDoc, serverTimestamp, collection, addDoc } from 
 import Chat from '../components/Chat';
 import toast from 'react-hot-toast';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 export default function OrderTracking() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -219,75 +221,99 @@ export default function OrderTracking() {
   };
 
   return (
-    <div className="space-y-6 pb-24 font-sans">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6 pb-24 font-sans max-w-lg mx-auto"
+    >
       {/* Cancellation Confirmation Modal */}
-      {confirmCancel && (
-        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in duration-200">
-            <h3 className="font-black text-lg text-slate-900 mb-2 font-display">تأكيد الإجراء</h3>
-            <p className="text-sm text-slate-600 font-bold mb-6">
-              {isSupplier && (request.status === 'pending' || request.status === 'accepted')
-                ? 'هل أنت متأكد من رغبتك في الاعتذار عن تنفيذ هذا الطلب؟' 
-                : 'هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟ قد يتم تطبيق رسوم إلغاء.'}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={() => setConfirmCancel(false)}
-                className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
-              >
-                تراجع
-              </button>
-              <button 
-                onClick={() => {
-                  const isDecline = isSupplier && (request.status === 'pending' || request.status === 'accepted');
-                  handleStatusUpdate(isDecline ? 'rejected' : 'cancelled');
-                }}
-                className="py-3 bg-red-500 text-white rounded-xl font-black hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
-              >
-                تأكيد الإلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Chat Component Overlay */}
-      {showChat && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-           <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 duration-300 flex flex-col max-h-[90vh]">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <h3 className="font-bold font-display text-slate-900">المحادثة الفورية</h3>
+      <AnimatePresence>
+        {confirmCancel && (
+          <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+            >
+              <h3 className="font-black text-lg text-slate-900 mb-2 font-display">تأكيد الإجراء</h3>
+              <p className="text-sm text-slate-600 font-bold mb-6">
+                {isSupplier && (request.status === 'pending' || request.status === 'accepted')
+                  ? 'هل أنت متأكد من رغبتك في الاعتذار عن تنفيذ هذا الطلب؟' 
+                  : 'هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟ قد يتم تطبيق رسوم إلغاء.'}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => setShowChat(false)}
-                  className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                  onClick={() => setConfirmCancel(false)}
+                  className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
                 >
-                  <ChevronRight className="w-5 h-5 rotate-90" />
+                  تراجع
+                </button>
+                <button 
+                  onClick={() => {
+                    const isDecline = isSupplier && (request.status === 'pending' || request.status === 'accepted');
+                    handleStatusUpdate(isDecline ? 'rejected' : 'cancelled');
+                  }}
+                  className="py-3 bg-red-500 text-white rounded-xl font-black hover:bg-red-600 shadow-lg shadow-red-200 transition-all active:scale-95"
+                >
+                  تأكيد الإλغاء
                 </button>
               </div>
-              <div className="flex-1 overflow-hidden">
-                <Chat 
-                  requestId={id!} 
-                  receiverId={(isSupplier ? request.buyerId : request.supplierId) || ''} 
-                  receiverName={(isSupplier ? request.buyerName : request.supplierName) || 'المستخدم'} 
-                  collectionName={collectionName}
-                />
-              </div>
-           </div>
-        </div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Chat Component Overlay */}
+      <AnimatePresence>
+        {showChat && (
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                  <h3 className="font-bold font-display text-slate-900">المحادثة الفورية</h3>
+                  <button 
+                    onClick={() => setShowChat(false)}
+                    className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 rotate-90" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <Chat 
+                    requestId={id!} 
+                    receiverId={(isSupplier ? request.buyerId : request.supplierId) || ''} 
+                    receiverName={(isSupplier ? request.buyerName : request.supplierName) || 'المستخدم'} 
+                    collectionName={collectionName}
+                  />
+                </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Sticky Chat Button */}
       {request.status !== 'delivered' && (
-        <button 
+        <motion.button 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => setShowChat(true)}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center shadow-2xl z-[60] hover:scale-110 active:scale-95 transition-all animate-bounce-subtle"
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[var(--color-primary)] text-white rounded-full flex items-center justify-center shadow-2xl z-[60] animate-bounce-subtle"
         >
           <MessageCircle className="w-7 h-7" />
           <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
+        </motion.button>
       )}
 
       <header className="flex items-center">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700 transition-colors">
           <ChevronRight className="w-6 h-6" />
         </button>
         <h1 className="font-bold text-lg text-slate-900 font-display">تفاصيل الطلب #{request.id.slice(0, 8)}</h1>
@@ -295,7 +321,11 @@ export default function OrderTracking() {
 
       {/* Cancellation Block */}
       {(request.status === 'cancelled' || request.status === 'rejected') && (
-        <div className="bg-red-50 border border-red-100 rounded-3xl p-6 text-center space-y-3">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 border border-red-100 rounded-3xl p-6 text-center space-y-3"
+        >
           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
             <X className="w-8 h-8" />
           </div>
@@ -309,16 +339,20 @@ export default function OrderTracking() {
           </p>
           <button 
             onClick={() => navigate(isSupplier ? '/supplier/orders' : '/buyer/orders')}
-            className="text-xs font-black text-red-900 bg-red-200/50 px-4 py-2 rounded-xl"
+            className="text-xs font-black text-red-900 bg-red-200/50 px-4 py-2 rounded-xl active:scale-95 transition-all"
           >
             العودة لسجل الطلبات
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* Map Placeholder */}
       {request.status !== 'cancelled' && request.status !== 'rejected' && (
-        <div className="h-48 bg-slate-200 rounded-3xl border border-slate-300 overflow-hidden relative shadow-sm">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="h-48 bg-slate-200 rounded-3xl border border-slate-300 overflow-hidden relative shadow-sm"
+        >
           {mapUrl ? (
             <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full group">
               <img src="https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80" alt="Map" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -340,8 +374,9 @@ export default function OrderTracking() {
               </div>
             </>
           )}
-        </div>
+        </motion.div>
       )}
+
 
       {/* Order Items List */}
       {request.items && (
@@ -614,6 +649,6 @@ export default function OrderTracking() {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

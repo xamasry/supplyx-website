@@ -16,6 +16,8 @@ import {
 export default function SupplierAnalytics() {
   const [stats, setStats] = useState({
     totalRevenue: 0,
+    catalogRevenue: 0,
+    biddingRevenue: 0,
     completionRate: 0,
     completedOrders: 0
   });
@@ -36,11 +38,23 @@ export default function SupplierAnalytics() {
       orders.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
       orders = orders.slice(0, 200);
       const completed = orders.filter(o => o.status === 'delivered');
+      
       const totalRevenue = completed.reduce((acc, curr) => acc + (curr.price || 0), 0);
+      
+      // Separate Catalog vs Bidding Revenue
+      // Catalog orders have an offerId or requestType === 'direct'
+      const catalogRevenue = completed
+        .filter(o => o.offerId || o.requestType === 'direct')
+        .reduce((acc, curr) => acc + (curr.price || 0), 0);
+      
+      const biddingRevenue = totalRevenue - catalogRevenue;
+
       const completionRate = orders.length > 0 ? (completed.length / orders.length) * 100 : 0;
 
       setStats({
         totalRevenue,
+        catalogRevenue,
+        biddingRevenue,
         completedOrders: completed.length,
         completionRate: Math.round(completionRate)
       });
@@ -138,14 +152,29 @@ export default function SupplierAnalytics() {
 
       {/* Grid Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm col-span-2 flex justify-between items-center bg-gradient-to-l from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white">
-          <div className="text-right">
-            <p className="text-white/80 text-xs font-bold mb-1">إجمالي الإيرادات (المحققة)</p>
-            <p className="text-3xl font-display font-bold">{stats.totalRevenue.toLocaleString('ar-EG')} <span className="text-sm font-normal">ج.م</span></p>
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm col-span-2 flex flex-col gap-4 bg-gradient-to-l from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white relative overflow-hidden">
+          <div className="flex justify-between items-center relative z-10">
+            <div className="text-right">
+              <p className="text-white/80 text-xs font-bold mb-1">إجمالي الإيرادات (المحققة)</p>
+              <p className="text-4xl font-display font-black">{stats.totalRevenue.toLocaleString('ar-EG')} <span className="text-sm font-normal">ج.م</span></p>
+            </div>
+            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+              <DollarSign className="w-6 h-6" />
+            </div>
           </div>
-          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-            <DollarSign className="w-6 h-6" />
+          
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/20 relative z-10 font-bold">
+            <div className="bg-white/10 rounded-2xl p-3">
+              <p className="text-[10px] text-white/70 mb-1">مبيعات الكتالوج</p>
+              <p className="text-lg">{stats.catalogRevenue.toLocaleString('ar-EG')} <span className="text-[10px]">ج</span></p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-3">
+              <p className="text-[10px] text-white/70 mb-1">مبيعات المناقصات</p>
+              <p className="text-lg">{stats.biddingRevenue.toLocaleString('ar-EG')} <span className="text-[10px]">ج</span></p>
+            </div>
           </div>
+
+          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-2 items-end">
