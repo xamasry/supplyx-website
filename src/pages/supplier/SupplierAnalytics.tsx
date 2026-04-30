@@ -1,7 +1,7 @@
 import { BarChart as LucideBarChart, TrendingUp, DollarSign, Package, Loader2, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { 
   BarChart, 
   Bar, 
@@ -32,7 +32,9 @@ export default function SupplierAnalytics() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      let orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      orders.sort((a,b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+      orders = orders.slice(0, 200);
       const completed = orders.filter(o => o.status === 'delivered');
       const totalRevenue = completed.reduce((acc, curr) => acc + (curr.price || 0), 0);
       const completionRate = orders.length > 0 ? (completed.length / orders.length) * 100 : 0;

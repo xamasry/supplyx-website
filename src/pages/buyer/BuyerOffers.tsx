@@ -26,8 +26,7 @@ export default function BuyerOffers() {
 
     const q = query(
       collection(db, 'offers'),
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'desc')
+      where('status', '==', 'active')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -35,6 +34,7 @@ export default function BuyerOffers() {
         id: doc.id,
         ...doc.data()
       }));
+      data.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setOffers(data);
       setLoading(false);
     }, (error) => {

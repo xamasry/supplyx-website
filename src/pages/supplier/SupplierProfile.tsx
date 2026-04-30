@@ -79,8 +79,7 @@ export default function SupplierProfile() {
         // Fetch Reviews
         const reviewsQuery = query(
           collection(db, 'reviews'),
-          where('supplierId', '==', currentUser.uid),
-          orderBy('createdAt', 'desc')
+          where('supplierId', '==', currentUser.uid)
         );
         unsubReviews = onSnapshot(reviewsQuery, (snap) => {
           setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));

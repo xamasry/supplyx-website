@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, MapPin, Loader2, DollarSign, Package } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn, fetchWithRetry } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
+import { trackEvent } from '../../lib/analytics';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import toast from 'react-hot-toast';
@@ -128,13 +129,20 @@ export default function NewRequest() {
       const docRef = await addDoc(collection(db, path), requestData);
 
       // Notify suppliers via webhook
-      fetch('/api/requests/notify', {
+      fetchWithRetry('/api/requests/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId: docRef.id })
       }).catch(console.error);
 
       toast.success('تم إرسال الطلب بنجاح!');
+      
+      trackEvent('request_created', {
+        type: isBulk ? 'bulk' : 'fast',
+        category: selectedCategory?.id,
+        itemsCount: isBulk ? bulkItems.length : 1
+      });
+
       navigate(`/buyer/request/${docRef.id}`);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);

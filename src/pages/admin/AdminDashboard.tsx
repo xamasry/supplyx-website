@@ -13,7 +13,8 @@ import {
   deleteDoc,
   updateDoc,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  limit
 } from 'firebase/firestore';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, updateProfile as updateSecondaryProfile } from 'firebase/auth';
@@ -374,7 +375,8 @@ export default function AdminDashboard() {
     unsubscribes.current = [];
 
     // 1. Orders/Requests Stream
-      const unsubRequests = onSnapshot(collection(db, 'requests'), (snapshot) => {
+      const qReq = query(collection(db, 'requests'), orderBy('createdAt', 'desc'), limit(500));
+      const unsubRequests = onSnapshot(qReq, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setRequests(data);
         setLoading(false);
@@ -384,7 +386,8 @@ export default function AdminDashboard() {
       });
       unsubscribes.current.push(unsubRequests);
 
-      const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const qUsers = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(300));
+      const unsubUsers = onSnapshot(qUsers, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setUsers(data);
         setStats(prev => ({
@@ -399,7 +402,8 @@ export default function AdminDashboard() {
       });
       unsubscribes.current.push(unsubUsers);
 
-      const unsubOffers = onSnapshot(collection(db, 'offers'), (snapshot) => {
+      const qOffers = query(collection(db, 'offers'), orderBy('createdAt', 'desc'), limit(500));
+      const unsubOffers = onSnapshot(qOffers, (snapshot) => {
         setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       }, (err) => {
         console.error('Offers stream error:', err);

@@ -59,3 +59,23 @@ export function isRequestExpired(request: any): boolean {
   return (now - lastActivity > INACTIVITY_LIMIT_MS);
 }
 
+export async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries = 3, delayMs = 1000): Promise<Response> {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok && response.status >= 500) {
+        throw new Error(`Server Error: ${response.status}`);
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (i < maxRetries - 1) {
+        // Exponential backoff
+        await new Promise(res => setTimeout(res, delayMs * Math.pow(2, i)));
+      }
+    }
+  }
+  throw lastError;
+}
+

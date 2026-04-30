@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, BellOff, CheckCircle2 } from 'lucide-react';
-import { auth, requestNotificationPermission } from '../../lib/firebase';
+import { auth, requestNotificationPermission, onMessageListener } from '../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
 
@@ -12,9 +12,14 @@ const PushNotificationManager: React.FC = () => {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user && permission === 'default') {
-        const hasPrompted = localStorage.getItem('push_prompted');
+        let hasPrompted = false;
+        try {
+          hasPrompted = !!localStorage.getItem('push_prompted');
+        } catch (e) {
+          console.warn('localStorage access denied');
+        }
         if (!hasPrompted) {
           // Stagger the prompt
           setTimeout(() => setShowPrompt(true), 3000);
@@ -22,7 +27,23 @@ const PushNotificationManager: React.FC = () => {
       }
     });
 
-    return () => unsubscribe();
+    const unsubscribeMessages = onMessageListener((payload: any) => {
+      console.log('Foreground notification received:', payload);
+      toast.success(
+        <div>
+          <p className="font-bold">{payload.notification?.title}</p>
+          <p className="text-sm">{payload.notification?.body}</p>
+        </div>,
+        { duration: 5000, position: 'top-center' }
+      );
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeMessages && typeof unsubscribeMessages === 'function') {
+        unsubscribeMessages();
+      }
+    };
   }, [permission]);
 
   const handleRequestPermission = async () => {
@@ -32,13 +53,15 @@ const PushNotificationManager: React.FC = () => {
     setPermission(permission);
     setLoading(false);
     setShowPrompt(false);
-    localStorage.setItem('push_prompted', 'true');
+    try {
+      localStorage.setItem('push_prompted', 'true');
+    } catch (e) {}
 
     if (token) {
       toast.success('تم تفعيل الإشعارات بنجاح!', {
         icon: <CheckCircle2 className="text-emerald-500" />,
       });
-    } else if (Notification.permission === 'denied') {
+    } else if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') {
       toast.error('تم رفض الإشعارات. يمكنك تفعيلها من إعدادات المتصفح.');
     }
   };
@@ -72,7 +95,9 @@ const PushNotificationManager: React.FC = () => {
               <button
                 onClick={() => {
                   setShowPrompt(false);
-                  localStorage.setItem('push_prompted', 'true');
+                  try {
+                    localStorage.setItem('push_prompted', 'true');
+                  } catch (e) {}
                 }}
                 className="px-4 py-2.5 text-slate-400 font-semibold text-sm hover:text-slate-600 transition-colors"
               >

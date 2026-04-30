@@ -1,5 +1,10 @@
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+
+if (workbox) {
+  workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
+}
 
 // Fetch config from the same origin
 fetch('/firebase-applet-config.json')

@@ -1,15 +1,25 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, getDocFromCache, getDocFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDocFromCache, getDocFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getMessaging, getToken, onMessage, isSupported, Messaging } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 import toast from 'react-hot-toast';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+}, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth();
-export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 export const googleProvider = new GoogleAuthProvider();
+
+export let messaging: Messaging | null = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      messaging = getMessaging(app);
+    }
+  }).catch(console.error);
+}
 
 export const OperationType = {
   CREATE: 'create',
@@ -39,7 +49,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, suppressThrow: boolean = false) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, suppressThrow: boolean = true) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -80,9 +90,12 @@ export async function requestNotificationPermission() {
     if (permission === 'granted') {
       if (!messaging) return null;
       
-      const token = await getToken(messaging, {
-        vapidKey: import.meta.env.VITE_VAPID_KEY // We'll need the user to provide this or use a default if available
-      });
+        const registration = await navigator.serviceWorker.ready;
+        const config: any = { serviceWorkerRegistration: registration };
+        if (import.meta.env.VITE_VAPID_KEY) {
+           config.vapidKey = import.meta.env.VITE_VAPID_KEY;
+        }
+        const token = await getToken(messaging, config);
 
       if (token && auth.currentUser) {
         // Save token to user profile in Firestore
@@ -95,19 +108,18 @@ export async function requestNotificationPermission() {
         return token;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting notification permission:', error);
+    if (error.message && error.message.includes('VAPID')) {
+       toast.error("VAPID Key is missing! Please configure Web Push in Firebase Console and add VITE_VAPID_KEY to your environment variables.", { duration: 10000 });
+    }
   }
   return null;
 }
 
-export function onMessageListener() {
-  if (!messaging) return null;
-  return new Promise((resolve) => {
-    onMessage(messaging, (payload) => {
-      resolve(payload);
-    });
-  });
+export function onMessageListener(callback: (payload: any) => void) {
+  if (!messaging) return () => {};
+  return onMessage(messaging, callback);
 }
 
 // Optional: Test connection to Firestore

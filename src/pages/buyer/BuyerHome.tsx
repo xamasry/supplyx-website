@@ -3,7 +3,8 @@ import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, 
 import { cn, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
+import { trackEvent } from '../../lib/analytics';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -49,7 +50,8 @@ export default function BuyerHome() {
       // Fetch Requests
       const q = query(
         collection(db, 'requests'),
-        where('buyerId', '==', user.uid)
+        where('buyerId', '==', user.uid),
+        limit(50)
       );
 
       unsubSnapshot = onSnapshot(q, (snapshot) => {
@@ -62,9 +64,11 @@ export default function BuyerHome() {
       });
 
       // Fetch Offers
-      const qOffers = query(collection(db, 'offers'), where('status', '==', 'active'), orderBy('createdAt', 'desc'));
+      const qOffers = query(collection(db, 'offers'), where('status', '==', 'active'), limit(20));
       unsubOffers = onSnapshot(qOffers, (snapshot) => {
-        setOffers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        data.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        setOffers(data);
       }, (error) => {
         console.error('Error fetching offers:', error);
       });
@@ -193,6 +197,13 @@ export default function BuyerHome() {
       } catch (err) {
         console.error('Error sending notification:', err);
       }
+
+      trackEvent('order_created', {
+        type: 'offer_direct',
+        amount: newOrder.totalAmount,
+        quantity: orderQuantity,
+        productId: selectedOffer.id
+      });
 
       toast.success('تم إرسال الطلب بنجاح!');
       setShowOrderModal(false);

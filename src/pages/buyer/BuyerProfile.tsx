@@ -19,6 +19,7 @@ export default function BuyerProfile() {
   const [isInvoicesModalOpen, setIsInvoicesModalOpen] = useState(false);
   
   // Form states
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editFormData, setEditFormData] = useState({
     businessName: '',
     phone: '',
@@ -105,7 +106,8 @@ export default function BuyerProfile() {
 
   const handleUpdateProfile = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await setDoc(doc(db, 'users', user.uid), {
         ...editFormData,
@@ -114,12 +116,15 @@ export default function BuyerProfile() {
       setIsEditModalOpen(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleAddPayment = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'users', user.uid, 'payment_methods'), {
         ...paymentFormData,
@@ -129,6 +134,8 @@ export default function BuyerProfile() {
       setPaymentFormData({ cardHolder: '', cardNumber: '', expiryDate: '', type: 'visa' });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/payment_methods`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -290,7 +297,9 @@ export default function BuyerProfile() {
                   required
                 />
               </div>
-              <button type="submit" className="w-full py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-lg">حفظ التغييرات</button>
+              <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-lg disabled:opacity-50">
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'حفظ التغييرات'}
+              </button>
             </form>
           </div>
         </div>
@@ -371,8 +380,8 @@ export default function BuyerProfile() {
                     <option value="mastercard">MasterCard</option>
                   </select>
                 </div>
-                <button type="submit" className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2">
-                  <Plus className="w-5 h-5" /> إضافة الكارت
+                <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50">
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : <><Plus className="w-5 h-5" /> إضافة الكارت</>}
                 </button>
               </form>
             </div>

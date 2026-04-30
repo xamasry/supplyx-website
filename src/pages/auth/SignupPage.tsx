@@ -4,6 +4,7 @@ import { Loader2, ArrowRight } from 'lucide-react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../../lib/firebase';
+import { trackEvent } from '../../lib/analytics';
 import toast from 'react-hot-toast';
 import Logo from '../../components/ui/Logo';
 
@@ -77,6 +78,8 @@ export default function SignupPage() {
 
       // Sign out immediately because they are pending
       await auth.signOut();
+      
+      trackEvent('signup', { role, method: 'email' });
       
       toast.success('تم تسجيل الحساب بنجاح! حسابك الآن قيد المراجعة من الإدارة.', { id: toastId });
       navigate('/auth/login');

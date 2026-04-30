@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import toast from 'react-hot-toast';
+import { trackEvent } from '../../lib/analytics';
 
 import Logo from '../../components/ui/Logo';
 
@@ -64,15 +65,17 @@ export default function LoginPage() {
            return;
         }
         if (userData.role === 'supplier') {
+          trackEvent('login', { method: 'email', role: 'supplier' });
           navigate('/supplier/home');
         } else if (userData.role === 'admin') {
           navigate('/admin/dashboard');
         } else {
+          trackEvent('login', { method: 'email', role: 'buyer' });
           navigate('/buyer/home');
         }
       } else {
         // Fallback or handle admins trying to login here?
-        // Admins should login via admin login but let's just default to buyer or handle gracefully
+        trackEvent('login', { method: 'email', role: 'unknown' });
         navigate('/buyer/home');
       }
       

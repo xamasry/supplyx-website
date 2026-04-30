@@ -3,7 +3,7 @@ import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft
 import { cn, calculateDistance, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy, limit } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
@@ -35,7 +35,7 @@ export default function SupplierHome() {
       }
 
       // Query 1: Fetch active requests (to bid on)
-      const qReq = query(collection(db, 'requests'), where('status', '==', 'active'));
+      const qReq = query(collection(db, 'requests'), where('status', '==', 'active'), limit(50));
       unsubRequests = onSnapshot(qReq, async (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         

@@ -6,6 +6,7 @@ import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnaps
 import toast from 'react-hot-toast';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { calculateDistance } from '../../lib/utils';
+import { trackEvent } from '../../lib/analytics';
 
 export default function SupplierRequestDetail() {
   const navigate = useNavigate();
@@ -154,6 +155,14 @@ export default function SupplierRequestDetail() {
 
         toast.success('تم إرسال العرض بنجاح! سيتم إشعارك فور رد المشتري.');
       }
+      
+      trackEvent('bid_submitted', {
+        requestId: id,
+        requestType: request.requestType,
+        price: Number(price),
+        isUpdate: !!existingBid
+      });
+
       navigate('/supplier/home');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, bidsCollectionPath);
