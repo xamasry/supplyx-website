@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, MapPin, Loader2, DollarSign, Package } from 'lucide-react';
-import { cn, fetchWithRetry } from '../../lib/utils';
+import { cn, fetchWithRetry, convertArabicNumerals } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { trackEvent } from '../../lib/analytics';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';

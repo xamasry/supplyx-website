@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect, ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 
 /**
@@ -25,7 +25,7 @@ export const useAnalytics = () => {
   }, [location]);
 };
 
-export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
+export function AnalyticsProvider({ children }: { children: ReactNode }) {
   useAnalytics();
   return <>{children}</>;
 }

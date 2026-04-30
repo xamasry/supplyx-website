@@ -68,11 +68,14 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'settings' | 'broadcast' | 'categories';
 
+import UserDetailsModal from './UserDetailsModal';
+
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [reportType, setReportType] = useState<'day' | 'week' | 'month'>('week');
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalOrders: 0,
     deliveredOrders: 0,
@@ -768,10 +771,12 @@ export default function AdminDashboard() {
                 className="space-y-6"
               >
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-6">
                   <StatCard label="إجمالي الإيرادات" value={`${stats.totalRevenue.toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
                   <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="أرباح العمليات" color="sky" />
                   <StatCard label="طلبات جديدة" value={stats.newRequestsCount} icon={<Package />} trend="بانتظار مورد" color="blue" />
+                  <StatCard label="الطلبات المكتملة" value={stats.deliveredOrders} icon={<CheckCircle2 />} trend="تم التنفيذ" color="emerald" />
+                  <StatCard label="الطلبات الملغية" value={stats.cancelledOrders} icon={<XCircle />} trend="ألغيت" color="amber" />
                   <StatCard label="تفعيل مستخدمين" value={stats.pendingUsers} icon={<Users />} trend="مراجعة حسابات" color="amber" />
                   <StatCard label="قاعدة المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="متزايد" color="indigo" />
                 </div>
@@ -990,7 +995,7 @@ export default function AdminDashboard() {
                         const matchStatus = statusFilter === 'all' || u.status === statusFilter;
                         return matchSearch && matchRole && matchStatus;
                       }).map((user: any) => (
-                        <tr key={user.id} className={`transition ${user.status === 'pending' ? 'bg-amber-500/5' : 'hover:bg-slate-800/30'}`}>
+                        <tr key={user.id} onClick={() => setSelectedUserId(user.id)} className={`transition cursor-pointer ${user.status === 'pending' ? 'bg-amber-500/5' : 'hover:bg-slate-800/30'}`}>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold">
@@ -1036,16 +1041,16 @@ export default function AdminDashboard() {
                             <div className="flex items-center gap-2">
                                {user.status === 'pending' && (
                                   <>
-                                     <button onClick={() => updateDoc(doc(db, 'users', user.id), { status: 'approved', disabled: false, updatedAt: serverTimestamp() })} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition">قبول</button>
-                                     <button onClick={() => updateDoc(doc(db, 'users', user.id), { status: 'rejected', disabled: true, updatedAt: serverTimestamp() })} className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition">رفض</button>
+                                     <button onClick={(e) => { e.stopPropagation(); updateDoc(doc(db, 'users', user.id), { status: 'approved', disabled: false, updatedAt: serverTimestamp() }) }} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition">قبول</button>
+                                     <button onClick={(e) => { e.stopPropagation(); updateDoc(doc(db, 'users', user.id), { status: 'rejected', disabled: true, updatedAt: serverTimestamp() }) }} className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition">رفض</button>
                                   </>
                                )}
                                {user.status !== 'pending' && (
-                                  <button onClick={() => updateDoc(doc(db, 'users', user.id), { disabled: !user.disabled, updatedAt: serverTimestamp() })} className="p-2 bg-slate-800 rounded-lg group" title={user.disabled ? "إلغاء الحظر" : "حظر الحساب"}>
+                                  <button onClick={(e) => { e.stopPropagation(); updateDoc(doc(db, 'users', user.id), { disabled: !user.disabled, updatedAt: serverTimestamp() }) }} className="p-2 bg-slate-800 rounded-lg group" title={user.disabled ? "إلغاء الحظر" : "حظر الحساب"}>
                                     <Ban className={`w-4 h-4 ${user.disabled ? 'text-emerald-500' : 'text-slate-500 group-hover:text-red-500'}`} />
                                   </button>
                                )}
-                               <button onClick={() => handleDeleteItem('users', user.id)} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
+                               <button onClick={(e) => { e.stopPropagation(); handleDeleteItem('users', user.id) }} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
                                  <Trash2 className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
                                </button>
                             </div>
@@ -1685,6 +1690,14 @@ export default function AdminDashboard() {
               </motion.div>
             )}
           </AnimatePresence>
+          {selectedUserId && (
+            <UserDetailsModal
+              user={users.find(u => u.id === selectedUserId)}
+              requests={requests}
+              onClose={() => setSelectedUserId(null)}
+            />
+          )}
+
         </div>
       </main>
     </div>
