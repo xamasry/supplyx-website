@@ -66,7 +66,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'settings' | 'broadcast' | 'categories';
+type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
 
 import UserDetailsModal from './UserDetailsModal';
 
@@ -83,6 +83,8 @@ export default function AdminDashboard() {
     cancelledOrders: 0,
     totalRevenue: 0,
     platformProfit: 0,
+    subscriptionRevenue: 0,
+    activeSubscriptions: 0,
     suppliersCount: 0,
     buyersCount: 0,
     bidsCount: 0,
@@ -98,7 +100,8 @@ export default function AdminDashboard() {
     bulk: { count: 0, revenue: 0, profit: 0 },
     offer: { count: 0, revenue: 0, profit: 0 }
   });
-  const [rates, setRates] = useState({ fast: 10, bulk: 5, offer: 8 });
+  const [rates, setRates] = useState({ fast: 10, bulk: 5, offer: 8, buyerSub: 500, supplierSub: 1000, trialDays: 7 });
+  const [subPayments, setSubPayments] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'buyer' | 'supplier'>('all');
@@ -389,7 +392,7 @@ export default function AdminDashboard() {
       });
       unsubscribes.current.push(unsubRequests);
 
-      const qUsers = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(300));
+      const qUsers = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(1000));
       const unsubUsers = onSnapshot(qUsers, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setUsers(data);
@@ -421,7 +424,10 @@ export default function AdminDashboard() {
         setRates({
           fast: data.fastCommissionRate !== undefined ? data.fastCommissionRate : 10,
           bulk: data.bulkCommissionRate !== undefined ? data.bulkCommissionRate : 5,
-          offer: data.offerCommissionRate !== undefined ? data.offerCommissionRate : 8
+          offer: data.offerCommissionRate !== undefined ? data.offerCommissionRate : 8,
+          buyerSub: data.buyerSubPrice !== undefined ? data.buyerSubPrice : 500,
+          supplierSub: data.supplierSubPrice !== undefined ? data.supplierSubPrice : 1000,
+          trialDays: data.trialDays !== undefined ? data.trialDays : 7
         });
       }
     }, (error) => {
@@ -436,6 +442,18 @@ export default function AdminDashboard() {
       handleFirestoreError(error, OperationType.LIST, 'system_broadcasts', true);
     });
     unsubscribes.current.push(unsubBroadcasts);
+
+    // 6. Subscription Payments Stream
+    const unsubSubPayments = onSnapshot(query(collection(db, 'subscription_payments'), orderBy('paymentDate', 'desc')), (snapshot) => {
+      const payments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSubPayments(payments);
+      
+      const totalSubRev = payments.reduce((acc, curr: any) => acc + (curr.amount || 0), 0);
+      setStats(prev => ({ ...prev, subscriptionRevenue: totalSubRev }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'subscription_payments', true);
+    });
+    unsubscribes.current.push(unsubSubPayments);
 
     setLoading(false);
   };
@@ -657,6 +675,127 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateSubPrice = async (field: 'buyerSubPrice' | 'supplierSubPrice' | 'trialDays', val: number) => {
+    try {
+      await setDoc(doc(db, 'settings', 'general'), {
+        [field]: val,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      toast.success('تم التحديث بنجاح');
+    } catch (err) {
+      toast.error('فشل التحديث');
+    }
+  };
+
+  const handleManualSubscription = async (user: any) => {
+    console.log('handleManualSubscription called for user:', user.id);
+    if (!user.id) {
+      toast.error('بيانات المستخدم غير مكتملة');
+      return;
+    }
+    
+    const confirmMsg = `هل تريد تفعيل اشتراك 6 أشهر يدوياً لـ ${user.name} بنظام ${user.role === 'supplier' ? 'المورد' : 'المطعم'}؟ سيتم تسجيل مبلغ ${user.role === 'buyer' ? (rates.buyerSub || 500) : (rates.supplierSub || 1000)} ج.م في السجلات.`;
+    if (!window.confirm(confirmMsg)) return;
+    
+    const loadingToast = toast.loading('جاري تفعيل الاشتراك...');
+    try {
+      const amount = user.role === 'buyer' ? (rates.buyerSub || 500) : (rates.supplierSub || 1000);
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + 6);
+      
+      console.log('Step 1: Logging payment...');
+      const paymentRef = doc(collection(db, 'subscription_payments'));
+      await setDoc(paymentRef, {
+        userId: user.id,
+        userRole: user.role || 'unknown',
+        userName: user.name || 'Anonymous',
+        businessName: user.businessName || '',
+        amount: amount,
+        durationMonths: 6,
+        paymentDate: serverTimestamp(),
+        expiryDate: expiryDate.toISOString()
+      });
+      
+      console.log('Step 2: Updating user record...');
+      await updateDoc(doc(db, 'users', user.id), {
+        subscriptionStatus: 'active',
+        subscriptionStart: serverTimestamp(),
+        subscriptionExpiry: expiryDate.toISOString(),
+        isTrial: false,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('Subscription activation successful');
+      toast.dismiss(loadingToast);
+      toast.success(`تم تفعيل اشتراك ${user.name} بنجاح حتى ${expiryDate.toLocaleDateString('ar-EG')}`);
+    } catch (err) {
+      console.error('Subscription Activation Error:', err);
+      toast.dismiss(loadingToast);
+      handleFirestoreError(err, OperationType.WRITE, `subscription_payments / users/${user.id}`, false);
+    }
+  };
+
+  const handleActivateTrial = async (user: any) => {
+    console.log('handleActivateTrial called for user:', user.id);
+    if (!user.id) {
+      toast.error('بيانات المستخدم غير مكتملة');
+      return;
+    }
+
+    const daysStr = window.prompt(`أدخل عدد أيام الفترة التجريبية لـ ${user.name}:`, String(rates.trialDays || 7));
+    if (daysStr === null) return;
+    
+    const days = parseInt(daysStr);
+    if (isNaN(days) || days <= 0) {
+      toast.error('يرجى إدخال عدد أيام صحيح');
+      return;
+    }
+
+    const loadingToast = toast.loading('جاري تفعيل الفترة التجريبية...');
+    try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + days);
+      
+      console.log(`Step 1: Setting trial for ${days} days...`);
+      await updateDoc(doc(db, 'users', user.id), {
+        subscriptionStatus: 'active',
+        subscriptionStart: serverTimestamp(),
+        subscriptionExpiry: expiryDate.toISOString(),
+        isTrial: true,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log('Trial activation successful');
+      toast.dismiss(loadingToast);
+      toast.success(`تم تفعيل الفترة التجريبية لـ ${user.name} لمدة ${days} أيام بنجاح`);
+    } catch (err) {
+      console.error('Trial Activation Error:', err);
+      toast.dismiss(loadingToast);
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`, false);
+    }
+  };
+
+  const handleDeactivateSubscription = async (user: any) => {
+    if (!window.confirm(`هل أنت متأكد من رغبتك في إلغاء تفعيل اشتراك ${user.name}؟`)) return;
+    
+    const loadingToast = toast.loading('جاري إلغاء التفعيل...');
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        subscriptionStatus: 'not_subscribed',
+        subscriptionExpiry: null,
+        isTrial: false,
+        updatedAt: serverTimestamp()
+      });
+      
+      toast.dismiss(loadingToast);
+      toast.success(`تم إلغاء تفعيل اشتراك ${user.name} بنجاح`);
+    } catch (err) {
+      console.error('Deactivate Error:', err);
+      toast.dismiss(loadingToast);
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`, false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -696,6 +835,7 @@ export default function AdminDashboard() {
             <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="العروض" active={activeTab === 'offers'} onClick={() => setActiveTab('offers')} />
             <NavItem icon={<ArrowRightLeft className="w-5 h-5" />} label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
             <NavItem icon={<Tag className="w-5 h-5" />} label="الخدمات والأصناف" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} />
+            <NavItem icon={<ShieldCheck className="w-5 h-5" />} label="الاشتراكات" active={activeTab === 'subscriptions'} onClick={() => setActiveTab('subscriptions')} />
             <NavItem icon={<Mail className="w-5 h-5" />} label="بث إشعارات" active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} />
             <NavItem icon={<DollarSign className="w-5 h-5" />} label="المالية والأرباح" active={activeTab === 'finances'} onClick={() => setActiveTab('finances')} />
             <NavItem icon={<AlertCircle className="w-5 h-5" />} label="الإعدادات" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
@@ -723,6 +863,7 @@ export default function AdminDashboard() {
              activeTab === 'offers' ? 'التحكم في العروض' :
              activeTab === 'requests' ? 'متابعة الطلبات' :
              activeTab === 'categories' ? 'إدارة الأصناف والخدمات' :
+             activeTab === 'subscriptions' ? 'إدارة الاشتراكات' :
              activeTab === 'broadcast' ? 'بث رسائل للنظام' :
              activeTab === 'finances' ? 'الأداء المالي' : 'الإعدادات العامة'}
           </h2>
@@ -771,14 +912,15 @@ export default function AdminDashboard() {
                 className="space-y-6"
               >
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-6">
-                  <StatCard label="إجمالي الإيرادات" value={`${stats.totalRevenue.toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
-                  <StatCard label="صافي الربح الكلي" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="أرباح العمليات" color="sky" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-6">
+                  <StatCard label="إجمالي الإيرادات" value={`${(stats.totalRevenue + stats.subscriptionRevenue).toLocaleString()} ج.م`} icon={<TrendingUp />} trend="+12%" color="emerald" />
+                  <StatCard label="أرباح العمليات" value={`${stats.platformProfit.toLocaleString()} ج.م`} icon={<DollarSign />} trend="عمولات البضائع" color="sky" />
+                  <StatCard label="أرباح الاشتراكات" value={`${stats.subscriptionRevenue.toLocaleString()} ج.م`} icon={<ShieldCheck />} trend="عضوية 6 أشهر" color="purple" />
                   <StatCard label="طلبات جديدة" value={stats.newRequestsCount} icon={<Package />} trend="بانتظار مورد" color="blue" />
                   <StatCard label="الطلبات المكتملة" value={stats.deliveredOrders} icon={<CheckCircle2 />} trend="تم التنفيذ" color="emerald" />
                   <StatCard label="الطلبات الملغية" value={stats.cancelledOrders} icon={<XCircle />} trend="ألغيت" color="amber" />
                   <StatCard label="تفعيل مستخدمين" value={stats.pendingUsers} icon={<Users />} trend="مراجعة حسابات" color="amber" />
-                  <StatCard label="قاعدة المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="متزايد" color="indigo" />
+                  <StatCard label="المستخدمين" value={stats.suppliersCount + stats.buyersCount} icon={<Users />} trend="قاعدة البيانات" color="indigo" />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1450,6 +1592,229 @@ export default function AdminDashboard() {
                       <div className="p-12 text-center text-slate-500 italic">لا يوجد سجل إشعارات بعد</div>
                     )}
                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'subscriptions' && (
+              <motion.div key="subscriptions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                {/* Subscription Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                       <ShieldCheck className="w-5 h-5 text-blue-500" />
+                       اشتراكات المطاعم (نص سنوي)
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                         <label className="block text-xs text-slate-500 mb-1">سعر اشتراك 6 أشهر (ج.م)</label>
+                         <div className="flex gap-2">
+                            <input 
+                              type="number"
+                              value={rates.buyerSub}
+                              onChange={(e) => setRates({...rates, buyerSub: Number(e.target.value)})}
+                              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 transition"
+                            />
+                            <button onClick={() => updateSubPrice('buyerSubPrice', rates.buyerSub)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm">حفظ</button>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                       <ShieldCheck className="w-5 h-5 text-purple-500" />
+                       اشتراكات الموردين (نص سنوي)
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                         <label className="block text-xs text-slate-500 mb-1">سعر اشتراك 6 أشهر (ج.م)</label>
+                         <div className="flex gap-2">
+                            <input 
+                              type="number"
+                              value={rates.supplierSub}
+                              onChange={(e) => setRates({...rates, supplierSub: Number(e.target.value)})}
+                              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-purple-500 transition"
+                            />
+                            <button onClick={() => updateSubPrice('supplierSubPrice', rates.supplierSub)} className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-sm">حفظ</button>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                       <Clock className="w-5 h-5 text-amber-500" />
+                       الفترة التجريبية (Trial)
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                         <label className="block text-xs text-slate-500 mb-1">عدد أيام التجربة</label>
+                         <div className="flex gap-2">
+                            <input 
+                              type="number"
+                              value={rates.trialDays}
+                              onChange={(e) => setRates({...rates, trialDays: Number(e.target.value)})}
+                              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-amber-500 transition"
+                            />
+                            <button onClick={() => updateSubPrice('trialDays', rates.trialDays)} className="px-4 py-2 bg-amber-600 text-white rounded-xl font-bold text-sm">حفظ</button>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                      <p className="text-slate-500 text-xs mb-1">إجمالي إيرادات الاشتراكات</p>
+                      <p className="text-2xl font-black text-white">{stats.subscriptionRevenue.toLocaleString()} ج.م</p>
+                   </div>
+                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                      <p className="text-slate-500 text-xs mb-1">عدد المشتركين الفعليين</p>
+                      <p className="text-2xl font-black text-white">{users.filter(u => u.subscriptionStatus === 'active').length}</p>
+                   </div>
+                   <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-amber-500">
+                      <p className="text-amber-500/60 text-xs mb-1">اشتراكات منتهية</p>
+                      <p className="text-2xl font-black">{users.filter(u => u.subscriptionStatus === 'expired').length}</p>
+                   </div>
+                </div>
+
+                {/* Subscribers List */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/20">
+                     <h3 className="font-bold text-white">إدارة اشتراكات المستخدمين</h3>
+                     <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="بحث باسم المستخدم..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs outline-none"
+                        />
+                     </div>
+                  </div>
+                  <table className="w-full text-right">
+                    <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                       <tr>
+                          <th className="px-6 py-4">المستخدم</th>
+                          <th className="px-6 py-4">الدور</th>
+                          <th className="px-6 py-4">حالة الاشتراك</th>
+                          <th className="px-6 py-4">تاريخ الانتهاء</th>
+                          <th className="px-6 py-4">التحكم</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                       {users
+                         .filter(u => u.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                         .map((user: any) => (
+                         <tr key={user.id} className="hover:bg-slate-800/30 transition">
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">{user.name?.[0]}</div>
+                                  <div>
+                                     <p className="text-sm font-bold text-white">{user.name}</p>
+                                     <p className="text-[10px] text-slate-500">{user.businessName}</p>
+                                  </div>
+                               </div>
+                            </td>
+                            <td className="px-6 py-4 text-xs">
+                               <span className={`px-2 py-0.5 rounded ${user.role === 'supplier' ? 'text-purple-400 bg-purple-500/10' : 'text-blue-400 bg-blue-500/10'}`}>
+                                  {user.role === 'supplier' ? 'مورد' : 'مشتري'}
+                               </span>
+                            </td>
+                            <td className="px-6 py-4">
+                               <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                 user.subscriptionStatus === 'active' ? (user.isTrial ? 'bg-amber-500/10 text-amber-500' : 'bg-emerald-500/10 text-emerald-500') : 
+                                 user.subscriptionStatus === 'expired' ? 'bg-red-500/10 text-red-500' : 'bg-slate-800 text-slate-500'
+                               }`}>
+                                 {user.subscriptionStatus === 'active' ? (user.isTrial ? 'فترة تجريبية' : 'نشط') : user.subscriptionStatus === 'expired' ? 'منتهي' : 'غير مشترك'}
+                               </span>
+                            </td>
+                            <td className="px-6 py-4 text-xs text-slate-400">
+                               {user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString('ar-EG') : '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                               <div className="flex items-center gap-2 relative">
+                                 {user.subscriptionStatus !== 'active' ? (
+                                   <>
+                                     <button 
+                                       type="button"
+                                       onClick={(e) => {
+                                         console.log('Activate subscription clicked for:', user.id);
+                                         e.stopPropagation();
+                                         handleManualSubscription(user);
+                                       }}
+                                       className="px-3 py-1 bg-primary-600 hover:bg-primary-500 text-white rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
+                                     >
+                                       تفعيل اشتراك
+                                     </button>
+                                     <button 
+                                       type="button"
+                                       onClick={(e) => {
+                                         console.log('Activate trial clicked for:', user.id);
+                                         e.stopPropagation();
+                                         handleActivateTrial(user);
+                                       }}
+                                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
+                                     >
+                                       تفعيل تجربة
+                                     </button>
+                                   </>
+                                 ) : (
+                                   <button 
+                                     type="button"
+                                     onClick={(e) => {
+                                       console.log('Deactivate clicked for:', user.id);
+                                       e.stopPropagation();
+                                       handleDeactivateSubscription(user);
+                                     }}
+                                     className="px-3 py-1 bg-red-600/10 text-red-500 hover:bg-red-600/20 rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
+                                   >
+                                     إلغاء التفعيل
+                                   </button>
+                                 )}
+                               </div>
+                            </td>
+                         </tr>
+                       ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Payment History */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden mt-6">
+                   <div className="p-4 border-b border-slate-800 bg-slate-800/20">
+                      <h3 className="font-bold text-white">سجل مدفوعات الاشتراكات</h3>
+                   </div>
+                   <table className="w-full text-right">
+                      <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                         <tr>
+                            <th className="px-6 py-4">المستخدم</th>
+                            <th className="px-6 py-4">المبلغ</th>
+                            <th className="px-6 py-4">المدة</th>
+                            <th className="px-6 py-4">التاريخ</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                         {subPayments.map((p: any) => (
+                           <tr key={p.id} className="hover:bg-slate-800/30 transition">
+                              <td className="px-6 py-4">
+                                 <p className="text-sm font-bold text-white">{p.businessName || p.userName}</p>
+                                 <p className="text-[10px] text-slate-500">{p.userRole === 'supplier' ? 'مورد' : 'مشتري'}</p>
+                              </td>
+                              <td className="px-6 py-4 text-emerald-500 font-bold">{p.amount} ج.م</td>
+                              <td className="px-6 py-4 text-xs text-slate-400">{p.durationMonths} أشهر</td>
+                              <td className="px-6 py-4 text-[10px] text-slate-500 italic">
+                                 {p.paymentDate ? (p.paymentDate.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate)).toLocaleDateString('ar-EG') : '-'}
+                              </td>
+                           </tr>
+                         ))}
+                         {subPayments.length === 0 && (
+                           <tr><td colSpan={4} className="p-12 text-center text-slate-500 italic">لا توجد مدفوعات مسجلة</td></tr>
+                         )}
+                      </tbody>
+                   </table>
                 </div>
               </motion.div>
             )}

@@ -198,8 +198,13 @@ service cloud.firestore {
     }
 
     match /system_broadcasts/{broadcastId} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
+    }
+
+    match /subscription_payments/{paymentId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin();
     }
 
     match /settings/{settingId} {

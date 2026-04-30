@@ -130,6 +130,11 @@
         "avatarUrl": { "type": "string" },
         "fcmTokens": { "type": "array", "items": { "type": "string" }, "description": "Device tokens for push notifications" },
         "notificationsEnabled": { "type": "boolean" },
+        "subscriptionStatus": { "type": "string", "enum": ["active", "expired", "not_subscribed"] },
+        "subscriptionStart": { "type": "string", "format": "date-time" },
+        "subscriptionExpiry": { "type": "string", "format": "date-time" },
+        "isTrial": { "type": "boolean", "description": "Whether the user is currently in a trial period" },
+        "isApproved": { "type": "boolean", "description": "Whether the admin has approved this account" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
@@ -153,9 +158,12 @@
       "type": "object",
       "properties": {
         "commissionRate": { "type": "number", "description": "Platform commission percentage (0-100)" },
+        "buyerSubPrice": { "type": "number", "description": "Price for 6-month buyer subscription" },
+        "supplierSubPrice": { "type": "number", "description": "Price for 6-month supplier subscription" },
+        "trialDays": { "type": "number", "description": "Default duration for trial period in days" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["commissionRate"]
+      "required": ["commissionRate", "buyerSubPrice", "supplierSubPrice"]
     },
     "Admin": {
       "title": "Platform Admin",
@@ -177,6 +185,22 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["text", "senderId", "createdAt"]
+    },
+    "SubscriptionPayment": {
+      "title": "Subscription Payment",
+      "description": "Log of a subscription purchase",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userRole": { "type": "string" },
+        "userName": { "type": "string" },
+        "businessName": { "type": "string" },
+        "amount": { "type": "number" },
+        "durationMonths": { "type": "number", "default": 6 },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "expiryDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "paymentDate", "expiryDate"]
     },
     "Broadcast": {
       "title": "System Broadcast",
@@ -236,6 +260,10 @@
     "/system_broadcasts/{broadcastId}": {
       "schema": "Broadcast",
       "description": "History of admin broadcast messages"
+    },
+    "/subscription_payments/{paymentId}": {
+      "schema": "SubscriptionPayment",
+      "description": "History of all subscription payments"
     }
   }
 }

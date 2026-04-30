@@ -5,6 +5,7 @@ export interface User {
   phone: string;
   name: string;
   userType: UserRole;
+  role?: UserRole; // Support both for compatibility
   businessName: string;
   businessAddress: string;
   locationLat?: number;
@@ -13,12 +14,36 @@ export interface User {
   city?: string;
   profileImageUrl?: string;
   isVerified: boolean;
-  rating: number;
+  isApproved?: boolean;
+  isTrial?: boolean;
+  subscriptionStatus?: 'active' | 'expired' | 'not_subscribed';
+  subscriptionStart?: string;
+  subscriptionExpiry?: string;
   totalOrders: number;
+  rating: number;
   description?: string;
   specialties?: string[];
   disabled?: boolean;
   wishlist?: string[];
+}
+
+export interface AppSettings {
+  commissionRate: number;
+  buyerSubPrice: number;
+  supplierSubPrice: number;
+  updatedAt: string;
+}
+
+export interface SubscriptionPayment {
+  id: string;
+  userId: string;
+  userRole: UserRole;
+  userName: string;
+  businessName: string;
+  amount: number;
+  durationMonths: number;
+  paymentDate: string;
+  expiryDate: string;
 }
 
 export interface Category {
