@@ -232,7 +232,7 @@ export default function SupplierHome() {
                     {req.status === 'accepted' ? 'بانتظار التحضير' : req.status === 'preparing' ? 'جاري التحضير' : 'في الطريق'}
                   </span>
                </div>
-               <p className="text-xs text-slate-500 font-semibold mb-3">الكمية: {req.quantity} | السعر: {req.price} ج.م</p>
+               <p className="text-xs text-slate-500 font-semibold mb-3">الكمية: {req.quantity} | السعر الإجمالي: {req.totalAmount || req.price} ج.م</p>
                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">#{req.id.slice(0,8)}</span>
                  <span className="text-[10px] font-bold text-[var(--color-primary)] flex items-center">متابعة التوصيل <ChevronLeft className="w-3 h-3" /></span>

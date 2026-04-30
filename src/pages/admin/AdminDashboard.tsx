@@ -221,25 +221,25 @@ export default function AdminDashboard() {
       else if (r.offerId) reqRate = rates.offer;
 
       if (r.status === 'delivered') {
-        const price = r.price || 0;
+        const amount = r.totalAmount || r.price || 0;
         
         // Only add to financial reports if in time filter
         if (isInFilter) {
-          totalRevenue += price;
-          reqProfit = price * (reqRate / 100);
+          totalRevenue += amount;
+          reqProfit = amount * (reqRate / 100);
           platformProfit += reqProfit;
 
           if (r.requestType === 'bulk') {
             bulkReport.count++;
-            bulkReport.revenue += price;
+            bulkReport.revenue += amount;
             bulkReport.profit += reqProfit;
           } else if (r.offerId) {
             offerReport.count++;
-            offerReport.revenue += price;
+            offerReport.revenue += amount;
             offerReport.profit += reqProfit;
           } else {
             fastReport.count++;
-            fastReport.revenue += price;
+            fastReport.revenue += amount;
             fastReport.profit += reqProfit;
           }
         }
@@ -281,7 +281,8 @@ export default function AdminDashboard() {
       let reqRate = rates.fast;
       if (r.requestType === 'bulk') reqRate = rates.bulk;
       else if (r.offerId) reqRate = rates.offer;
-      return (r.price || 0) * (reqRate / 100);
+      const amount = r.totalAmount || r.price || 0;
+      return amount * (reqRate / 100);
     };
 
     if (reportType === 'day') {
@@ -297,7 +298,7 @@ export default function AdminDashboard() {
           const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
           const rDate = new Date(rTimestamp);
           if (rDate.getHours() === hour && rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth()) {
-            dayRevenue += (r.price || 0);
+            dayRevenue += (r.totalAmount || r.price || 0);
             dayProfit += getReqProfit(r);
           }
         });
@@ -324,7 +325,7 @@ export default function AdminDashboard() {
            if (r.status === 'delivered' && (r.updatedAt || r.createdAt)) {
               const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
               if (rTimestamp >= startOfDay && rTimestamp <= endOfDay) {
-                 dayRevenue += (r.price || 0);
+                 dayRevenue += (r.totalAmount || r.price || 0);
                  dayProfit += getReqProfit(r);
               }
            }
@@ -351,7 +352,7 @@ export default function AdminDashboard() {
           const rTimestamp = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt).getTime();
           const rDate = new Date(rTimestamp);
           if (rDate >= start && rDate < end) {
-            rev += (r.price || 0);
+            rev += (r.totalAmount || r.price || 0);
             prof += getReqProfit(r);
           }
         });
@@ -1229,7 +1230,7 @@ export default function AdminDashboard() {
                             <td className="px-6 py-4 text-xs text-slate-400">
                                <p className="italic">{r.supplierName || 'بانتظار عرض'}</p>
                             </td>
-                            <td className="px-6 py-4 font-bold text-emerald-500 text-sm whitespace-nowrap">{r.price || 0} ج.م</td>
+                            <td className="px-6 py-4 font-bold text-emerald-500 text-sm whitespace-nowrap">{(r.totalAmount || r.price || 0).toLocaleString()} ج.م</td>
                             <td className="px-6 py-4 text-[10px] text-slate-500 italic whitespace-nowrap">
                                {r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)).toLocaleDateString('ar-EG') : '-'}
                             </td>

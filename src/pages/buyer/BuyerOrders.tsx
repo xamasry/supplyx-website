@@ -130,7 +130,9 @@ export default function BuyerOrders() {
                 <h3 className="font-bold text-lg text-slate-900 mt-2 leading-tight group-hover:text-[var(--color-primary)] transition-colors">{order.productName}</h3>
               </div>
               <div className="text-left">
-                <span className="block font-bold text-[var(--color-primary)]">{order.price ? `${order.price} ج.م` : 'قيد التسعير'}</span>
+                <span className="block font-bold text-[var(--color-primary)]">
+                  {order.totalAmount ? `${order.totalAmount} ج.م` : order.price ? `${order.price} ج.م` : 'قيد التسعير'}
+                </span>
               </div>
             </div>
 

@@ -70,15 +70,18 @@ export default function SupplierOffers() {
                     src={offer.image} 
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                     alt={offer.title}
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.parentElement?.querySelector('.image-fallback');
+                      if (fallback) fallback.classList.remove('hidden');
                     }}
                   />
                 ) : null}
                 
                 <div className={cn(
-                  "flex flex-col items-center justify-center",
+                  "image-fallback flex flex-col items-center justify-center",
                   offer.image ? "hidden" : ""
                 )}>
                   <span className="text-4xl filter drop-shadow-sm group-hover:scale-125 transition-transform">

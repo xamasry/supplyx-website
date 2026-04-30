@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Home, Package, Tag, BarChart2, User, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { auth, db } from '../../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';

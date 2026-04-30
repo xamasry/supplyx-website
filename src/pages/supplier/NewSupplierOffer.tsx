@@ -103,7 +103,7 @@ export default function NewSupplierOffer() {
     <div className="space-y-6 pb-6 font-sans">
       <header className="flex items-center">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700">
-          <ChevronRight className="w-6 h-6 rotate-180" />
+          <ChevronRight className="w-6 h-6" />
         </button>
         <h1 className="font-bold text-lg text-slate-900 font-display mr-2">إضافة عرض ترويجي جديد</h1>
       </header>

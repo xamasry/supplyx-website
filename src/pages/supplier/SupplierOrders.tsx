@@ -118,7 +118,7 @@ export default function SupplierOrders() {
                 <h3 className="font-bold text-lg text-slate-900 mt-2 leading-tight group-hover:text-[var(--color-primary)] transition-colors">{order.productName}</h3>
               </div>
               <div className="text-left">
-                <span className="block font-bold text-[var(--color-primary)]">{order.price} ج.م</span>
+                <span className="block font-bold text-[var(--color-primary)]">{order.totalAmount || order.price} ج.م</span>
               </div>
             </div>
 

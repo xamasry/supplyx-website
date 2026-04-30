@@ -85,6 +85,7 @@ export default function RequestDetail() {
         supplierName: bidToAccept.supplierName,
         supplierPhone: supplierPhone || 'غير متوفر',
         price: bidToAccept.price,
+        totalAmount: bidToAccept.price,
         deliveryTime: bidToAccept.deliveryTime,
         buyerConfirmPhone: confirmPhone,
         buyerConfirmLocation: buyerLocation ? { lat: buyerLocation.lat, lng: buyerLocation.lng } : null,
