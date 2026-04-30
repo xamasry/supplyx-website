@@ -98,6 +98,25 @@
       },
       "required": ["supplierId", "title", "originalPrice", "offerPrice"]
     },
+    "Product": {
+      "title": "Supplier Product",
+      "description": "A catalog item offered by a supplier",
+      "type": "object",
+      "properties": {
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "unit": { "type": "string" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "available": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["supplierId", "name", "price", "category"]
+    },
     "UserProfile": {
       "title": "User Profile",
       "description": "Extended profile information for buyers or suppliers",
@@ -205,6 +224,10 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "User notifications"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Supplier catalog products"
     },
     "/offers/{offerId}": {
       "schema": "Offer",

@@ -30,6 +30,8 @@ const SupplierOffers = lazy(() => import('./pages/supplier/SupplierOffers'));
 const NewSupplierOffer = lazy(() => import('./pages/supplier/NewSupplierOffer'));
 const SupplierAnalytics = lazy(() => import('./pages/supplier/SupplierAnalytics'));
 const SupplierProfile = lazy(() => import('./pages/supplier/SupplierProfile'));
+const ManageCatalog = lazy(() => import('./pages/supplier/ManageCatalog'));
+const SupplierStore = lazy(() => import('./pages/buyer/SupplierStore'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
@@ -76,6 +78,7 @@ export default function App() {
             <Route path="/buyer/profile" element={<BuyerProfile />} />
             <Route path="/buyer/wishlist" element={<BuyerWishlist />} />
             <Route path="/buyer/notifications" element={<Notifications />} />
+            <Route path="/buyer/supplier/:id" element={<SupplierStore />} />
           </Route>
           
           {/* Supplier Routes - Wrapped in Layout */}
@@ -88,6 +91,7 @@ export default function App() {
             <Route path="/supplier/request/:id" element={<SupplierRequestDetail />} />
             <Route path="/supplier/orders" element={<SupplierOrders />} />
             <Route path="/supplier/orders/:id" element={<OrderTracking />} />
+            <Route path="/supplier/products" element={<ManageCatalog />} />
             <Route path="/supplier/offers" element={<SupplierOffers />} />
             <Route path="/supplier/offers/new" element={<NewSupplierOffer />} />
             <Route path="/supplier/analytics" element={<SupplierAnalytics />} />

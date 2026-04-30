@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, Package, Tag, BarChart2, User, Bell } from 'lucide-react';
+import { Home, Package, LayoutGrid, BarChart2, User, Bell } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { auth, db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -127,9 +127,9 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
             <Package className="w-6 h-6" />
             <span className="text-[10px] font-bold">الطلبات</span>
           </Link>
-          <Link to="/supplier/offers" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/offers') ? "text-[var(--color-primary)]" : "text-slate-500")}>
-            <Tag className="w-6 h-6" />
-            <span className="text-[10px] font-bold">عروضي</span>
+          <Link to="/supplier/products" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/products') ? "text-[var(--color-primary)]" : "text-slate-500")}>
+            <LayoutGrid className="w-6 h-6" />
+            <span className="text-[10px] font-bold">الكتالوج</span>
           </Link>
           <Link to="/supplier/analytics" className={cn("flex flex-col items-center justify-center gap-1 w-[4.5rem]", isActive('/supplier/analytics') ? "text-[var(--color-primary)]" : "text-slate-500")}>
             <BarChart2 className="w-6 h-6" />

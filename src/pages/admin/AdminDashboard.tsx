@@ -1039,6 +1039,19 @@ export default function AdminDashboard() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
+                               {user.role === 'supplier' && (
+                                 <button 
+                                   onClick={(e) => { 
+                                     e.stopPropagation(); 
+                                     updateDoc(doc(db, 'users', user.id), { isVerified: !user.isVerified, updatedAt: serverTimestamp() });
+                                     toast.success(user.isVerified ? 'تم إزالة التوثيق' : 'تم توثيق المورد بنجاح');
+                                   }} 
+                                   className={`p-2 rounded-lg transition-colors ${user.isVerified ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-500 hover:text-emerald-500'}`}
+                                   title={user.isVerified ? "إزالة من الموثوقين" : "إضافة للموثوقين"}
+                                 >
+                                   <ShieldCheck className="w-4 h-4" />
+                                 </button>
+                               )}
                                {user.status === 'pending' && (
                                   <>
                                      <button onClick={(e) => { e.stopPropagation(); updateDoc(doc(db, 'users', user.id), { status: 'approved', disabled: false, updatedAt: serverTimestamp() }) }} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition">قبول</button>

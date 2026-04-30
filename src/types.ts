@@ -67,14 +67,28 @@ export interface Bid {
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn';
 }
 
-export interface SupplierOffer {
+export interface SupplierStoreProduct {
   id: string;
   supplierId: string;
   supplierName: string;
-  productName: string;
-  titleAr: string;
-  offerPrice: number;
-  originalPrice: number;
-  discountPercentage: number;
-  validUntil: string;
+  name: string;
+  description: string;
+  price: number;
+  unit: string;
+  category: string;
+  image?: string;
+  available: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'bid_accepted' | 'new_bid' | 'system' | 'product_order';
+  read: boolean;
+  createdAt: string;
+  link?: string;
 }

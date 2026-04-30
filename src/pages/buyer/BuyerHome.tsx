@@ -13,6 +13,7 @@ import { CATEGORIES } from '../../constants';
 export default function BuyerHome() {
   const [requests, setRequests] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [wishlist, setWishlist] = useState<string[]>([]);
@@ -23,20 +24,35 @@ export default function BuyerHome() {
     let unsubSnapshot: (() => void) | null = null;
     let unsubOffers: (() => void) | null = null;
     let unsubProfile: (() => void) | null = null;
+    let unsubSuppliers: (() => void) | null = null;
     
     const unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
       if (unsubProfile) unsubProfile();
+      if (unsubSuppliers) unsubSuppliers();
 
       if (!user) {
         setRequests([]);
         setOffers([]);
+        setSuppliers([]);
         setUserProfile(null);
         setWishlist([]);
         setLoading(false);
         return;
       }
+      
+      // Fetch Trusted Suppliers
+      const qSuppliers = query(
+        collection(db, 'users'), 
+        where('role', '==', 'supplier'), 
+        where('isVerified', '==', true),
+        limit(10)
+      );
+      unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSuppliers(data);
+      });
 
       // Fetch Profile Real-time for wishlist
       unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
@@ -81,6 +97,7 @@ export default function BuyerHome() {
       if (unsubSnapshot) unsubSnapshot();
       if (unsubOffers) unsubOffers();
       if (unsubProfile) unsubProfile();
+      if (unsubSuppliers) unsubSuppliers();
     };
   }, []);
 
@@ -374,6 +391,42 @@ export default function BuyerHome() {
           ))}
         </div>
       </section>
+      
+      {/* Trusted Suppliers Storefronts */}
+      <section className="md:col-start-1 md:col-span-12 bg-white border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold font-display text-lg text-slate-900">موردينا الموثوقين</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">تصفح متاجر الموردين المتخصصين</p>
+        </div>
+        
+        <div className="flex overflow-x-auto gap-4 pb-2 snap-x hide-scrollbar">
+          {suppliers.map(s => (
+            <Link 
+              key={s.id} 
+              to={`/buyer/supplier/${s.id}`} 
+              className="min-w-[120px] md:min-w-[140px] flex flex-col items-center group snap-start"
+            >
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-50 rounded-2xl border-2 border-slate-100 group-hover:border-[var(--color-primary)] transition-all p-1 overflow-hidden shadow-sm">
+                <img 
+                  src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName)}&background=22C55E&color=fff`} 
+                  alt={s.businessName} 
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              </div>
+              <p className="mt-2 text-[11px] font-black text-slate-900 text-center line-clamp-1 leading-tight group-hover:text-[var(--color-primary)]">{s.businessName}</p>
+              <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--color-accent)] font-bold">
+                <Star size={10} className="fill-current" />
+                {s.rating || 4.8}
+              </div>
+            </Link>
+          ))}
+          {suppliers.length === 0 && (
+            <div className="w-full py-6 text-center text-slate-400 font-bold text-sm">
+              جاري تحميل الموردين...
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Supplier Offers Feed */}
       <section className="md:col-start-1 md:col-span-12 md:row-start-5 md:row-span-2 bg-white border border-slate-300 rounded-3xl p-5 md:p-6 shadow-sm overflow-hidden flex flex-col">
@@ -429,7 +482,9 @@ export default function BuyerHome() {
                 <div>
                   <p className="text-sm font-bold text-slate-900 line-clamp-1 leading-tight">{offer.title}</p>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <p className="text-[10px] text-slate-500 font-medium">المورد: {offer.supplierName}</p>
+                    <Link to={`/buyer/supplier/${offer.supplierId}`} className="text-[10px] text-[var(--color-primary)] font-bold hover:underline">
+                      المورد: {offer.supplierName}
+                    </Link>
                     {offer.supplierRating !== undefined && (
                       <div className="flex items-center gap-0.5 bg-amber-50 px-1 rounded text-[8px] font-bold text-amber-600 border border-amber-100">
                         <Star className="w-2 h-2 fill-current" />

@@ -50,6 +50,12 @@ service cloud.firestore {
       );
     }
 
+    function isSupplier() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier';
+    }
+
     // -- VALIDATION HELPERS --
 
     function isValidRequest(data) {
@@ -57,7 +63,7 @@ service cloud.firestore {
         && data.buyerId == request.auth.uid
         && data.productName is string && data.productName.size() <= 200
         && data.quantity is string && data.quantity.size() <= 100
-        && data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled']
+        && data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled', 'rejected', 'pending']
         && (data.price == null || data.price is number)
         && (data.totalAmount == null || data.totalAmount is number);
     }
@@ -94,7 +100,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow list: if isAdmin();
+      allow list: if isAdmin() || (isSignedIn() && resource.data.role == 'supplier');
       allow get: if isSignedIn();
       allow create, update: if isOwner(userId) || isAdmin();
       
@@ -103,9 +109,28 @@ service cloud.firestore {
       }
     }
 
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isSupplier() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isSignedIn() && isSupplier() && resource.data.supplierId == request.auth.uid && isValidProduct(incoming());
+      allow delete: if isSignedIn() && isSupplier() && resource.data.supplierId == request.auth.uid;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['supplierId', 'supplierName', 'name', 'price', 'category']) &&
+             data.supplierId == request.auth.uid &&
+             data.name is string && data.name.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             data.category is string &&
+             (!data.keys().hasAny(['description']) || data.description is string) &&
+             (!data.keys().hasAny(['image']) || data.image is string);
+    }
+
     match /offers/{offerId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(offerId);
       allow update: if isAdmin() || (isSignedIn() && (
         existing().supplierId == request.auth.uid ||
         incoming().diff(existing()).affectedKeys().hasOnly(['orders', 'updatedAt'])
@@ -114,7 +139,9 @@ service cloud.firestore {
     }
 
     match /requests/{requestId}/bids/{bidId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(bidId) && incoming().supplierId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.supplierId == request.auth.uid || isAdmin());
     }
 
     match /requests/{requestId} {
@@ -124,24 +151,41 @@ service cloud.firestore {
         resource.data.status == 'active'
       ));
       allow get: if isAdmin() || isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(requestId) && incoming().buyerId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid ||
+        isAdmin()
+      );
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow list, get, create: if isSignedIn();
+        allow list, get: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(messageId);
       }
     }
 
     match /orders/{orderId} {
-      allow list: if isSignedIn();
-      allow get: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
+      allow list: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid
+      );
+      allow get: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(orderId);
+      allow update: if isSignedIn() && (
+        resource.data.buyerId == request.auth.uid || 
+        resource.data.supplierId == request.auth.uid ||
+        isAdmin()
+      );
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow list, get, create: if isSignedIn();
+        allow list, get: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(messageId);
       }
     }
 
