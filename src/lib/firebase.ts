@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, getDocFromCache, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromCache, getDocFromServer, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 import toast from 'react-hot-toast';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth();
+export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 export const googleProvider = new GoogleAuthProvider();
 
 export const OperationType = {
@@ -64,6 +66,48 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   if (!suppressThrow) {
     throw error; 
   }
+}
+
+// Notification Helpers
+export async function requestNotificationPermission() {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.log('هذا المتصفح لا يدعم الإشعارات.');
+    return null;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      if (!messaging) return null;
+      
+      const token = await getToken(messaging, {
+        vapidKey: import.meta.env.VITE_VAPID_KEY // We'll need the user to provide this or use a default if available
+      });
+
+      if (token && auth.currentUser) {
+        // Save token to user profile in Firestore
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userRef, {
+          fcmTokens: arrayUnion(token),
+          notificationsEnabled: true,
+          updatedAt: new Date()
+        });
+        return token;
+      }
+    }
+  } catch (error) {
+    console.error('Error getting notification permission:', error);
+  }
+  return null;
+}
+
+export function onMessageListener() {
+  if (!messaging) return null;
+  return new Promise((resolve) => {
+    onMessage(messaging, (payload) => {
+      resolve(payload);
+    });
+  });
 }
 
 // Optional: Test connection to Firestore

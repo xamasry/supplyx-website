@@ -30,12 +30,14 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminLogin from './pages/admin/AdminLogin';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import ReloadPrompt from './components/pwa/ReloadPrompt';
+import PushNotificationManager from './components/pwa/PushNotificationManager';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-center" />
       <ReloadPrompt />
+      <PushNotificationManager />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         

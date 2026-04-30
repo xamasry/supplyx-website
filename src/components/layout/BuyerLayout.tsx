@@ -7,8 +7,10 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
+import { useNotifications } from '../../hooks/useNotifications';
 
 export default function BuyerLayout({ children }: { children?: React.ReactNode }) {
+  useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
