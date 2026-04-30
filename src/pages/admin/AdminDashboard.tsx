@@ -1734,7 +1734,7 @@ function StatCard({ label, value, icon, trend, color }: any) {
     <div className={`bg-slate-900 border ${parts[2]} rounded-2xl p-6`}>
       <div className="flex items-center justify-between mb-4">
         <div className={`p-2 rounded-lg ${parts.slice(0, 2).join(' ')}`}>
-          {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
+          {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' } as any)}
         </div>
         <span className="text-xs font-bold text-slate-500">{trend}</span>
       </div>
