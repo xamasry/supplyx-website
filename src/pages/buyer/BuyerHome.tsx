@@ -87,7 +87,30 @@ export default function BuyerHome() {
       unsubSnapshot = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         data.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        
+        // Fetch real bid counts for each active request
         setRequests(data);
+
+        // Fetch actual counts from server for active items to be extra sure
+        data.forEach(async (req) => {
+          if (['active', 'accepted', 'preparing', 'shipped'].includes(req.status)) {
+            try {
+              const bidsRef = collection(db, `requests/${req.id}/bids`);
+              const { getCountFromServer } = await import('firebase/firestore');
+              const bidSnap = await getCountFromServer(bidsRef);
+              const realCount = bidSnap.data().count;
+              
+              if (realCount !== req.bidsCount) {
+                setRequests(current => current.map(r => 
+                  r.id === req.id ? { ...r, bidsCount: realCount } : r
+                ));
+              }
+            } catch (err) {
+              console.error(`Error counting bids for ${req.id}:`, err);
+            }
+          }
+        });
+
         setLoading(false);
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests', true);

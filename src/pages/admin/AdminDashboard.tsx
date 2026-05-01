@@ -15,7 +15,8 @@ import {
   updateDoc,
   serverTimestamp,
   writeBatch,
-  limit
+  limit,
+  addDoc
 } from 'firebase/firestore';
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, updateProfile as updateSecondaryProfile } from 'firebase/auth';
@@ -49,7 +50,8 @@ import {
   Phone,
   Store,
   Package,
-  Edit
+  Edit,
+  Zap
 } from 'lucide-react';
 import { CATEGORIES } from '../../constants';
 import { 
@@ -128,6 +130,7 @@ export default function AdminDashboard() {
   const [requestsStatusFilter, setRequestsStatusFilter] = useState<'all' | 'new' | 'in_progress' | 'delivered' | 'cancelled'>('all');
   const [financeTimeFilter, setFinanceTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
+  const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
   const navigate = useNavigate();
   const unsubscribes = useRef<(() => void)[]>([]);
 
@@ -468,6 +471,14 @@ export default function AdminDashboard() {
     });
     unsubscribes.current.push(unsubSubPayments);
 
+    // 7. Subscription Requests Stream
+    const unsubSubRequests = onSnapshot(query(collection(db, 'subscription_requests'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setSubscriptionRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'subscription_requests', true);
+    });
+    unsubscribes.current.push(unsubSubRequests);
+
     setLoading(false);
   };
 
@@ -757,6 +768,102 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApproveSubscriptionRequest = async (request: any) => {
+    const loadingToast = toast.loading('جاري مراجعة وتفعيل الطلب...');
+    try {
+      const batch = writeBatch(db);
+      
+      // Calculate expiry (standardize to 1 year for approved requests if needed, or stick to current)
+      const expiryDate = new Date();
+      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+      // 1. Update user tier
+      const userRef = doc(db, 'users', request.userId);
+      batch.update(userRef, {
+        subscriptionTier: request.requestedTier,
+        subscriptionStatus: 'active',
+        subscriptionExpiry: expiryDate.toISOString(),
+        updatedAt: serverTimestamp()
+      });
+
+      // 2. Update request status
+      const requestRef = doc(db, 'subscription_requests', request.id);
+      batch.update(requestRef, {
+        status: 'approved',
+        updatedAt: serverTimestamp()
+      });
+
+      // 3. Log payment record
+      let amount = 0;
+      if (request.userRole === 'buyer') {
+        amount = request.requestedTier === 'premium' ? (rates.buyerPremiumSub || 5000) : (rates.buyerSub || 3000);
+      } else {
+        amount = request.requestedTier === 'premium' ? (rates.supplierPremiumSub || 7000) : (rates.supplierSub || 5000);
+      }
+
+      const paymentRef = doc(collection(db, 'subscription_payments'));
+      batch.set(paymentRef, {
+        userId: request.userId,
+        userRole: request.userRole,
+        userName: request.userName,
+        amount: amount,
+        tier: request.requestedTier,
+        durationMonths: 12,
+        paymentDate: serverTimestamp(),
+        expiryDate: expiryDate.toISOString(),
+        requestId: request.id
+      });
+
+      // 4. Send notification
+      const notifRef = doc(collection(db, 'notifications'));
+      batch.set(notifRef, {
+        userId: request.userId,
+        title: 'تم تفعيل اشتراكك بنجاح',
+        message: `تم الموافقة على طلب ترقية حسابك إلى باقة ${request.requestedTier === 'premium' ? 'Premium' : 'Standard'} بنجاح.`,
+        type: 'subscription',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      toast.dismiss(loadingToast);
+      toast.success('تمت الموافقة وتفعيل الاشتراك بنجاح');
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      console.error('Error approving subscription:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'subscription_requests', false);
+    }
+  };
+
+  const handleRejectSubscriptionRequest = async (request: any) => {
+    const reason = window.prompt('يرجى ذكر سبب الرفض (اختياري):');
+    if (reason === null) return;
+
+    const loadingToast = toast.loading('جاري رفض الطلب...');
+    try {
+      await updateDoc(doc(db, 'subscription_requests', request.id), {
+        status: 'rejected',
+        rejectionReason: reason,
+        updatedAt: serverTimestamp()
+      });
+
+      // Send notification
+      await addDoc(collection(db, 'notifications'), {
+        userId: request.userId,
+        title: 'تم رفض طلب الاشتراك',
+        message: `نعتذر، تم رفض طلب الترقية الخاص بك. ${reason ? `السبب: ${reason}` : ''}`,
+        type: 'subscription',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.dismiss(loadingToast);
+      toast.success('تم رفض الطلب بنجاح');
+    } catch (err) {
+      toast.dismiss(loadingToast);
+      handleFirestoreError(err, OperationType.WRITE, 'subscription_requests', false);
+    }
+  };
   const handleActivateTrial = async (user: any) => {
     console.log('handleActivateTrial called for user:', user.id);
     if (!user.id) {
@@ -1637,6 +1744,82 @@ export default function AdminDashboard() {
 
             {activeTab === 'subscriptions' && (
               <motion.div key="subscriptions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                
+                {/* New: Pending Subscription Requests */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                   <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-amber-500/10">
+                      <h3 className="font-bold text-amber-500 flex items-center gap-2 text-sm">
+                        <Zap className="w-5 h-5 animate-pulse" />
+                        طلبات تعديل الاشتراك المعلقة ({subscriptionRequests.filter(r => r.status === 'pending').length})
+                      </h3>
+                   </div>
+                   
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-right">
+                       <thead className="bg-slate-800/50 text-slate-400 text-[10px] uppercase">
+                          <tr>
+                             <th className="px-6 py-4">المستخدم</th>
+                             <th className="px-6 py-4">الباقة الحالية</th>
+                             <th className="px-6 py-4 text-amber-500">مطلوب</th>
+                             <th className="px-6 py-4 text-center">الإجراء</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-800 font-bold">
+                          {subscriptionRequests.filter(r => r.status === 'pending').length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-6 py-10 text-center text-slate-600 italic text-sm">لا يوجد طلبات معلقة حالياً</td>
+                            </tr>
+                          ) : (
+                            subscriptionRequests.filter(r => r.status === 'pending').map((req) => (
+                              <tr key={req.id} className="hover:bg-slate-800/20 transition">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                     <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">{req.userName?.[0]}</div>
+                                     <div>
+                                        <p className="text-sm text-white">{req.userName}</p>
+                                        <p className="text-[10px] text-slate-500">{req.userEmail}</p>
+                                     </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-xs">
+                                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                                     {req.currentTier === 'premium' ? 'Premium' : 'Standard'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-black",
+                                    req.requestedTier === 'premium' ? "bg-amber-500 text-white shadow-sm shadow-amber-500/20" : "bg-slate-700 text-white"
+                                  )}>
+                                     {req.requestedTier === 'premium' ? 'Premium ✨' : 'Standard'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button 
+                                      onClick={() => handleApproveSubscriptionRequest(req)}
+                                      className="p-1.5 bg-emerald-600/20 text-emerald-500 hover:bg-emerald-600 hover:text-white rounded-lg transition-all"
+                                      title="موافقة"
+                                    >
+                                      <Check size={16} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleRejectSubscriptionRequest(req)}
+                                      className="p-1.5 bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white rounded-lg transition-all"
+                                      title="رفض"
+                                    >
+                                      <XCircle size={16} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                       </tbody>
+                     </table>
+                   </div>
+                </div>
+
                 {/* Subscription Settings */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">

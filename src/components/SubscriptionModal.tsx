@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, Check, ShieldCheck, Zap, Star, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, auth } from '../lib/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 interface SubscriptionModalProps {
@@ -89,17 +89,43 @@ export default function SubscriptionModal({ isOpen, onClose, userRole, currentTi
 
     setLoading(true);
     try {
-      // In a real app, this would trigger a payment gateway
-      // Since this is a demo/B2B platform, we might just update the tier or create a "Request" for the admin
-      await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-        subscriptionTier: tierId,
+      // Check if there is already a pending request
+      const q = query(
+        collection(db, 'subscription_requests'),
+        where('userId', '==', auth.currentUser.uid),
+        where('status', '==', 'pending'),
+        limit(1)
+      );
+      const existingRequests = await getDocs(q);
+      
+      if (!existingRequests.empty) {
+        toast.error('لديك طلب اشتراك قيد المراجعة بالفعل');
+        onClose();
+        return;
+      }
+
+      // Get user context for the request
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const userData = userDoc.exists() ? userDoc.data() : null;
+
+      // Create a request instead of direct update
+      await addDoc(collection(db, 'subscription_requests'), {
+        userId: auth.currentUser.uid,
+        userName: userData?.name || 'مستخدم',
+        userEmail: auth.currentUser.email,
+        userRole: userRole,
+        currentTier: currentTier,
+        requestedTier: tierId,
+        status: 'pending',
+        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-      toast.success(`تم ترقية الحساب إلى ${tierId === 'premium' ? 'الباقة المميزة' : 'الباقة العادية'} بنجاح!`);
+
+      toast.success(`تم إرسال طلب ${tierId === 'premium' ? 'الترقية للمميزة' : 'الباقة العادية'} للإدارة للمراجعة`);
       onClose();
     } catch (error) {
-      console.error('Error upgrading subscription:', error);
-      toast.error('حدث خطأ أثناء الترقية. يرجى المحاولة لاحقاً');
+      console.error('Error requesting subscription change:', error);
+      handleFirestoreError(error, OperationType.WRITE, 'subscription_requests', false);
     } finally {
       setLoading(false);
     }
