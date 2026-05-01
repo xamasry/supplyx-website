@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { cn } from '../../lib/utils';
 import { 
   collection, 
   query, 
@@ -40,6 +41,7 @@ import {
   Download,
   Eye,
   Trash2,
+  Check,
   CheckCircle2,
   XCircle,
   BarChart3,
@@ -100,7 +102,16 @@ export default function AdminDashboard() {
     bulk: { count: 0, revenue: 0, profit: 0 },
     offer: { count: 0, revenue: 0, profit: 0 }
   });
-  const [rates, setRates] = useState({ fast: 10, bulk: 5, offer: 8, buyerSub: 500, supplierSub: 1000, trialDays: 7 });
+  const [rates, setRates] = useState({ 
+    fast: 10, 
+    bulk: 5, 
+    offer: 8, 
+    buyerSub: 3000, 
+    buyerPremiumSub: 5000, 
+    supplierSub: 5000, 
+    supplierPremiumSub: 7000, 
+    trialDays: 7 
+  });
   const [subPayments, setSubPayments] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -425,8 +436,10 @@ export default function AdminDashboard() {
           fast: data.fastCommissionRate !== undefined ? data.fastCommissionRate : 10,
           bulk: data.bulkCommissionRate !== undefined ? data.bulkCommissionRate : 5,
           offer: data.offerCommissionRate !== undefined ? data.offerCommissionRate : 8,
-          buyerSub: data.buyerSubPrice !== undefined ? data.buyerSubPrice : 500,
-          supplierSub: data.supplierSubPrice !== undefined ? data.supplierSubPrice : 1000,
+          buyerSub: data.buyerSubPrice !== undefined ? data.buyerSubPrice : 3000,
+          buyerPremiumSub: data.buyerPremiumSubPrice !== undefined ? data.buyerPremiumSubPrice : 5000,
+          supplierSub: data.supplierSubPrice !== undefined ? data.supplierSubPrice : 5000,
+          supplierPremiumSub: data.supplierPremiumSubPrice !== undefined ? data.supplierPremiumSubPrice : 7000,
           trialDays: data.trialDays !== undefined ? data.trialDays : 7
         });
       }
@@ -675,7 +688,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateSubPrice = async (field: 'buyerSubPrice' | 'supplierSubPrice' | 'trialDays', val: number) => {
+  const updateSubPrice = async (field: 'buyerSubPrice' | 'buyerPremiumSubPrice' | 'supplierSubPrice' | 'supplierPremiumSubPrice' | 'trialDays', val: number) => {
     try {
       await setDoc(doc(db, 'settings', 'general'), {
         [field]: val,
@@ -687,19 +700,26 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleManualSubscription = async (user: any) => {
-    console.log('handleManualSubscription called for user:', user.id);
+  const handleManualSubscription = async (user: any, tier: 'standard' | 'premium' = 'standard') => {
+    console.log('handleManualSubscription called for user:', user.id, 'tier:', tier);
     if (!user.id) {
       toast.error('بيانات المستخدم غير مكتملة');
       return;
     }
     
-    const confirmMsg = `هل تريد تفعيل اشتراك 6 أشهر يدوياً لـ ${user.name} بنظام ${user.role === 'supplier' ? 'المورد' : 'المطعم'}؟ سيتم تسجيل مبلغ ${user.role === 'buyer' ? (rates.buyerSub || 500) : (rates.supplierSub || 1000)} ج.م في السجلات.`;
+    let amount = 0;
+    if (user.role === 'buyer') {
+      amount = tier === 'premium' ? (rates.buyerPremiumSub || 5000) : (rates.buyerSub || 3000);
+    } else {
+      amount = tier === 'premium' ? (rates.supplierPremiumSub || 7000) : (rates.supplierSub || 5000);
+    }
+
+    const tierLabel = tier === 'standard' ? 'Standard' : 'Premium';
+    const confirmMsg = `هل تريد تفعيل اشتراك 6 أشهر يدوياً لـ ${user.name} بنظام ${user.role === 'supplier' ? 'المورد' : 'المطعم'} (${tierLabel})؟ سيتم تسجيل مبلغ ${amount} ج.م في السجلات.`;
     if (!window.confirm(confirmMsg)) return;
     
     const loadingToast = toast.loading('جاري تفعيل الاشتراك...');
     try {
-      const amount = user.role === 'buyer' ? (rates.buyerSub || 500) : (rates.supplierSub || 1000);
       const expiryDate = new Date();
       expiryDate.setMonth(expiryDate.getMonth() + 6);
       
@@ -711,6 +731,7 @@ export default function AdminDashboard() {
         userName: user.name || 'Anonymous',
         businessName: user.businessName || '',
         amount: amount,
+        tier: tier,
         durationMonths: 6,
         paymentDate: serverTimestamp(),
         expiryDate: expiryDate.toISOString()
@@ -719,6 +740,7 @@ export default function AdminDashboard() {
       console.log('Step 2: Updating user record...');
       await updateDoc(doc(db, 'users', user.id), {
         subscriptionStatus: 'active',
+        subscriptionTier: tier,
         subscriptionStart: serverTimestamp(),
         subscriptionExpiry: expiryDate.toISOString(),
         isTrial: false,
@@ -759,6 +781,7 @@ export default function AdminDashboard() {
       console.log(`Step 1: Setting trial for ${days} days...`);
       await updateDoc(doc(db, 'users', user.id), {
         subscriptionStatus: 'active',
+        subscriptionTier: 'premium', // Trial is now premium by default
         subscriptionStart: serverTimestamp(),
         subscriptionExpiry: expiryDate.toISOString(),
         isTrial: true,
@@ -767,9 +790,24 @@ export default function AdminDashboard() {
       
       console.log('Trial activation successful');
       toast.dismiss(loadingToast);
-      toast.success(`تم تفعيل الفترة التجريبية لـ ${user.name} لمدة ${days} أيام بنجاح`);
+      toast.success(`تم تفعيل الفترة التجريبية المميزة (Premium) لـ ${user.name} بنجاح`);
     } catch (err) {
       console.error('Trial Activation Error:', err);
+      toast.dismiss(loadingToast);
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`, false);
+    }
+  };
+
+  const handleTierChange = async (user: any, newTier: 'standard' | 'premium') => {
+    const loadingToast = toast.loading('جاري تغيير الباقة...');
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        subscriptionTier: newTier,
+        updatedAt: serverTimestamp()
+      });
+      toast.dismiss(loadingToast);
+      toast.success(`تم تحويل ${user.name} إلى باقة ${newTier === 'premium' ? 'Premium' : 'Standard'}`);
+    } catch (err) {
       toast.dismiss(loadingToast);
       handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`, false);
     }
@@ -782,6 +820,7 @@ export default function AdminDashboard() {
     try {
       await updateDoc(doc(db, 'users', user.id), {
         subscriptionStatus: 'not_subscribed',
+        subscriptionTier: null,
         subscriptionExpiry: null,
         isTrial: false,
         updatedAt: serverTimestamp()
@@ -1607,7 +1646,7 @@ export default function AdminDashboard() {
                     </h3>
                     <div className="space-y-4">
                       <div>
-                         <label className="block text-xs text-slate-500 mb-1">سعر اشتراك 6 أشهر (ج.م)</label>
+                         <label className="block text-xs text-slate-500 mb-1">Standard (ج.م)</label>
                          <div className="flex gap-2">
                             <input 
                               type="number"
@@ -1616,6 +1655,18 @@ export default function AdminDashboard() {
                               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 transition"
                             />
                             <button onClick={() => updateSubPrice('buyerSubPrice', rates.buyerSub)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm">حفظ</button>
+                         </div>
+                      </div>
+                      <div>
+                         <label className="block text-xs text-slate-500 mb-1 font-bold text-blue-400">Premium (ج.م)</label>
+                         <div className="flex gap-2">
+                            <input 
+                              type="number"
+                              value={rates.buyerPremiumSub}
+                              onChange={(e) => setRates({...rates, buyerPremiumSub: Number(e.target.value)})}
+                              className="flex-1 bg-slate-800 border border-blue-500/30 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 transition"
+                            />
+                            <button onClick={() => updateSubPrice('buyerPremiumSubPrice', rates.buyerPremiumSub)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20">حفظ</button>
                          </div>
                       </div>
                     </div>
@@ -1628,7 +1679,7 @@ export default function AdminDashboard() {
                     </h3>
                     <div className="space-y-4">
                       <div>
-                         <label className="block text-xs text-slate-500 mb-1">سعر اشتراك 6 أشهر (ج.م)</label>
+                         <label className="block text-xs text-slate-500 mb-1">Standard (ج.م)</label>
                          <div className="flex gap-2">
                             <input 
                               type="number"
@@ -1637,6 +1688,18 @@ export default function AdminDashboard() {
                               className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white outline-none focus:border-purple-500 transition"
                             />
                             <button onClick={() => updateSubPrice('supplierSubPrice', rates.supplierSub)} className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-sm">حفظ</button>
+                         </div>
+                      </div>
+                      <div>
+                         <label className="block text-xs text-slate-500 mb-1 font-bold text-purple-400">Premium (ج.م)</label>
+                         <div className="flex gap-2">
+                            <input 
+                              type="number"
+                              value={rates.supplierPremiumSub}
+                              onChange={(e) => setRates({...rates, supplierPremiumSub: Number(e.target.value)})}
+                              className="flex-1 bg-slate-800 border border-purple-500/30 rounded-xl px-4 py-2 text-white outline-none focus:border-purple-500 transition"
+                            />
+                            <button onClick={() => updateSubPrice('supplierPremiumSubPrice', rates.supplierPremiumSub)} className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-purple-500/20">حفظ</button>
                          </div>
                       </div>
                     </div>
@@ -1730,6 +1793,28 @@ export default function AdminDashboard() {
                                }`}>
                                  {user.subscriptionStatus === 'active' ? (user.isTrial ? 'فترة تجريبية' : 'نشط') : user.subscriptionStatus === 'expired' ? 'منتهي' : 'غير مشترك'}
                                </span>
+                               {user.subscriptionStatus === 'active' && (
+                                 <div className="flex gap-1 mt-1">
+                                   <button 
+                                     onClick={() => handleTierChange(user, 'standard')}
+                                     className={cn(
+                                       "text-[8px] px-2 py-1 rounded font-bold uppercase transition border flex items-center gap-1",
+                                       user.subscriptionTier === 'standard' ? "bg-slate-700 text-white border-slate-600 shadow-sm" : "bg-transparent text-slate-500 border-slate-800 hover:text-slate-300"
+                                     )}
+                                   >
+                                     {user.subscriptionTier === 'standard' && <Check size={8} />} Std
+                                   </button>
+                                   <button 
+                                     onClick={() => handleTierChange(user, 'premium')}
+                                     className={cn(
+                                       "text-[8px] px-2 py-1 rounded font-bold uppercase transition border flex items-center gap-1",
+                                       user.subscriptionTier === 'premium' ? "bg-amber-500 text-white border-amber-400 shadow-sm shadow-amber-500/20" : "bg-transparent text-slate-500 border-slate-800 hover:text-amber-500"
+                                     )}
+                                   >
+                                     {user.subscriptionTier === 'premium' && <Check size={8} />} Prem
+                                   </button>
+                                 </div>
+                               )}
                             </td>
                             <td className="px-6 py-4 text-xs text-slate-400">
                                {user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString('ar-EG') : '-'}
@@ -1738,40 +1823,43 @@ export default function AdminDashboard() {
                                <div className="flex items-center gap-2 relative">
                                  {user.subscriptionStatus !== 'active' ? (
                                    <>
+                                     <div className="flex flex-col gap-1">
+                                       <button 
+                                         type="button"
+                                         onClick={(e) => { e.stopPropagation(); handleManualSubscription(user, 'standard'); }}
+                                         className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[8px] font-bold transition whitespace-nowrap active:scale-95"
+                                       >
+                                         تفعيل Standard
+                                       </button>
+                                       <button 
+                                         type="button"
+                                         onClick={(e) => { e.stopPropagation(); handleManualSubscription(user, 'premium'); }}
+                                         className="px-2 py-1 bg-amber-500 hover:bg-amber-400 text-white rounded text-[8px] font-bold transition whitespace-nowrap active:scale-95 shadow-sm shadow-amber-500/20"
+                                       >
+                                         تفعيل Premium
+                                       </button>
+                                     </div>
                                      <button 
                                        type="button"
                                        onClick={(e) => {
-                                         console.log('Activate subscription clicked for:', user.id);
-                                         e.stopPropagation();
-                                         handleManualSubscription(user);
-                                       }}
-                                       className="px-3 py-1 bg-primary-600 hover:bg-primary-500 text-white rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
-                                     >
-                                       تفعيل اشتراك
-                                     </button>
-                                     <button 
-                                       type="button"
-                                       onClick={(e) => {
-                                         console.log('Activate trial clicked for:', user.id);
                                          e.stopPropagation();
                                          handleActivateTrial(user);
                                        }}
-                                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
+                                       className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-bold transition whitespace-nowrap active:scale-95"
                                      >
-                                       تفعيل تجربة
+                                       تفعيل تجربة ✨
                                      </button>
                                    </>
                                  ) : (
                                    <button 
                                      type="button"
                                      onClick={(e) => {
-                                       console.log('Deactivate clicked for:', user.id);
                                        e.stopPropagation();
                                        handleDeactivateSubscription(user);
                                      }}
-                                     className="px-3 py-1 bg-red-600/10 text-red-500 hover:bg-red-600/20 rounded text-[10px] font-bold transition whitespace-nowrap cursor-pointer active:scale-95 relative z-50 pointer-events-auto"
+                                     className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-[10px] font-bold transition whitespace-nowrap active:scale-95 shadow-lg shadow-red-600/20 flex items-center gap-2"
                                    >
-                                     إلغاء التفعيل
+                                     <Trash2 size={12} /> إيقاف الاشتراك
                                    </button>
                                  )}
                                </div>
@@ -1800,9 +1888,14 @@ export default function AdminDashboard() {
                          {subPayments.map((p: any) => (
                            <tr key={p.id} className="hover:bg-slate-800/30 transition">
                               <td className="px-6 py-4">
-                                 <p className="text-sm font-bold text-white">{p.businessName || p.userName}</p>
-                                 <p className="text-[10px] text-slate-500">{p.userRole === 'supplier' ? 'مورد' : 'مشتري'}</p>
-                              </td>
+                                <p className="text-sm font-bold text-white">{p.businessName || p.userName}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className="text-[10px] text-slate-500">{p.userRole === 'supplier' ? 'مورد' : 'مشتري'}</p>
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${p.tier === 'premium' ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
+                                    {p.tier || 'standard'}
+                                  </span>
+                                </div>
+                             </td>
                               <td className="px-6 py-4 text-emerald-500 font-bold">{p.amount} ج.م</td>
                               <td className="px-6 py-4 text-xs text-slate-400">{p.durationMonths} أشهر</td>
                               <td className="px-6 py-4 text-[10px] text-slate-500 italic">

@@ -241,7 +241,7 @@ export default function BuyerOffers() {
                   <div className="flex overflow-x-auto gap-4 pb-4 -mx-2 px-2 hide-scrollbar snap-x">
                     {newestOffers.map((offer, idx) => (
                       <div key={`newest-${offer.id || idx}`} className="min-w-[280px] md:min-w-[320px] snap-start">
-                        <OfferCard offer={offer} isOrdering={isOrdering} handleOrder={() => {
+                        <OfferCard offer={offer} isOrdering={isOrdering} userProfile={userProfile} handleOrder={() => {
                           setSelectedOffer(offer);
                           setOrderQuantity(String(offer.quantity || 1));
                           setOrderAddress(userProfile?.address || '');
@@ -272,7 +272,7 @@ export default function BuyerOffers() {
                     <div className="flex overflow-x-auto gap-4 pb-4 -mx-2 px-2 hide-scrollbar snap-x">
                       {categoryOffers.map(offer => (
                         <div key={offer.id} className="min-w-[280px] md:min-w-[320px] snap-start">
-                          <OfferCard offer={offer} isOrdering={isOrdering} handleOrder={() => {
+                          <OfferCard offer={offer} isOrdering={isOrdering} userProfile={userProfile} handleOrder={() => {
                             setSelectedOffer(offer);
                             setOrderQuantity(String(offer.quantity || 1));
                             setOrderAddress(userProfile?.address || '');
@@ -291,7 +291,7 @@ export default function BuyerOffers() {
             // Show flat filtered list
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredOffers.map(offer => (
-                <OfferCard key={offer.id} offer={offer} isOrdering={isOrdering} handleOrder={() => {
+                <OfferCard key={offer.id} offer={offer} isOrdering={isOrdering} userProfile={userProfile} handleOrder={() => {
                   setSelectedOffer(offer);
                   setOrderQuantity(String(offer.quantity || 1));
                   setOrderAddress(userProfile?.address || '');
@@ -436,7 +436,7 @@ export default function BuyerOffers() {
 }
 
 // Sub-component for Offer Card to keep code clean
-function OfferCard({ offer, isOrdering, handleOrder }: { offer: any, isOrdering: string | null, handleOrder: () => void, key?: any }) {
+function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any, isOrdering: string | null, userProfile: any, handleOrder: () => void, key?: any }) {
   return (
     <div className="bg-white border border-slate-300 rounded-3xl overflow-hidden shadow-sm hover:border-[var(--color-primary)] transition-colors flex flex-col">
       <div className="h-44 bg-slate-100 relative overflow-hidden group flex items-center justify-center">
@@ -466,6 +466,9 @@ function OfferCard({ offer, isOrdering, handleOrder }: { offer: any, isOrdering:
         </div>
 
         <div className="absolute top-3 right-3 bg-[var(--color-danger)] text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg z-10">خصم {offer.discount}</div>
+        {offer.isExclusive && (
+          <div className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg z-10 border border-white">حصري PREMIUM ✨</div>
+        )}
         <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-bold px-2 py-1 rounded shadow-sm z-10 border border-slate-200">⏳ عرض محدود</div>
       </div>
       <div className="p-5 flex-1 flex flex-col">
@@ -486,16 +489,23 @@ function OfferCard({ offer, isOrdering, handleOrder }: { offer: any, isOrdering:
             </div>
           </div>
           <button 
-            disabled={!!isOrdering}
+            disabled={!!isOrdering || (offer.isExclusive && userProfile?.subscriptionTier !== 'premium')}
             onClick={() => handleOrder()}
-            className="bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
+            className={cn(
+              "px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2",
+              offer.isExclusive && userProfile?.subscriptionTier !== 'premium'
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                : "bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+            )}
           >
             {isOrdering === offer.id ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : offer.isExclusive && userProfile?.subscriptionTier !== 'premium' ? (
+              'ترقية'
             ) : (
               <Flame className="w-4 h-4" />
             )}
-            {isOrdering === offer.id ? 'جاري الطلب...' : 'طلب الآن'}
+            {isOrdering === offer.id ? 'جاري الطلب...' : (offer.isExclusive && userProfile?.subscriptionTier !== 'premium' ? '' : 'طلب الآن')}
           </button>
         </div>
       </div>

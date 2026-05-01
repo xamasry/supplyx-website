@@ -5,13 +5,22 @@ import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebas
 import { collection, query, where, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { CATEGORIES } from '../../constants';
 import { cn } from '../../lib/utils';
+import toast from 'react-hot-toast';
 
 export default function SupplierOffers() {
   const [offers, setOffers] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth.currentUser) return;
+
+    // Fetch user data for tier check
+    const unsubUser = onSnapshot(doc(db, 'users', auth.currentUser.uid), (doc) => {
+      if (doc.exists()) {
+        setUser(doc.data());
+      }
+    });
 
     const q = query(
       collection(db, 'offers'),
@@ -31,7 +40,10 @@ export default function SupplierOffers() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubUser();
+    };
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -50,10 +62,28 @@ export default function SupplierOffers() {
           <h1 className="text-2xl font-bold font-display text-slate-900">إدارة العروض</h1>
           <p className="text-slate-500 text-sm mt-1">وفر خصومات لجذب المزيد من الطلبات</p>
         </div>
-        <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
-           <Plus className="w-4 h-4" /> عرض جديد
-        </Link>
+        {user?.subscriptionTier === 'premium' ? (
+          <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
+             <Plus className="w-4 h-4" /> عرض جديد
+          </Link>
+        ) : (
+          <button 
+            onClick={() => toast.error('خدمة إضافة العروض متاحة فقط لمشتركي الباقة المميزة (Premium)')}
+            className="bg-slate-200 text-slate-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 cursor-not-allowed"
+          >
+             <Plus className="w-4 h-4" /> عرض جديد
+          </button>
+        )}
       </header>
+
+      {user?.subscriptionTier !== 'premium' && (
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl mb-6 flex items-center justify-between">
+           <div className="space-y-1">
+              <p className="text-sm font-bold text-amber-900">أنت حالياً على الباقة العادية (Standard)</p>
+              <p className="text-xs text-amber-700 font-medium">قم بالترقية للباقة المميزة للتمكن من إضافة العروض الترويجية والحصول على أولوية الظهور.</p>
+           </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">

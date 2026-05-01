@@ -17,6 +17,7 @@ export interface User {
   isApproved?: boolean;
   isTrial?: boolean;
   subscriptionStatus?: 'active' | 'expired' | 'not_subscribed';
+  subscriptionTier?: 'standard' | 'premium';
   subscriptionStart?: string;
   subscriptionExpiry?: string;
   totalOrders: number;
@@ -41,6 +42,7 @@ export interface SubscriptionPayment {
   userName: string;
   businessName: string;
   amount: number;
+  tier: 'standard' | 'premium';
   durationMonths: number;
   paymentDate: string;
   expiryDate: string;

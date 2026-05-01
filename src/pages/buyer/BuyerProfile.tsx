@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { User, Store, MapPin, Bell, CreditCard, FileText, HelpCircle, LogOut, Loader2, X, Plus, Trash2 } from 'lucide-react';
+import { User, Store, MapPin, Bell, CreditCard, FileText, HelpCircle, LogOut, Loader2, X, Plus, Trash2, Star } from 'lucide-react';
 import { useState, useEffect, type FormEvent } from 'react';
+import { cn } from '../../lib/utils';
 import { auth, db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 export default function BuyerProfile() {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ export default function BuyerProfile() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isInvoicesModalOpen, setIsInvoicesModalOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   
   // Form states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -218,6 +221,21 @@ export default function BuyerProfile() {
                 <p className="text-[10px] text-slate-500 mt-0.5">إدارة الكروت المحفوظة وحساب فوري</p>
               </div>
             </button>
+            <button 
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full"
+            >
+              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Star className={cn("w-5 h-5", profile?.subscriptionTier === 'premium' && "fill-current")} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-900 text-sm">اشتراكي الحالي</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {profile?.subscriptionTier === 'premium' ? 'الباقة المميزة (Premium)' : 'الباقة العادية (Standard)'}
+                </p>
+              </div>
+              <span className="text-[10px] font-black text-amber-600 mr-auto bg-amber-50 px-2 py-1 rounded">إدارة</span>
+            </button>
             <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full">
               <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Bell className="w-5 h-5" />
@@ -239,13 +257,16 @@ export default function BuyerProfile() {
                 <p className="text-[10px] text-slate-500 mt-0.5">تحميل فواتير المشتريات (PDF)</p>
               </div>
             </button>
-            <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative w-full">
+            <button 
+              onClick={() => window.open('https://wa.me/201551233787', '_blank')}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative w-full"
+            >
               <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
                 <HelpCircle className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <h4 className="font-bold text-slate-900 text-sm">الدعم الفني</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5">تواصل معنا لحل أي مشكلة</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">تواصل معنا عبر واتساب للدعم الفني</p>
               </div>
             </button>
           </div>
@@ -394,6 +415,14 @@ export default function BuyerProfile() {
         isOpen={isInvoicesModalOpen} 
         onClose={() => setIsInvoicesModalOpen(false)} 
         role="buyer" 
+      />
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="buyer"
+        currentTier={profile?.subscriptionTier || 'standard'}
       />
     </div>
   );

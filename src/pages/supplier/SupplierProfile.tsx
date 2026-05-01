@@ -4,7 +4,9 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { auth, db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
+import { cn } from '../../lib/utils';
 import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 export default function SupplierProfile() {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ export default function SupplierProfile() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isInvoicesModalOpen, setIsInvoicesModalOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   
   // Form states
   const [editFormData, setEditFormData] = useState({
@@ -251,6 +254,21 @@ export default function SupplierProfile() {
                 <p className="text-[10px] text-slate-500 mt-0.5">إدارة حسابات استقبال المستحقات</p>
               </div>
             </button>
+            <button 
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full"
+            >
+              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Star className={cn("w-5 h-5", profile?.subscriptionTier === 'premium' && "fill-current")} />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-900 text-sm">باقتي الحالية</h4>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {profile?.subscriptionTier === 'premium' ? 'الباقة المميزة (Premium)' : 'الباقة العادية (Standard)'}
+                </p>
+              </div>
+              <span className="text-[10px] font-black text-amber-600 mr-auto bg-amber-50 px-2 py-1 rounded">ترقية</span>
+            </button>
             <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full">
               <div className="w-10 h-10 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Bell className="w-5 h-5" />
@@ -272,13 +290,16 @@ export default function SupplierProfile() {
                 <p className="text-[10px] text-slate-500 mt-0.5">سجل المبيعات والمستحقات المكتملة</p>
               </div>
             </button>
-            <button className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative w-full">
+            <button 
+              onClick={() => window.open('https://wa.me/201551233787', '_blank')}
+              className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative w-full"
+            >
               <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
                 <HelpCircle className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <h4 className="font-bold text-slate-900 text-sm">دعم الموردين</h4>
-                <p className="text-[10px] text-slate-500 mt-0.5">تواصل مع مدير حسابك</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">تواصل معنا عبر واتساب للدعم الفني</p>
               </div>
             </button>
           </div>
@@ -496,6 +517,14 @@ export default function SupplierProfile() {
         isOpen={isInvoicesModalOpen} 
         onClose={() => setIsInvoicesModalOpen(false)} 
         role="supplier" 
+      />
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="supplier"
+        currentTier={profile?.subscriptionTier || 'standard'}
       />
     </div>
   );

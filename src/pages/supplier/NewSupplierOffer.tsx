@@ -58,11 +58,18 @@ export default function NewSupplierOffer() {
 
     setLoading(true);
     try {
-      const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
-      const category = CATEGORIES.find(c => c.id === categoryId);
-
       const supplierSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
       const sData = supplierSnap.exists() ? supplierSnap.data() : {};
+
+      // RESTRICTION: Only Premium suppliers can create offers
+      if (sData.subscriptionTier !== 'premium') {
+        toast.error('عذراً، خدمة إضافة العروض الترويجية متاحة فقط لمشتركي الباقة المميزة (Premium)');
+        setLoading(false);
+        return;
+      }
+
+      const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
+      const category = CATEGORIES.find(c => c.id === categoryId);
       
       const offerData = {
         supplierId: auth.currentUser.uid,

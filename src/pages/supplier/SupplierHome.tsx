@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star } from 'lucide-react';
+import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star, CheckCircle2 } from 'lucide-react';
 import { cn, calculateDistance, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy, limit, doc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
@@ -14,6 +14,7 @@ export default function SupplierHome() {
   const [requests, setRequests] = useState<any[]>([]);
   const [myBids, setMyBids] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { location: supplierLocation, loading: geoLoading, error: geoError, getLocation } = useGeolocation();
 
@@ -24,17 +25,25 @@ export default function SupplierHome() {
   useEffect(() => {
     let unsubRequests: (() => void) | null = null;
     let unsubOrders: (() => void) | null = null;
+    let unsubProfile: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (unsubRequests) unsubRequests();
       if (unsubOrders) unsubOrders();
+      if (unsubProfile) unsubProfile();
 
       if (!user) {
         setRequests([]);
         setOrders([]);
+        setUserProfile(null);
         setLoading(false);
         return;
       }
+
+      // Fetch Profile
+      unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+        if (snap.exists()) setUserProfile(snap.data());
+      });
 
       // Query 1: Fetch active requests (to bid on)
       const qReq = query(collection(db, 'requests'), where('status', '==', 'active'), limit(50));
@@ -84,6 +93,7 @@ export default function SupplierHome() {
       unsubAuth();
       if (unsubRequests) unsubRequests();
       if (unsubOrders) unsubOrders();
+      if (unsubProfile) unsubProfile();
     };
   }, [supplierLocation]);
 
@@ -107,6 +117,37 @@ export default function SupplierHome() {
 
   return (
     <div className="space-y-6 pb-24 font-sans max-w-lg mx-auto px-1">
+      
+      {/* Tier Badge */}
+      {userProfile && (
+        <div className="flex items-center justify-between px-2">
+           <div className="flex items-center gap-2">
+              <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${userProfile.subscriptionTier === 'premium' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'}`}>
+                {userProfile.subscriptionTier === 'premium' ? 'الباقة المميزة ✨' : 'الباقة العادية'}
+              </div>
+              {userProfile.isVerified && <div className="bg-blue-500 text-white p-1 rounded-lg"><CheckCircle2 className="w-3 h-3" /></div>}
+           </div>
+           {userProfile.subscriptionTier !== 'premium' && (
+             <Link to="/supplier/settings?tab=subscription" className="text-xs font-bold text-amber-600 animate-pulse">ترقية الآن ↗️</Link>
+           )}
+        </div>
+      )}
+
+      {/* Premium Benefits Banner for Standard Users */}
+      {userProfile?.subscriptionTier !== 'premium' && (
+        <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-4 text-white shadow-lg shadow-amber-500/20">
+           <div className="flex items-start gap-3">
+              <div className="bg-white/20 p-2 rounded-xl">
+                 <Star className="w-5 h-5 text-white" fill="white" />
+              </div>
+              <div className="flex-1">
+                 <h3 className="text-sm font-bold">ضاعف مبيعاتك مع الباقة المميزة!</h3>
+                 <p className="text-[10px] opacity-90 mt-0.5 leading-relaxed">احصل على ظهور في النتائج الأولى، شارة التوثيق المميزة، والقدرة على إضافة عروض ترويجية.</p>
+                 <Link to="/supplier/settings?tab=subscription" className="inline-block mt-3 bg-white text-amber-600 px-4 py-1.5 rounded-xl text-[10px] font-black shadow-sm">تعرف على المزايا</Link>
+              </div>
+           </div>
+        </div>
+      )}
       
       {/* Stats Board - Classic Cards */}
       <div className="grid grid-cols-3 gap-3">
