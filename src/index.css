@@ -35,6 +35,17 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* PWA safe area support */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent horizontal scroll on mobile */
+  #root {
+    width: 100%;
+    overflow-x: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
