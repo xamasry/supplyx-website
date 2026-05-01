@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { SupplierStoreProduct } from '../../types';
-import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { cn } from '../../lib/utils';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 import { CATEGORIES as APP_CATEGORIES } from '../../constants';
 
@@ -31,6 +32,8 @@ export default function ManageCatalog() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SupplierStoreProduct | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -45,6 +48,12 @@ export default function ManageCatalog() {
 
   useEffect(() => {
     if (!auth.currentUser) return;
+
+    const fetchProfile = async () => {
+      const snap = await getDoc(doc(db, 'users', auth.currentUser!.uid));
+      if (snap.exists()) setUserData(snap.data());
+    };
+    fetchProfile();
 
     const q = query(
       collection(db, 'products'),
@@ -66,6 +75,13 @@ export default function ManageCatalog() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
+
+    // Check for Premium status
+    if (userData?.subscriptionTier !== 'premium') {
+      toast.error('إضافة المنتجات للكتالوج متاحة فقط لمشتركي الباقة المميزة (Premium)');
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
 
     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
     const supplierName = userDoc.exists() ? userDoc.data().businessName : auth.currentUser.displayName;
@@ -435,6 +451,13 @@ export default function ManageCatalog() {
           </div>
         )}
       </AnimatePresence>
+
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="supplier"
+        currentTier={userData?.subscriptionTier || 'standard'}
+      />
     </div>
   );
 }

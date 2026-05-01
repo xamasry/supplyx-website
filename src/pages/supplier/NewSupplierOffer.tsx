@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Upload, Percent, Loader2, ImagePlus } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -6,9 +6,12 @@ import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/fires
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 import { convertArabicNumerals, resizeImage } from '../../lib/utils';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 export default function NewSupplierOffer() {
   const navigate = useNavigate();
+  const [userData, setUserData] = useState<any>(null);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -17,6 +20,15 @@ export default function NewSupplierOffer() {
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('كيلو');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!auth.currentUser) return;
+      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (snap.exists()) setUserData(snap.data());
+    };
+    fetchProfile();
+  }, []);
 
   const calcDiscount = () => {
     if(!originalPrice || !offerPrice) return 0;
@@ -58,15 +70,16 @@ export default function NewSupplierOffer() {
 
     setLoading(true);
     try {
-      const supplierSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      const sData = supplierSnap.exists() ? supplierSnap.data() : {};
-
-      // RESTRICTION: Only Premium suppliers can create offers
-      if (sData.subscriptionTier !== 'premium') {
-        toast.error('عذراً، خدمة إضافة العروض الترويجية متاحة فقط لمشتركي الباقة المميزة (Premium)');
+      // RESTRICTION: Only Premium suppliers can publish offers
+      if (userData?.subscriptionTier !== 'premium') {
+        toast.error('عذراً، لا يمكن نشر العروض الترويجية إلا لمشتركي الباقة المميزة (Premium)');
+        setIsSubscriptionModalOpen(true);
         setLoading(false);
         return;
       }
+
+      const supplierSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const sData = supplierSnap.exists() ? supplierSnap.data() : {};
 
       const discountVal = Math.round(((origPrice - offPrice) / origPrice) * 100);
       const category = CATEGORIES.find(c => c.id === categoryId);
@@ -243,6 +256,13 @@ export default function NewSupplierOffer() {
            {loading ? 'جاري النشر...' : 'نشر العرض فوراً'}
          </button>
       </form>
+
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="supplier"
+        currentTier={userData?.subscriptionTier || 'standard'}
+      />
     </div>
   );
 }

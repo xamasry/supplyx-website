@@ -226,7 +226,14 @@ export default function RequestDetail() {
               
               <div className="flex justify-between items-start mb-3 pt-2">
                 <div className="flex flex-col gap-0.5">
-                   <h3 className="font-bold text-slate-900 leading-tight pr-2">{bid.supplierName}</h3>
+                   <div className="flex items-center gap-2">
+                     <h3 className="font-bold text-slate-900 leading-tight pr-2">{bid.supplierName}</h3>
+                     {bid.supplierTier === 'premium' && (
+                       <div className="flex items-center gap-1 bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black border border-amber-200">
+                         <Star className="w-2.5 h-2.5 fill-current" /> مورد موثق
+                       </div>
+                     )}
+                   </div>
                    {buyerLocation && bid.coordinates && (
                      <span className="text-[10px] text-[var(--color-primary)] font-bold pr-2 flex items-center gap-1">
                        <Navigation className="w-3 h-3" /> يبعد عنك {calculateDistance(buyerLocation.lat, buyerLocation.lng, bid.coordinates.lat, bid.coordinates.lng).toFixed(1)} كم

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2, Heart, Star } from 'lucide-react';
+import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2, Heart, Star, Zap, Tag } from 'lucide-react';
 import { cn, isRequestExpired, convertArabicNumerals } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -9,6 +9,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -140,6 +141,7 @@ export default function BuyerHome() {
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [orderQuantity, setOrderQuantity] = useState('1');
   const [orderAddress, setOrderAddress] = useState('');
   const [orderPhone, setOrderPhone] = useState('');
@@ -334,13 +336,12 @@ export default function BuyerHome() {
            </div>
         </section>
 
-        {/* Trusted Suppliers - ONLY for Premium Buyers or hide part of it? */}
-        {/* User said "Standard without extra benefits like seeing trusted supplier offers" */}
+        {/* Trusted Suppliers Section */}
         {userProfile?.subscriptionTier === 'premium' ? (
           <section className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto w-full">
              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-bold text-slate-900 pr-3 border-r-4 border-amber-500">موردين مميزين (Premium)</h3>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">حصري للمشتركين</span>
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">الموردين الأكثر ثقة لدينا</span>
              </div>
              <div className="flex overflow-x-auto gap-4 py-2 hide-scrollbar">
                {suppliers.map(s => (
@@ -363,11 +364,16 @@ export default function BuyerHome() {
              </div>
           </section>
         ) : (
-          <section className="bg-slate-50 rounded-[2rem] p-6 border-2 border-dashed border-slate-200 max-w-2xl mx-auto w-full text-center">
-             <Star className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-             <h3 className="text-sm font-bold text-slate-900 mb-1">الموردين المميزين متاحين للمشتركين فقط</h3>
-             <p className="text-[10px] text-slate-500 mb-4">اشترك في الباقة المميزة (Premium) للوصول لأفضل الموردين الموثوقين والعروض الحصرية.</p>
-             <Link to="/buyer/settings?tab=subscription" className="inline-block bg-amber-500 text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-sm">اشترك الآن</Link>
+          <section className="bg-amber-50 rounded-[2rem] p-8 border-2 border-dashed border-amber-200 max-w-2xl mx-auto w-full text-center">
+             <Star className="w-10 h-10 text-amber-400 mx-auto mb-3 animate-bounce" />
+             <h3 className="text-base font-bold text-slate-900 mb-2">الموردين الموثوقين متاحين للمشتركين فقط</h3>
+             <p className="text-xs text-slate-600 mb-6 leading-relaxed">قم بترقية حسابك للباقة المميزة (Premium) للوصول لقائمة الموردين الموثوقين والحصول على عروض حصرية وموثقة.</p>
+             <button 
+               onClick={() => setIsSubscriptionModalOpen(true)}
+               className="inline-flex items-center gap-2 bg-amber-500 text-white font-black px-6 py-3 rounded-2xl shadow-lg shadow-amber-500/20 hover:scale-105 transition-transform"
+             >
+               <Zap className="w-4 h-4" /> طور باقتك الآن
+             </button>
           </section>
         )}
 
@@ -377,45 +383,52 @@ export default function BuyerHome() {
             <h3 className="text-base font-black text-slate-900">أقوى العروض الحالية</h3>
             <Link to="/buyer/offers" className="text-xs text-[var(--color-primary)] font-bold">شاهد الكل</Link>
           </div>
-          <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar px-2">
-            {offers.map(offer => (
-              <div 
-                key={offer.id} 
-                className="min-w-[260px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all shrink-0"
-              >
-                <div className="h-32 bg-slate-100 relative">
-                  <img src={offer.image} className="w-full h-full object-cover" />
-                  <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">-{offer.discount}</div>
-                  {offer.isExclusive && (
-                    <div className="absolute top-2 left-2 bg-amber-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-lg shadow-sm">حصري Premium</div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{offer.title}</h4>
-                  <div className="flex justify-between items-end mt-3">
-                    <div>
-                      <span className="text-rose-500 font-black text-lg">{offer.offerPrice} <span className="text-[10px]">جم</span></span>
-                    </div>
-                    {offer.isExclusive && userProfile?.subscriptionTier !== 'premium' ? (
-                       <button 
-                        onClick={() => toast.error('هذا عرض حصري لأعضاء الباقة المميزة')}
-                        className="bg-slate-200 text-slate-400 text-[10px] font-bold px-4 py-2 rounded-xl cursor-not-allowed"
-                      >
-                        ترقية للطلب
-                      </button>
-                    ) : (
+
+          {userProfile?.subscriptionTier === 'premium' ? (
+            <div className="flex overflow-x-auto gap-4 pb-4 hide-scrollbar px-2">
+              {offers.map(offer => (
+                <div 
+                  key={offer.id} 
+                  className="min-w-[260px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all shrink-0"
+                >
+                  <div className="h-32 bg-slate-100 relative">
+                    <img src={offer.image} className="w-full h-full object-cover" />
+                    <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">-{offer.discount}</div>
+                    {offer.isExclusive && (
+                      <div className="absolute top-2 left-2 bg-amber-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-lg shadow-sm">حصري Premium</div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{offer.title}</h4>
+                    <div className="flex justify-between items-end mt-3">
+                      <div>
+                        <span className="text-rose-500 font-black text-lg">{offer.offerPrice} <span className="text-[10px]">جم</span></span>
+                      </div>
                       <button 
                         onClick={() => { setSelectedOffer(offer); setShowOrderModal(true); requestLocation(); }}
                         className="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl border border-slate-800 hover:bg-slate-800"
                       >
                         اطلب الآن
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-slate-900 rounded-[2rem] p-8 mx-2 text-center relative overflow-hidden group">
+               <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500 blur-[60px] opacity-20" />
+               <Tag className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+               <h3 className="text-white font-bold mb-2">أقوى العروض الحالية مخصصة للـ Premium</h3>
+               <p className="text-slate-400 text-[10px] mb-6">احصل على خصومات تصل لـ 50% من كبار الموردين عند اشتراكك في باقة الـ Premium.</p>
+               <button 
+                 onClick={() => setIsSubscriptionModalOpen(true)}
+                 className="inline-block bg-white text-slate-900 text-xs font-black px-6 py-2.5 rounded-xl hover:bg-amber-500 hover:text-white transition-colors"
+               >
+                 اشترك لتشاهد العروض
+               </button>
+            </div>
+          )}
         </section>
       </div>
 
@@ -495,6 +508,13 @@ export default function BuyerHome() {
           </div>
         </div>
       )}
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="buyer"
+        currentTier={userProfile?.subscriptionTier || 'standard'}
+      />
     </div>
   );
 }

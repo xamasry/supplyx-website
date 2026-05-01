@@ -489,23 +489,19 @@ function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any
             </div>
           </div>
           <button 
-            disabled={!!isOrdering || (offer.isExclusive && userProfile?.subscriptionTier !== 'premium')}
+            disabled={!!isOrdering}
             onClick={() => handleOrder()}
             className={cn(
               "px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2",
-              offer.isExclusive && userProfile?.subscriptionTier !== 'premium'
-                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                : "bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+              "bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
             )}
           >
             {isOrdering === offer.id ? (
               <Loader2 className="w-4 h-4 animate-spin" />
-            ) : offer.isExclusive && userProfile?.subscriptionTier !== 'premium' ? (
-              'ترقية'
             ) : (
               <Flame className="w-4 h-4" />
             )}
-            {isOrdering === offer.id ? 'جاري الطلب...' : (offer.isExclusive && userProfile?.subscriptionTier !== 'premium' ? '' : 'طلب الآن')}
+            {isOrdering === offer.id ? 'جاري الطلب...' : 'طلب الآن'}
           </button>
         </div>
       </div>

@@ -62,25 +62,16 @@ export default function SupplierOffers() {
           <h1 className="text-2xl font-bold font-display text-slate-900">إدارة العروض</h1>
           <p className="text-slate-500 text-sm mt-1">وفر خصومات لجذب المزيد من الطلبات</p>
         </div>
-        {user?.subscriptionTier === 'premium' ? (
-          <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
-             <Plus className="w-4 h-4" /> عرض جديد
-          </Link>
-        ) : (
-          <button 
-            onClick={() => toast.error('خدمة إضافة العروض متاحة فقط لمشتركي الباقة المميزة (Premium)')}
-            className="bg-slate-200 text-slate-400 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 cursor-not-allowed"
-          >
-             <Plus className="w-4 h-4" /> عرض جديد
-          </button>
-        )}
+        <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
+           <Plus className="w-4 h-4" /> عرض جديد
+        </Link>
       </header>
 
       {user?.subscriptionTier !== 'premium' && (
         <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl mb-6 flex items-center justify-between">
            <div className="space-y-1">
               <p className="text-sm font-bold text-amber-900">أنت حالياً على الباقة العادية (Standard)</p>
-              <p className="text-xs text-amber-700 font-medium">قم بالترقية للباقة المميزة للتمكن من إضافة العروض الترويجية والحصول على أولوية الظهور.</p>
+              <p className="text-xs text-amber-700 font-medium">يمكنك إضافة عروضك الآن! قم بالترقية للباقة المميزة لاحقاً للحصول على أولوية الظهور وشارة التوثيق المميزة.</p>
            </div>
         </div>
       )}

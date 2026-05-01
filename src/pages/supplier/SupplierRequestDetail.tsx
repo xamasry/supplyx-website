@@ -101,6 +101,9 @@ export default function SupplierRequestDetail() {
     setSubmitting(true);
     const bidsCollectionPath = `requests/${id}/bids`;
     try {
+      const supplierDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const sData = supplierDoc.exists() ? supplierDoc.data() : {};
+
       if (request.requestType === 'bulk') {
         if (request.items && Object.keys(itemsPrices).length !== request.items.length) {
           toast.error('يرجى تسعير جميع المنتجات المطلوبة');
@@ -115,6 +118,8 @@ export default function SupplierRequestDetail() {
           price: Number(price),
           deliveryTime: Number(deliveryTime),
           notes,
+          supplierTier: sData.subscriptionTier || 'standard',
+          isVerified: sData.isVerified || false,
           itemsPrices: request.requestType === 'bulk' ? itemsPrices : null,
           updatedAt: serverTimestamp(),
           coordinates: supplierLocation ? { lat: supplierLocation.lat, lng: supplierLocation.lng } : null
@@ -125,7 +130,9 @@ export default function SupplierRequestDetail() {
         await addDoc(collection(db, bidsCollectionPath), {
           requestId: id,
           supplierId: auth.currentUser.uid,
-          supplierName: auth.currentUser.displayName || 'مورد بنها',
+          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
+          supplierTier: sData.subscriptionTier || 'standard',
+          isVerified: sData.isVerified || false,
           price: Number(price),
           deliveryTime: Number(deliveryTime),
           notes,
