@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Flame, Tag, Loader2, CheckCircle2, X, MapPin, Phone, ShoppingBag } from 'lucide-react';
+import { Search, Flame, Tag, Loader2, CheckCircle2, X, MapPin, Phone, ShoppingBag, Zap, Star } from 'lucide-react';
 import { cn, convertArabicNumerals } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
 
 import { CATEGORIES } from '../../constants';
+import SubscriptionModal from '../../components/SubscriptionModal';
 
 export default function BuyerOffers() {
   const [offers, setOffers] = useState<any[]>([]);
@@ -75,6 +76,7 @@ export default function BuyerOffers() {
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [orderQuantity, setOrderQuantity] = useState('1');
   const [orderAddress, setOrderAddress] = useState('');
   const [orderPhone, setOrderPhone] = useState('');
@@ -223,6 +225,25 @@ export default function BuyerOffers() {
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin mb-2" />
           <p className="text-sm font-bold">جاري تحميل العروض...</p>
+        </div>
+      ) : userProfile?.subscriptionTier !== 'premium' ? (
+        <div className="bg-slate-900 rounded-[2.5rem] p-12 text-center relative overflow-hidden my-8">
+           <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500 blur-[100px] opacity-20" />
+           <div className="relative z-10">
+             <div className="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/20 rotate-3">
+                <Flame className="w-10 h-10 text-white" />
+             </div>
+             <h2 className="text-2xl font-black text-white mb-3">عروض بنها بريميوم (Premium)</h2>
+             <p className="text-slate-400 text-sm mb-8 max-w-md mx-auto leading-relaxed">
+               تصفح أقوى العروض والخصومات الحصرية من كبار الموردين الموثقين. هذه الخدمة متاحة فقط لمشتركي الباقة المميزة.
+             </p>
+             <button 
+               onClick={() => setIsSubscriptionModalOpen(true)}
+               className="inline-flex items-center gap-3 bg-amber-500 text-white font-black px-10 py-4 rounded-2xl shadow-xl shadow-amber-500/30 hover:scale-105 transition-transform"
+             >
+               <Zap className="w-5 h-5 fill-current" /> ترقية حسابك للوصول للعروض
+             </button>
+           </div>
         </div>
       ) : (
         <div className="space-y-12">
@@ -431,6 +452,13 @@ export default function BuyerOffers() {
           </div>
         </div>
       )}
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        userRole="buyer"
+        currentTier={userProfile?.subscriptionTier || 'standard'}
+      />
     </div>
   );
 }
@@ -466,9 +494,7 @@ function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any
         </div>
 
         <div className="absolute top-3 right-3 bg-[var(--color-danger)] text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg z-10">خصم {offer.discount}</div>
-        {offer.isExclusive && (
-          <div className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg z-10 border border-white">حصري PREMIUM ✨</div>
-        )}
+        <div className="absolute top-3 left-3 bg-amber-500 text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-lg z-10 border border-white">حصري PREMIUM ✨</div>
         <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-bold px-2 py-1 rounded shadow-sm z-10 border border-slate-200">⏳ عرض محدود</div>
       </div>
       <div className="p-5 flex-1 flex flex-col">
