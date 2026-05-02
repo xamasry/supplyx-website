@@ -1157,10 +1157,10 @@ export default function AdminDashboard() {
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[600px]">
                        <h3 className="font-bold text-white mb-4 flex items-center justify-between">
                           <span>طلبات قيد التنفيذ</span>
-                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => r.status === 'active' && !!r.supplierId).length}</span>
+                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => r.status === 'accepted').length}</span>
                        </h3>
                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                          {requests.filter(r => r.status === 'active' && !!r.supplierId).map(req => (
+                          {requests.filter(r => r.status === 'accepted').map(req => (
                             <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-blue-500/50 cursor-pointer transition-all relative">
                                <div className="absolute top-0 right-0 w-1 h-full bg-blue-500 rounded-r-xl"></div>
                                <div className="flex justify-between items-start mb-2 pl-2">
@@ -1173,7 +1173,7 @@ export default function AdminDashboard() {
                                </div>
                             </div>
                           ))}
-                          {requests.filter(r => r.status === 'active' && !!r.supplierId).length === 0 && (
+                          {requests.filter(r => r.status === 'accepted').length === 0 && (
                             <div className="text-center py-10 text-slate-500 italic text-sm">لا يوجد عمليات جارية حالياً</div>
                           )}
                        </div>
@@ -1185,7 +1185,7 @@ export default function AdminDashboard() {
                           <span>أحدث النشاطات</span>
                        </h3>
                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                          {requests.filter(r => r.status !== 'active').slice(0,20).map(req => (
+                          {requests.filter(r => ['delivered', 'cancelled', 'refunded'].includes(r.status)).slice(0,20).map(req => (
                             <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-slate-500/50 cursor-pointer transition-all">
                                <div className="flex justify-between items-start mb-2">
                                  <span className="font-bold text-sm text-white">{req.productName}</span>
