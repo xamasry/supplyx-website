@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star, CheckCircle2 } from 'lucide-react';
+import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star, CheckCircle2, Users } from 'lucide-react';
 import { cn, calculateDistance, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -248,8 +248,13 @@ export default function SupplierHome() {
                 </div>
 
                 <div className="flex items-center justify-between border-t border-slate-50 pt-4">
-                  <span className="text-[10px] font-bold text-slate-400">{req.bidsCount || 0} عروض مقدمة</span>
-                  <Link to={`/supplier/request/${req.id}`} className="px-6 py-2.5 bg-green-600 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-green-700 transition-all active:scale-95">
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-[10px] font-bold flex items-center gap-1", req.isUrgent ? "text-rose-600 bg-rose-50 px-2 py-1 rounded-lg" : "text-slate-400")}>
+                      <Users size={12} />
+                      {req.bidsCount || 0} منافسين
+                    </span>
+                  </div>
+                  <Link to={`/supplier/request/${req.id}`} className={cn("px-6 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all active:scale-95", req.isUrgent ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-green-600 text-white hover:bg-green-700")}>
                     {req.hasBid ? 'تعديل عرضك' : 'قدّم عرضك'}
                   </Link>
                 </div>

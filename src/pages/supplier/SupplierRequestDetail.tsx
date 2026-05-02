@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation, Package } from 'lucide-react';
+import { ChevronRight, Clock, MapPin, Send, Loader2, Navigation, Package, Users } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import toast from 'react-hot-toast';
@@ -217,6 +217,16 @@ export default function SupplierRequestDetail() {
             )}
             <h2 className="font-display font-bold text-2xl text-slate-900">{request.productName}</h2>
           </div>
+          
+          {request.isUrgent && (
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3 flex flex-col items-center justify-center min-w-[80px]">
+              <span className="text-[10px] font-bold text-rose-600 block mb-1">المنافسين</span>
+              <div className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-rose-500" />
+                <span className="text-xl font-black text-rose-700">{request.bidsCount || 0}</span>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
