@@ -7,6 +7,7 @@ import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import ImageUpload from '../../components/ui/ImageUpload';
 
 export default function BuyerProfile() {
   const navigate = useNavigate();
@@ -26,7 +27,8 @@ export default function BuyerProfile() {
   const [editFormData, setEditFormData] = useState({
     businessName: '',
     phone: '',
-    address: ''
+    address: '',
+    profileImageUrl: ''
   });
   
   const [paymentFormData, setPaymentFormData] = useState({
@@ -93,7 +95,8 @@ export default function BuyerProfile() {
       setEditFormData({
         businessName: profile.businessName || '',
         phone: profile.phone || '',
-        address: profile.address || ''
+        address: profile.address || '',
+        profileImageUrl: profile.profileImageUrl || ''
       });
     }
   }, [isEditModalOpen, profile]);
@@ -169,7 +172,7 @@ export default function BuyerProfile() {
           <Store />
         </div>
         <div className="w-16 h-16 rounded-full border-2 border-white/20 bg-white/10 flex items-center justify-center overflow-hidden shrink-0 z-10">
-          <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.businessName || "U")}&background=fff&color=22C55E`} alt="Logo" className="w-full h-full object-cover" />
+          <img src={profile?.profileImageUrl || user?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.businessName || "U")}&background=fff&color=22C55E`} alt="Logo" className="w-full h-full object-cover" />
         </div>
         <div className="z-10 flex-1">
           <h2 className="font-bold text-2xl font-display">{profile?.businessName || user?.displayName || 'مستخدم جديد'}</h2>
@@ -316,6 +319,21 @@ export default function BuyerProfile() {
                   onChange={e => setEditFormData({...editFormData, address: e.target.value})}
                   className="w-full border border-slate-300 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-[var(--color-primary)] outline-none resize-none"
                   required
+                />
+              </div>
+               <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">صورة الملف الشخصي / شعار المطعم</label>
+                <ImageUpload 
+                  value={editFormData.profileImageUrl}
+                  onChange={(val) => setEditFormData({...editFormData, profileImageUrl: val})}
+                  onRemove={() => setEditFormData({...editFormData, profileImageUrl: ''})}
+                />
+                <input 
+                  type="url" 
+                  value={editFormData.profileImageUrl}
+                  onChange={e => setEditFormData({...editFormData, profileImageUrl: e.target.value})}
+                  className="w-full border border-slate-300 rounded-2xl py-2 px-4 mt-2 text-xs text-slate-400 outline-none"
+                  placeholder="أو رابط الصورة المباشر (Logo URL)"
                 />
               </div>
               <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-lg disabled:opacity-50">

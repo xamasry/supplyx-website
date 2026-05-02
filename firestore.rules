@@ -138,6 +138,15 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isSignedIn() && existing().supplierId == request.auth.uid);
     }
 
+    match /{path=**}/bids/{bidId} {
+      allow list: if isSignedIn() && (
+        resource.data.supplierId == request.auth.uid || 
+        isAdmin() ||
+        isSuperAdmin()
+      );
+      allow get: if isSignedIn();
+    }
+
     match /requests/{requestId}/bids/{bidId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidId(bidId) && incoming().supplierId == request.auth.uid;

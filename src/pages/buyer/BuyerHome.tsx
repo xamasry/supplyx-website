@@ -51,7 +51,7 @@ export default function BuyerHome() {
       const qSuppliers = query(
         collection(db, 'users'), 
         where('role', '==', 'supplier'), 
-        where('isVerified', '==', true),
+        where('isTrusted', '==', true),
         limit(12)
       );
       unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
@@ -348,16 +348,18 @@ export default function BuyerHome() {
         </section>
 
         {/* Trusted Suppliers Section */}
-        {userProfile?.subscriptionTier === 'premium' ? (
-          <section className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto w-full">
-             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-slate-900 pr-3 border-r-4 border-amber-500">موردين مميزين (Premium)</h3>
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">الموردين الأكثر ثقة لدينا</span>
-             </div>
-             <div className="flex overflow-x-auto gap-4 py-2 hide-scrollbar">
-               {suppliers.map(s => (
+        <section className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200 max-w-2xl mx-auto w-full">
+           <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900 pr-3 border-r-4 border-emerald-500">موردين موثوقين</h3>
+              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">الشركات الأكثر مصداقية</span>
+           </div>
+           <div className="flex overflow-x-auto gap-4 py-2 hide-scrollbar">
+             {loadingSuppliers ? (
+               <div className="flex items-center justify-center w-full py-4"><Loader2 className="animate-spin text-slate-400" /></div>
+             ) : suppliers.length > 0 ? (
+               suppliers.map(s => (
                  <Link key={s.id} to={`/buyer/supplier/${s.id}`} className="flex flex-col items-center min-w-[100px] group">
-                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 group-hover:border-amber-500 transition-all relative">
+                   <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 group-hover:border-emerald-500 transition-all relative">
                      <img 
                       src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} 
                       alt={s.businessName} 
@@ -368,25 +370,20 @@ export default function BuyerHome() {
                          <Star size={8} fill="currentColor" />
                        </div>
                      )}
+                     {s.isTrusted && (
+                       <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white p-1 rounded-full border-2 border-white shadow-sm">
+                         <CheckCircle2 size={8} />
+                       </div>
+                     )}
                    </div>
                    <p className="text-[10px] font-bold text-slate-800 mt-2 text-center line-clamp-1">{s.businessName}</p>
                  </Link>
-               ))}
-             </div>
-          </section>
-        ) : (
-          <section className="bg-amber-50 rounded-[2rem] p-8 border-2 border-dashed border-amber-200 max-w-2xl mx-auto w-full text-center">
-             <Star className="w-10 h-10 text-amber-400 mx-auto mb-3 animate-bounce" />
-             <h3 className="text-base font-bold text-slate-900 mb-2">الموردين الموثوقين متاحين للمشتركين فقط</h3>
-             <p className="text-xs text-slate-600 mb-6 leading-relaxed">قم بترقية حسابك للباقة المميزة (Premium) للوصول لقائمة الموردين الموثوقين والحصول على عروض حصرية وموثقة.</p>
-             <button 
-               onClick={() => setIsSubscriptionModalOpen(true)}
-               className="inline-flex items-center gap-2 bg-amber-500 text-white font-black px-6 py-3 rounded-2xl shadow-lg shadow-amber-500/20 hover:scale-105 transition-transform"
-             >
-               <Zap className="w-4 h-4" /> طور باقتك الآن
-             </button>
-          </section>
-        )}
+               ))
+             ) : (
+               <div className="text-center w-full py-4 text-xs text-slate-400 italic">لا يوجد موردين موثوقين حالياً</div>
+             )}
+           </div>
+        </section>
 
         {/* Daily Offers */}
         <section className="max-w-2xl mx-auto w-full pb-10">

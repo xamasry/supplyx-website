@@ -7,6 +7,7 @@ import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection
 import { cn } from '../../lib/utils';
 import InvoicesAndReportsModal from '../../components/InvoicesAndReportsModal';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import ImageUpload from '../../components/ui/ImageUpload';
 
 export default function SupplierProfile() {
   const navigate = useNavigate();
@@ -412,16 +413,21 @@ export default function SupplierProfile() {
                   placeholder="مثال: متخصصون في توريد اللحوم المجمدة بجودة عالية..."
                 />
               </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">رابط شعار المتجر (Logo URL)</label>
-                <input 
-                  type="url" 
-                  value={editFormData.profileImageUrl}
-                  onChange={e => setEditFormData({...editFormData, profileImageUrl: e.target.value})}
-                  className="w-full border border-slate-300 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
-                  placeholder="https://example.com/logo.png"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-bold text-slate-700 mb-2">شعار المتجر / الصورة الشخصية</label>
+                 <ImageUpload 
+                   value={editFormData.profileImageUrl}
+                   onChange={(val) => setEditFormData({...editFormData, profileImageUrl: val})}
+                   onRemove={() => setEditFormData({...editFormData, profileImageUrl: ''})}
+                 />
+                 <input 
+                   type="url" 
+                   value={editFormData.profileImageUrl}
+                   onChange={e => setEditFormData({...editFormData, profileImageUrl: e.target.value})}
+                   className="w-full border border-slate-300 rounded-2xl py-2 px-4 mt-2 text-xs text-slate-400 outline-none"
+                   placeholder="أو رابط شعار المتجر (Logo URL)"
+                 />
+               </div>
               <button type="submit" className="w-full py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-lg">حفظ التغييرات</button>
             </form>
           </div>

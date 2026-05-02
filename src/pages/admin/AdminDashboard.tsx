@@ -1157,23 +1157,26 @@ export default function AdminDashboard() {
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[600px]">
                        <h3 className="font-bold text-white mb-4 flex items-center justify-between">
                           <span>طلبات قيد التنفيذ</span>
-                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => r.status === 'accepted').length}</span>
+                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status)).length}</span>
                        </h3>
                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                          {requests.filter(r => r.status === 'accepted').map(req => (
+                          {requests.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status)).map(req => (
                             <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-blue-500/50 cursor-pointer transition-all relative">
                                <div className="absolute top-0 right-0 w-1 h-full bg-blue-500 rounded-r-xl"></div>
                                <div className="flex justify-between items-start mb-2 pl-2">
                                  <span className="font-bold text-sm text-white">{req.productName}</span>
-                                 <span className="font-bold text-emerald-500 text-xs">{req.price} ج.م</span>
+                                 <span className="font-bold text-emerald-500 text-xs">{req.price || req.totalAmount} ج.م</span>
                                </div>
                                <div className="text-[10px] text-slate-400 space-y-1 mb-2">
                                  <p>المشتري: <span className="text-slate-300">{req.buyerName}</span></p>
                                  <p>المورد: <span className="text-purple-300">{req.supplierName}</span></p>
+                                 <p>الحالة: <span className="text-blue-400">
+                                   {req.status === 'accepted' ? 'تم القبول' : req.status === 'preparing' ? 'جاري التحضير' : 'جاري التوصيل'}
+                                 </span></p>
                                </div>
                             </div>
                           ))}
-                          {requests.filter(r => r.status === 'accepted').length === 0 && (
+                          {requests.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status)).length === 0 && (
                             <div className="text-center py-10 text-slate-500 italic text-sm">لا يوجد عمليات جارية حالياً</div>
                           )}
                        </div>
@@ -1197,7 +1200,7 @@ export default function AdminDashboard() {
                                    <span className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded text-[10px] font-bold">مكتمل</span>
                                  ) : req.status === 'cancelled' || req.status === 'refunded' ? (
                                    <span className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold">ملغي / مسترجع</span>
-                                 ) : req.status === 'accepted' ? (
+                                 ) : ['accepted', 'preparing', 'shipped'].includes(req.status) ? (
                                    <span className="bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded text-[10px] font-bold">قيد التنفيذ</span>
                                  ) : (
                                    <span className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded text-[10px] font-bold">طلب جديد</span>

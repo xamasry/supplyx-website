@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, orderBy, collectionGroup } from 'firebase/firestore';
 import { SupplierStoreProduct } from '../../types';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import ImageUpload from '../../components/ui/ImageUpload';
 
 import { CATEGORIES as APP_CATEGORIES } from '../../constants';
 
@@ -26,7 +27,9 @@ const CATEGORY_IMAGES: Record<string, string> = {
 
 export default function ManageCatalog() {
   const [products, setProducts] = useState<SupplierStoreProduct[]>([]);
+  const [bids, setBids] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'products' | 'offers'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,14 +66,48 @@ export default function ManageCatalog() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupplierStoreProduct[];
       setProducts(data);
-      setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
+    });
+
+    const qBids = query(
+      collectionGroup(db, 'bids'),
+      where('supplierId', '==', auth.currentUser.uid)
+    );
+
+    const unsubBids = onSnapshot(qBids, (snapshot) => {
+      const b = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        path: doc.ref.path,
+        ...doc.data() 
+      }));
+      // Sort in memory to include docs without createdAt
+      setBids(b.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.toMillis?.() || a.createdAt || 0;
+        const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
+        return timeB - timeA;
+      }));
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'bids');
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubBids();
+    };
   }, []);
+
+  const handleDeleteBid = async (bid: any) => {
+    if (!window.confirm('هل أنت متأكد من سحب هذا العرض؟')) return;
+    try {
+      await deleteDoc(doc(db, bid.path));
+      toast.success('تم سحب العرض بنجاح');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, bid.path);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +239,33 @@ export default function ManageCatalog() {
         </button>
       </div>
 
-      {/* Search and Filters */}
+      {/* Tabs */}
+      <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+        <button 
+          onClick={() => setActiveTab('products')}
+          className={cn(
+            "flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all",
+            activeTab === 'products' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+          )}
+        >
+          <Package size={18} />
+          المنتجات ({products.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab('offers')}
+          className={cn(
+            "flex-1 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all",
+            activeTab === 'offers' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+          )}
+        >
+          <Tag size={18} />
+          العروض المقدمة ({bids.length})
+        </button>
+      </div>
+
+      {activeTab === 'products' ? (
+        <>
+          {/* Search and Filters */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -303,6 +366,84 @@ export default function ManageCatalog() {
           </div>
         )}
       </div>
+    </>
+  ) : (
+        /* Offers List */
+        <div className="space-y-4">
+          {bids.length > 0 ? (
+            bids.map(bid => (
+              <div key={bid.id} className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-[var(--color-primary)]">
+                       <Package size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900">{bid.productName}</h3>
+                      <p className="text-[10px] font-bold text-slate-400">طلب من: {bid.buyerName || 'مشتري'}</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-lg font-black text-[var(--color-primary)] font-display">{bid.price} ج.م</p>
+                    <p className="text-[10px] font-bold text-slate-400">سعر الوحدة</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-2">
+                     <Clock className="w-4 h-4 text-slate-400" />
+                     <div className="text-right">
+                       <p className="text-[10px] font-bold text-slate-400">مدة التوصيل</p>
+                       <p className="text-xs font-bold text-slate-700">{bid.deliveryDays} أيام</p>
+                     </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <Tag className="w-4 h-4 text-slate-400" />
+                     <div className="text-right">
+                       <p className="text-[10px] font-bold text-slate-400">الكمية</p>
+                       <p className="text-xs font-bold text-slate-700">{bid.quantity || 1} {bid.unit || 'وحدة'}</p>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pt-2">
+                   <div className={cn(
+                     "px-3 py-1 rounded-lg text-[10px] font-bold",
+                     bid.status === 'accepted' ? "bg-green-50 text-green-600" : 
+                     bid.status === 'rejected' ? "bg-red-50 text-red-600" : 
+                     "bg-amber-50 text-amber-600"
+                   )}>
+                     {bid.status === 'accepted' ? 'تم القبول' : bid.status === 'rejected' ? 'مرفوض' : 'قيد الانتظار'}
+                   </div>
+                   
+                   <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleDeleteBid(bid)}
+                        className="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors"
+                      >
+                        سحب العرض
+                      </button>
+                      <button 
+                        onClick={() => window.location.href = `/supplier/request/${bid.requestId}`}
+                        className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors"
+                      >
+                        تعديل / تفاصيل
+                      </button>
+                   </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200">
+              <Send size={48} className="mx-auto text-slate-200 mb-4" />
+              <p className="text-slate-500 font-bold">لم تقم بتقديم أي عروض بعد</p>
+              <button onClick={() => window.location.href = '/supplier'} className="mt-4 text-[var(--color-primary)] font-black text-sm hover:underline">
+                تصفح طلبات المشترين الآن
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal Tooltip Replacement (Simple React Modal logic) */}
       <AnimatePresence>
@@ -394,21 +535,20 @@ export default function ManageCatalog() {
                     </select>
                   </div>
 
-                  <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200">
-                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-300">
-                      <ImageIcon size={24} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-slate-900">صورة المنتج</p>
-                      <p className="text-[10px] font-bold text-slate-400">يمكنك إضافة رابط صورة خارجي (قريباً سيتاح الرفع المباشر)</p>
-                      <input 
-                        type="url"
-                        placeholder="https://..."
-                        value={formData.image}
-                        onChange={(e) => setFormData({...formData, image: e.target.value})}
-                        className="mt-2 w-full bg-white border-slate-100 rounded-lg text-[10px] py-1 px-2 focus:ring-1 focus:ring-[var(--color-primary)]"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">صورة المنتج</label>
+                    <ImageUpload 
+                      value={formData.image}
+                      onChange={(val) => setFormData({...formData, image: val})}
+                      onRemove={() => setFormData({...formData, image: ''})}
+                    />
+                    <input 
+                      type="url"
+                      placeholder="أو رابط صورة خارجي (https://...)"
+                      value={formData.image}
+                      onChange={(e) => setFormData({...formData, image: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-[var(--color-primary)]"
+                    />
                   </div>
 
                   <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer">

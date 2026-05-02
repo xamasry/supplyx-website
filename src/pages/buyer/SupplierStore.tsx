@@ -60,6 +60,11 @@ export default function SupplierStore() {
     );
 
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
+      // Only set products if supplier is premium
+      if (supplier && supplier.subscriptionTier !== 'premium') {
+        setProducts([]);
+        return;
+      }
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupplierStoreProduct[];
       setProducts(data);
     });
@@ -305,65 +310,75 @@ export default function SupplierStore() {
 
       {/* Product Groups */}
       <div className="space-y-10">
-        {Object.entries(groupedProducts).map(([category, catProducts]) => (
-          <div key={category} className="space-y-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-display font-bold text-slate-900">{category}</h2>
-              <div className="flex-1 h-px bg-slate-200"></div>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {catProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-[1.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-slate-50 flex items-center justify-center text-slate-200 overflow-hidden">
-                    <img 
-                      src={product.image || CATEGORY_IMAGES[product.category] || CATEGORY_IMAGES['أخرى']} 
-                      alt={product.name} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                    />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-slate-900 text-sm line-clamp-1">{product.name}</h3>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">/ {product.unit}</p>
-                    
-                    <div className="mt-3 flex items-center justify-between">
-                       <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                         {product.price}ج
-                       </span>
-                       
-                       <div className="flex items-center bg-slate-50 rounded-xl p-0.5">
-                          {cart[product.id] ? (
-                            <>
-                              <button 
-                                onClick={() => updateCart(product, -1)}
-                                className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-500"
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <span className="w-6 text-center text-xs font-bold text-slate-900">{cart[product.id].quantity}</span>
+        {supplier && supplier.subscriptionTier !== 'premium' ? (
+          <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-12 text-center">
+            <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-slate-900 mb-2">كتالوج المنتج متاح للمشتركين المميزين فقط</h3>
+            <p className="text-sm text-slate-500 max-w-sm mx-auto">هذا المورد لم يقم بترقية حسابه للباقة المميزة بعد، لذا لا يمكن عرض قائمة منتجاته للجمهور حالياً.</p>
+          </div>
+        ) : Object.entries(groupedProducts).length > 0 ? (
+          Object.entries(groupedProducts).map(([category, catProducts]) => (
+            <div key={category} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-display font-bold text-slate-900">{category}</h2>
+                <div className="flex-1 h-px bg-slate-200"></div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {catProducts.map(product => (
+                  <div key={product.id} className="bg-white rounded-[1.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-square bg-slate-50 flex items-center justify-center text-slate-200 overflow-hidden">
+                      <img 
+                        src={product.image || CATEGORY_IMAGES[product.category] || CATEGORY_IMAGES['أخرى']} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                      />
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-bold text-slate-900 text-sm line-clamp-1">{product.name}</h3>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">/ {product.unit}</p>
+                      
+                      <div className="mt-3 flex items-center justify-between">
+                         <span className="text-[var(--color-primary)] font-display font-black text-sm">
+                           {product.price}ج
+                         </span>
+                         
+                         <div className="flex items-center bg-slate-50 rounded-xl p-0.5">
+                            {cart[product.id] ? (
+                              <>
+                                <button 
+                                  onClick={() => updateCart(product, -1)}
+                                  className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-500"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span className="w-6 text-center text-xs font-bold text-slate-900">{cart[product.id].quantity}</span>
+                                <button 
+                                  onClick={() => updateCart(product, 1)}
+                                  className="w-6 h-6 flex items-center justify-center text-[var(--color-primary)]"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </>
+                            ) : (
                               <button 
                                 onClick={() => updateCart(product, 1)}
-                                className="w-6 h-6 flex items-center justify-center text-[var(--color-primary)]"
+                                className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
                               >
-                                <Plus size={14} />
+                                <Plus size={18} />
                               </button>
-                            </>
-                          ) : (
-                            <button 
-                              onClick={() => updateCart(product, 1)}
-                              className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
-                            >
-                              <Plus size={18} />
-                            </button>
-                          )}
-                       </div>
+                            )}
+                         </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <div className="text-center py-20 text-slate-400 italic">لا توجد منتجات متاحة حالياً</div>
+        )}
       </div>
 
       {/* Cart Summary Header/Button */}
