@@ -1185,7 +1185,11 @@ export default function AdminDashboard() {
                           <span>أحدث النشاطات</span>
                        </h3>
                        <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                          {requests.filter(r => ['delivered', 'cancelled', 'refunded'].includes(r.status)).slice(0,20).map(req => (
+                          {[...requests].sort((a: any, b: any) => {
+                            const dateA = a.updatedAt?.toDate?.() || a.updatedAt || a.createdAt?.toDate?.() || a.createdAt || 0;
+                            const dateB = b.updatedAt?.toDate?.() || b.updatedAt || b.createdAt?.toDate?.() || b.createdAt || 0;
+                            return new Date(dateB).getTime() - new Date(dateA).getTime();
+                          }).slice(0,30).map(req => (
                             <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-slate-500/50 cursor-pointer transition-all">
                                <div className="flex justify-between items-start mb-2">
                                  <span className="font-bold text-sm text-white">{req.productName}</span>
@@ -1193,12 +1197,15 @@ export default function AdminDashboard() {
                                    <span className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded text-[10px] font-bold">مكتمل</span>
                                  ) : req.status === 'cancelled' || req.status === 'refunded' ? (
                                    <span className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold">ملغي / مسترجع</span>
+                                 ) : req.status === 'accepted' ? (
+                                   <span className="bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded text-[10px] font-bold">قيد التنفيذ</span>
                                  ) : (
-                                   <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] font-bold">{req.status}</span>
+                                   <span className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded text-[10px] font-bold">طلب جديد</span>
                                  )}
                                </div>
                                <div className="text-[10px] text-slate-500">
-                                 {req.updatedAt ? new Date(req.updatedAt?.toDate?.() || req.updatedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : ''} - {req.supplierName || req.buyerName}
+                                 {req.updatedAt ? new Date(req.updatedAt?.toDate?.() || req.updatedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : 
+                                  req.createdAt ? new Date(req.createdAt?.toDate?.() || req.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : ''} - {req.supplierName || req.buyerName}
                                </div>
                             </div>
                           ))}
