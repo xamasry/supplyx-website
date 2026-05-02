@@ -70,9 +70,10 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Tab = 'overview' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
+type Tab = 'overview' | 'control_room' | 'analytics' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
 
 import UserDetailsModal from './UserDetailsModal';
+import RequestDetailsAdminModal from './RequestDetailsAdminModal';
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -141,6 +142,8 @@ export default function AdminDashboard() {
   const [financeTimeFilter, setFinanceTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
   const [subscriptionRequests, setSubscriptionRequests] = useState<any[]>([]);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const unsubscribes = useRef<(() => void)[]>([]);
 
@@ -966,6 +969,45 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleExportCSV = (type: 'users' | 'requests') => {
+    let dataToExport: any[] = [];
+    let headers: string[] = [];
+    
+    if (type === 'users') {
+      headers = ['الاسم', 'البريد', 'الهاتف', 'النشاط_التجاري', 'الدور', 'الحالة', 'تاريخ_الاشتراك'];
+      dataToExport = users.map(u => [
+        `"${u.name || ''}"`,
+        `"${u.email || ''}"`,
+        `"${u.phone || u.whatsappPhone || ''}"`,
+        `"${u.businessName || ''}"`,
+        `"${u.role === 'supplier' ? 'مورد' : 'مشتري'}"`,
+        `"${u.status || ''}"`,
+        `"${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ar-EG') : ''}"`
+      ]);
+    } else if (type === 'requests') {
+      headers = ['رقم_الطلب', 'المنتج', 'الكمية', 'المشتري', 'المورد', 'السعر', 'الحالة', 'التاريخ'];
+      dataToExport = requests.map(r => [
+        `"${r.id}"`,
+        `"${r.productName || ''}"`,
+        `"${r.quantity || ''} ${r.unit || ''}"`,
+        `"${r.buyerName || ''}"`,
+        `"${r.supplierName || ''}"`,
+        `"${r.totalAmount || r.price || 0}"`,
+        `"${r.status || ''}"`,
+        `"${r.createdAt ? new Date(r.createdAt?.toDate?.() || r.createdAt).toLocaleDateString('ar-EG') : ''}"`
+      ]);
+    }
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(','), ...dataToExport.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `SupplyX_${type}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -1001,6 +1043,8 @@ export default function AdminDashboard() {
 
           <nav className="space-y-1">
             <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="نظرة عامة" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+            <NavItem icon={<Zap className="w-5 h-5" />} label="غرفة العمليات" active={activeTab === 'control_room'} onClick={() => setActiveTab('control_room')} badge={stats.newRequestsCount > 0 ? stats.newRequestsCount : undefined} badgeColor="bg-emerald-500" />
+            <NavItem icon={<BarChart3 className="w-5 h-5" />} label="التحليلات التفصيلية" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
             <NavItem icon={<Users className="w-5 h-5" />} label="المستخدمين" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
             <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="العروض" active={activeTab === 'offers'} onClick={() => setActiveTab('offers')} />
             <NavItem icon={<ArrowRightLeft className="w-5 h-5" />} label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
@@ -1074,6 +1118,140 @@ export default function AdminDashboard() {
 
         <div className="p-6">
           <AnimatePresence mode="wait">
+            {activeTab === 'control_room' && (
+              <motion.div key="control_room" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                 <div className="flex items-center justify-between bg-slate-900 p-4 border border-slate-800 rounded-2xl">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                       <Zap className="w-6 h-6 text-emerald-500" />
+                       غرفة العمليات الجارية (Real-time)
+                    </h2>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Active new requests waiting for bids */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[600px]">
+                       <h3 className="font-bold text-white mb-4 flex items-center justify-between">
+                          <span>طلبات جديدة (انتظار عروض)</span>
+                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => r.status === 'active' && !r.supplierId).length}</span>
+                       </h3>
+                       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                          {requests.filter(r => r.status === 'active' && !r.supplierId).map(req => (
+                            <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-emerald-500/50 cursor-pointer transition-all">
+                               <div className="flex justify-between items-start mb-2">
+                                 <span className="font-bold text-sm text-white">{req.productName}</span>
+                                 <span className="text-[10px] text-slate-400 bg-slate-800 px-2 rounded-full">{req.requestType === 'bulk' ? 'جملة' : 'عادي'}</span>
+                               </div>
+                               <p className="text-xs text-slate-400">{req.buyerName || 'مشتري غير محدد'}</p>
+                               <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/50">
+                                 <span className="text-xs font-bold text-emerald-400 cursor-pointer hover:underline">عرض التفاصيل ←</span>
+                               </div>
+                            </div>
+                          ))}
+                          {requests.filter(r => r.status === 'active' && !r.supplierId).length === 0 && (
+                            <div className="text-center py-10 text-slate-500 italic text-sm">لا توجد طلبات جديدة حالياً</div>
+                          )}
+                       </div>
+                    </div>
+
+                    {/* In Progress */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[600px]">
+                       <h3 className="font-bold text-white mb-4 flex items-center justify-between">
+                          <span>طلبات قيد التنفيذ</span>
+                          <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-xs">{requests.filter(r => r.status === 'active' && !!r.supplierId).length}</span>
+                       </h3>
+                       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                          {requests.filter(r => r.status === 'active' && !!r.supplierId).map(req => (
+                            <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-blue-500/50 cursor-pointer transition-all relative">
+                               <div className="absolute top-0 right-0 w-1 h-full bg-blue-500 rounded-r-xl"></div>
+                               <div className="flex justify-between items-start mb-2 pl-2">
+                                 <span className="font-bold text-sm text-white">{req.productName}</span>
+                                 <span className="font-bold text-emerald-500 text-xs">{req.price} ج.م</span>
+                               </div>
+                               <div className="text-[10px] text-slate-400 space-y-1 mb-2">
+                                 <p>المشتري: <span className="text-slate-300">{req.buyerName}</span></p>
+                                 <p>المورد: <span className="text-purple-300">{req.supplierName}</span></p>
+                               </div>
+                            </div>
+                          ))}
+                          {requests.filter(r => r.status === 'active' && !!r.supplierId).length === 0 && (
+                            <div className="text-center py-10 text-slate-500 italic text-sm">لا يوجد عمليات جارية حالياً</div>
+                          )}
+                       </div>
+                    </div>
+
+                    {/* Recently completed/cancelled */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[600px]">
+                       <h3 className="font-bold text-white mb-4 flex items-center justify-between">
+                          <span>أحدث النشاطات</span>
+                       </h3>
+                       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                          {requests.filter(r => r.status !== 'active').slice(0,20).map(req => (
+                            <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 hover:border-slate-500/50 cursor-pointer transition-all">
+                               <div className="flex justify-between items-start mb-2">
+                                 <span className="font-bold text-sm text-white">{req.productName}</span>
+                                 {req.status === 'delivered' ? (
+                                   <span className="bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded text-[10px] font-bold">مكتمل</span>
+                                 ) : req.status === 'cancelled' || req.status === 'refunded' ? (
+                                   <span className="bg-red-500/10 text-red-500 px-2 py-0.5 rounded text-[10px] font-bold">ملغي / مسترجع</span>
+                                 ) : (
+                                   <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] font-bold">{req.status}</span>
+                                 )}
+                               </div>
+                               <div className="text-[10px] text-slate-500">
+                                 {req.updatedAt ? new Date(req.updatedAt?.toDate?.() || req.updatedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : ''} - {req.supplierName || req.buyerName}
+                               </div>
+                            </div>
+                          ))}
+                       </div>
+                    </div>
+                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'analytics' && (
+              <motion.div key="analytics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                 <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1">
+                       <h3 className="font-bold text-slate-400 mb-2">إجمالي حجم التداولات (GMV)</h3>
+                       <p className="text-3xl font-black text-emerald-500">{stats.totalRevenue.toLocaleString('en-US')} <span className="text-sm">ج.م</span></p>
+                    </div>
+                    <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1">
+                       <h3 className="font-bold text-slate-400 mb-2">إيرادات المنصة (العمولات)</h3>
+                       <p className="text-3xl font-black text-primary-500">{stats.platformProfit.toLocaleString('en-US')} <span className="text-sm">ج.م</span></p>
+                    </div>
+                    <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 flex-1">
+                       <h3 className="font-bold text-slate-400 mb-2">إيرادات الاشتراكات</h3>
+                       <p className="text-3xl font-black text-amber-500">{stats.subscriptionRevenue.toLocaleString('en-US')} <span className="text-sm">ج.م</span></p>
+                    </div>
+                 </div>
+
+                 <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800">
+                    <h3 className="font-bold text-white mb-6">المخطط المالي</h3>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData}>
+                          <defs>
+                             <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                             </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                          <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
+                          <YAxis stroke="#94a3b8" fontSize={12} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
+                            itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                          />
+                          <Area type="monotone" dataKey="profit" stroke="#2563eb" fillOpacity={1} fill="url(#colorProfit)" name="عمولات الطلبات" />
+                          <Area type="monotone" dataKey="subRevenue" stroke="#f59e0b" fillOpacity={0.5} fill="#f59e0b" name="الاشتراكات" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </div>
+              </motion.div>
+            )}
+
             {activeTab === 'overview' && (
               <motion.div 
                 key="overview"
@@ -1267,6 +1445,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <button onClick={() => handleExportCSV('users')} className="bg-slate-800 hover:bg-slate-700 transition text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 whitespace-nowrap">
+                       <Download className="w-4 h-4" />
+                       تصدير CSV
+                    </button>
                     <button onClick={() => setShowAddUserModal(true)} className="bg-emerald-600 hover:bg-emerald-500 transition text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 whitespace-nowrap">
                        <Users className="w-4 h-4" />
                        إضافة مستخدم
@@ -1468,7 +1650,13 @@ export default function AdminDashboard() {
               <motion.div key="requests" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 
                 <div className="flex flex-col xl:flex-row gap-4 items-center">
-                  <div className="relative w-full xl:w-96">
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleExportCSV('requests')} className="bg-slate-800 hover:bg-slate-700 transition text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap border border-slate-700">
+                       <Download className="w-4 h-4" />
+                       تصدير
+                    </button>
+                  </div>
+                  <div className="relative w-full xl:w-80">
                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input 
                       type="text"
@@ -1573,9 +1761,12 @@ export default function AdminDashboard() {
                                 {getStatusLabel(r.status)}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
+                              <td className="px-6 py-4">
                                <div className="flex items-center gap-2">
-                                  <button onClick={() => handleDeleteItem('requests', r.id)} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
+                                  <button onClick={(e) => { e.stopPropagation(); setSelectedRequestId(r.id); }} className="p-2 bg-slate-800 rounded-lg hover:bg-blue-500/10 hover:text-blue-500 transition group" title="تفاصيل العملية">
+                                     <Eye className="w-4 h-4 text-slate-500 group-hover:text-blue-500" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteItem('requests', r.id); }} className="p-2 bg-slate-800 rounded-lg hover:bg-red-500/10 group">
                                      <Trash2 className="w-4 h-4 text-slate-500 group-hover:text-red-500" />
                                   </button>
                                </div>
@@ -2405,13 +2596,20 @@ export default function AdminDashboard() {
             />
           )}
 
+          {selectedRequestId && (
+            <RequestDetailsAdminModal
+              request={requests.find(r => r.id === selectedRequestId)}
+              onClose={() => setSelectedRequestId(null)}
+            />
+          )}
+
         </div>
       </main>
     </div>
   );
 }
 
-function NavItem({ icon, label, active, onClick }: any) {
+function NavItem({ icon, label, active, onClick, badge, badgeColor }: any) {
   return (
     <button 
       onClick={onClick}
@@ -2421,6 +2619,11 @@ function NavItem({ icon, label, active, onClick }: any) {
     >
       <span className="w-5 h-5">{icon}</span>
       <span>{label}</span>
+      {badge !== undefined && (
+        <span className={`mr-auto px-2 py-0.5 rounded-full text-[10px] text-white ${badgeColor || 'bg-red-500'}`}>
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
