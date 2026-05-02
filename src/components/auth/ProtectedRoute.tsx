@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
@@ -13,12 +13,14 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setIsAuthenticated(true);
         try {
+          // Check admin collection first if allowedRole is admin or generally
           const adminDoc = await getDoc(doc(db, 'admins', user.uid));
           if (adminDoc.exists()) {
             setUserRole('admin');
@@ -28,11 +30,16 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
             if (docSnap.exists()) {
               const data = docSnap.data();
               if (data.disabled) {
-                auth.signOut();
+                await auth.signOut();
                 setIsAuthenticated(false);
                 alert('عذراً، تم تجميد حسابك حالياً. يرجى التواصل مع الإدارة.');
+              } else {
+                setUserRole(data.role);
               }
-              setUserRole(data.role);
+            } else {
+              // User exists in Auth but not in Firestore users or admins
+              // This might happen if registration crashed halfway
+              setUserRole(null);
             }
           }
         } catch (error) {
@@ -40,6 +47,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
         }
       } else {
         setIsAuthenticated(false);
+        setUserRole(null);
       }
       setLoading(false);
     });
@@ -50,21 +58,35 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <Loader2 className="w-12 h-12 animate-spin text-primary-500" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-500" />
+          <p className="text-slate-400 font-bold animate-pulse">جاري التحقق من الهوية...</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" replace />;
+    // If trying to access admin dashboard, redirect to admin login
+    if (location.pathname.startsWith('/admin')) {
+      return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    }
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRole && userRole && userRole !== allowedRole) {
+  // If role is required but not yet determined or wrong
+  if (allowedRole && userRole !== allowedRole) {
     if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'supplier') return <Navigate to="/supplier/home" replace />;
     if (userRole === 'buyer') return <Navigate to="/buyer/home" replace />;
     
-    // fallback
+    // If user has no document in Firestore yet but is authenticated
+    // We might want to allow them through if allowedRole is not specified
+    // but usually they need a role.
+    if (!userRole) {
+       return <Navigate to="/auth/signup" replace />;
+    }
+
     return <Navigate to="/" replace />;
   }
 

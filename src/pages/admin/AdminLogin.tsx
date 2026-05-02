@@ -18,6 +18,18 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  React.useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+        if (adminDoc.exists()) {
+          navigate('/admin/dashboard', { replace: true });
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
+
   const handleAdminSuccess = async (user: any) => {
     try {
       const adminDoc = await getDoc(doc(db, 'admins', user.uid));
