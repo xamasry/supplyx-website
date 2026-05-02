@@ -121,7 +121,17 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [requestFilter, setRequestFilter] = useState<'fast' | 'bulk' | 'offer'>('fast');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
+  const [newUser, setNewUser] = useState({ 
+    name: '', 
+    email: '', 
+    password: '', 
+    role: 'buyer', 
+    phone: '', 
+    businessName: '', 
+    address: '',
+    subscriptionTier: 'standard',
+    isTrial: false
+  });
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' as 'all' | 'buyer' | 'supplier' });
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
@@ -544,6 +554,10 @@ export default function AdminDashboard() {
         address: newUser.address,
         role: newUser.role,
         status: 'approved',
+        subscriptionTier: newUser.subscriptionTier,
+        isTrial: newUser.isTrial,
+        subscriptionStatus: newUser.isTrial ? 'active' : 'inactive',
+        subscriptionExpiry: newUser.isTrial ? new Date(Date.now() + (rates.trialDays || 7) * 24 * 60 * 60 * 1000).toISOString() : null,
         disabled: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -552,7 +566,17 @@ export default function AdminDashboard() {
       await secondaryAuth.signOut();
       
       setShowAddUserModal(false);
-      setNewUser({ name: '', email: '', password: '', role: 'buyer', phone: '', businessName: '', address: '' });
+      setNewUser({ 
+        name: '', 
+        email: '', 
+        password: '', 
+        role: 'buyer', 
+        phone: '', 
+        businessName: '', 
+        address: '',
+        subscriptionTier: 'standard',
+        isTrial: false
+      });
       toast.success('تم إنشاء المستخدم بنجاح');
     } catch (err: any) {
       console.error("Error creating user:", err);
@@ -2318,18 +2342,47 @@ export default function AdminDashboard() {
                         dir="ltr"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-400 mb-2">نوع الحساب</label>
-                      <div className="grid grid-cols-2 gap-4">
-                         <label className={`flex items-center justify-center p-3 rounded-xl border cursor-pointer transition ${newUser.role === 'buyer' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                           <input type="radio" name="role" value="buyer" className="hidden" checked={newUser.role === 'buyer'} onChange={() => setNewUser({...newUser, role: 'buyer'})} />
-                           <span className="font-bold">مشتري (مطعم)</span>
-                         </label>
-                         <label className={`flex items-center justify-center p-3 rounded-xl border cursor-pointer transition ${newUser.role === 'supplier' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                           <input type="radio" name="role" value="supplier" className="hidden" checked={newUser.role === 'supplier'} onChange={() => setNewUser({...newUser, role: 'supplier'})} />
-                           <span className="font-bold">مورد</span>
-                         </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">نوع الحساب</label>
+                        <div className="grid grid-cols-2 gap-2">
+                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.role === 'buyer' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                             <input type="radio" name="role" value="buyer" className="hidden" checked={newUser.role === 'buyer'} onChange={() => setNewUser({...newUser, role: 'buyer'})} />
+                             <span className="font-bold">مشتري</span>
+                           </label>
+                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.role === 'supplier' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                             <input type="radio" name="role" value="supplier" className="hidden" checked={newUser.role === 'supplier'} onChange={() => setNewUser({...newUser, role: 'supplier'})} />
+                             <span className="font-bold">مورد</span>
+                           </label>
+                        </div>
                       </div>
+                      <div>
+                        <label className="block text-sm font-bold text-slate-400 mb-2">الباقة</label>
+                        <div className="grid grid-cols-2 gap-2">
+                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'standard' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                             <input type="radio" name="tier" value="standard" className="hidden" checked={newUser.subscriptionTier === 'standard'} onChange={() => setNewUser({...newUser, subscriptionTier: 'standard'})} />
+                             <span className="font-bold">Standard</span>
+                           </label>
+                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'premium' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                             <input type="radio" name="tier" value="premium" className="hidden" checked={newUser.subscriptionTier === 'premium'} onChange={() => setNewUser({...newUser, subscriptionTier: 'premium'})} />
+                             <span className="font-bold">Premium</span>
+                           </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-slate-800/50 rounded-2xl border border-slate-800">
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-white">تفعيل فترة تجريبية (Trial)</h4>
+                        <p className="text-[10px] text-slate-500">سيتم تفعيل الحساب تلقائياً لفترة محدودة</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setNewUser({...newUser, isTrial: !newUser.isTrial})}
+                        className={`w-12 h-6 rounded-full relative transition-colors ${newUser.isTrial ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                      >
+                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${newUser.isTrial ? 'left-7' : 'left-1'}`} />
+                      </button>
                     </div>
                     
                     <button 

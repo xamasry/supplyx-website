@@ -207,21 +207,32 @@ export default function BuyerHome() {
         coordinates: location
       };
       await addDoc(orderRef, newOrder);
+      
       if (selectedOffer.id) {
-        await updateDoc(doc(db, 'offers', selectedOffer.id), {
-          orders: increment(1),
-          updatedAt: serverTimestamp()
-        });
+        try {
+          await updateDoc(doc(db, 'offers', selectedOffer.id), {
+            orders: increment(1),
+            updatedAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Failed to update offer orders:", err);
+        }
       }
-      await addDoc(collection(db, 'notifications'), {
-        userId: selectedOffer.supplierId,
-        title: 'طلب جديد من عرضك!',
-        message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء ${orderQuantity} ${selectedOffer.unit} من عرضك "${selectedOffer.title}".`,
-        type: 'bid_accepted',
-        read: false,
-        createdAt: serverTimestamp(),
-        link: `/supplier/orders`
-      });
+      
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          userId: selectedOffer.supplierId,
+          title: 'طلب جديد من عرضك!',
+          message: `قام ${auth.currentUser.displayName || 'أحد العملاء'} بشراء ${orderQuantity} ${selectedOffer.unit} من عرضك "${selectedOffer.title}".`,
+          type: 'bid_accepted',
+          read: false,
+          createdAt: serverTimestamp(),
+          link: `/supplier/orders`
+        });
+      } catch (err) {
+        console.error("Failed to add notification:", err);
+      }
+      
       trackEvent('order_created', { type: 'offer_direct', amount: newOrder.totalAmount });
       toast.success('تم إرسال الطلب بنجاح!');
       setShowOrderModal(false);
