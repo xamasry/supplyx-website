@@ -84,6 +84,21 @@ export function convertArabicNumerals(str: string): string {
   return str.replace(/[٠-٩]/g, (w) => arabicNumbers.indexOf(w).toString());
 }
 
+export function getCategoryIcon(categoryName: string, CATEGORIES: any[]): string {
+  if (!categoryName) return '📦';
+  const category = CATEGORIES.find(c => 
+    c.name === categoryName || 
+    c.id === categoryName || 
+    categoryName.includes(c.name)
+  );
+  return category?.icon || '📦';
+}
+
+export function getCategoryImageUrl(categoryName: string, CATEGORIES: any[]): string {
+  const icon = getCategoryIcon(categoryName, CATEGORIES);
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(icon)}&background=f1f5f9&color=64748b&size=512&font-size=0.5`;
+}
+
 export function resizeImage(file: File, maxWidth = 800, maxHeight = 800): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

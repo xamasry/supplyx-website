@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Search, Flame, Clock, ChevronLeft, Package, Loader2, X, MapPin, Phone, ShoppingBag, CheckCircle2, Heart, Star, Zap, Tag } from 'lucide-react';
-import { cn, isRequestExpired, convertArabicNumerals } from '../../lib/utils';
+import { cn, isRequestExpired, convertArabicNumerals, getCategoryImageUrl } from '../../lib/utils';
 import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, updateDoc, doc, increment, arrayUnion, arrayRemove, limit } from 'firebase/firestore';
@@ -400,7 +400,11 @@ export default function BuyerHome() {
                   className="min-w-[260px] bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all shrink-0"
                 >
                   <div className="h-32 bg-slate-100 relative">
-                    <img src={offer.image} className="w-full h-full object-cover" />
+                    <img 
+                      src={offer.image || getCategoryImageUrl(offer.categoryName || offer.category, CATEGORIES)} 
+                      className="w-full h-full object-cover" 
+                      alt={offer.title}
+                    />
                     <div className="absolute top-2 right-2 bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">-{offer.discount}</div>
                     {offer.isExclusive && (
                       <div className="absolute top-2 left-2 bg-amber-500 text-white text-[8px] font-bold px-2 py-0.5 rounded-lg shadow-sm">حصري Premium</div>

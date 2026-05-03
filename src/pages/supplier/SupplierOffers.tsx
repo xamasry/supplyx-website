@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Tag, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { Tag, Plus, Edit2, Trash2, Loader2, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { CATEGORIES } from '../../constants';
-import { cn } from '../../lib/utils';
+import { cn, getCategoryImageUrl } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 export default function SupplierOffers() {
   const [offers, setOffers] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -62,9 +63,23 @@ export default function SupplierOffers() {
           <h1 className="text-2xl font-bold font-display text-slate-900">إدارة العروض</h1>
           <p className="text-slate-500 text-sm mt-1">وفر خصومات لجذب المزيد من الطلبات</p>
         </div>
-        <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
-           <Plus className="w-4 h-4" /> عرض جديد
-        </Link>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm",
+              isEditMode 
+                ? "bg-[var(--color-primary)] text-white scale-105" 
+                : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+            )}
+          >
+             <Settings2 className="w-4 h-4" /> 
+             {isEditMode ? 'إلغاء التعديل' : 'تعديل العروض'}
+          </button>
+          <Link to="/supplier/offers/new" className="bg-[var(--color-accent)] text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm hover:scale-105 transition-transform">
+             <Plus className="w-4 h-4" /> عرض جديد
+          </Link>
+        </div>
       </header>
 
       {user?.subscriptionTier !== 'premium' && (
@@ -86,31 +101,17 @@ export default function SupplierOffers() {
         {offers.map(offer => (
           <div key={offer.id} className="bg-white border border-slate-300 rounded-3xl p-3 flex flex-col shadow-sm relative overflow-hidden group">
              <div className="aspect-square w-full bg-white rounded-2xl relative overflow-hidden shrink-0 flex items-center justify-center border border-slate-100 mb-3">
-                {offer.image ? (
-                  <img 
-                    src={offer.image} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                    alt={offer.title}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.parentElement?.querySelector('.image-fallback');
-                      if (fallback) fallback.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
+                <img 
+                  src={offer.image || getCategoryImageUrl(offer.categoryName || offer.category, CATEGORIES)} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                  alt={offer.title}
+                  referrerPolicy="no-referrer"
+                />
                 
                 <div className={cn(
-                  "image-fallback flex flex-col items-center justify-center",
-                  offer.image ? "hidden" : ""
+                  "absolute top-2 right-2 flex flex-col gap-2 z-10 transition-opacity",
+                  isEditMode ? "opacity-100" : "md:opacity-0 group-hover:opacity-100"
                 )}>
-                  <span className="text-4xl filter drop-shadow-sm group-hover:scale-125 transition-transform">
-                    {offer.categoryIcon || CATEGORIES.find(c => c.id === offer.categoryId || c.name === offer.category || c.name === offer.categoryName)?.icon || '✨'}
-                  </span>
-                </div>
-
-                <div className="absolute top-2 right-2 flex flex-col gap-2 z-10 md:opacity-0 group-hover:opacity-100 transition-opacity">
                   <Link to={`/supplier/offers/edit/${offer.id}`} className="bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg text-slate-700 hover:text-[var(--color-primary)] flex items-center justify-center transition-colors">
                     <Edit2 className="w-4 h-4" />
                   </Link>

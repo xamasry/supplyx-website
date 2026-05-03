@@ -5,24 +5,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, limit, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { SupplierStoreProduct, User } from '../../types';
-import { cn } from '../../lib/utils';
+import { cn, getCategoryImageUrl } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 import { CATEGORIES as APP_CATEGORIES } from '../../constants';
 
 const CATEGORIES = APP_CATEGORIES.map(c => c.name);
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  'لحوم ودواجن': 'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=200',
-  'خضار وفاكهة': 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200',
-  'ألبان وأجبان': 'https://images.unsplash.com/photo-1628088062854-d1870b4553da?auto=format&fit=crop&q=80&w=200',
-  'حبوب وبقوليات': 'https://images.unsplash.com/photo-1551462147-37885acc3c41?auto=format&fit=crop&q=80&w=200',
-  'زيوت وتوابل': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&q=80&w=200',
-  'معلبات': 'https://images.unsplash.com/photo-1595231712325-9fdec2147879?auto=format&fit=crop&q=80&w=200',
-  'توابل وبهارات': 'https://images.unsplash.com/photo-1506368249639-73a05d6f6488?auto=format&fit=crop&q=80&w=200',
-  'مجمدات': 'https://images.unsplash.com/photo-1584263343327-cc599f161724?auto=format&fit=crop&q=80&w=200',
-  'أخرى': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200'
-};
 
 export default function SupplierStore() {
   const { id: supplierId } = useParams<{ id: string }>();
@@ -397,7 +385,7 @@ export default function SupplierStore() {
                   <div key={product.id} className="bg-white rounded-[1.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                     <div className="aspect-square bg-slate-50 flex items-center justify-center text-slate-200 overflow-hidden">
                       <img 
-                        src={product.image || CATEGORY_IMAGES[product.category] || CATEGORY_IMAGES['أخرى']} 
+                        src={product.image || getCategoryImageUrl(product.category, APP_CATEGORIES)} 
                         alt={product.name} 
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                       />
