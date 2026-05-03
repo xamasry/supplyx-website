@@ -69,22 +69,55 @@ class Monitor {
     });
   }
 
+  private sanitize(obj: any): any {
+    if (obj === undefined) return null;
+    if (obj === null || typeof obj !== 'object') return obj;
+    
+    // Handle arrays
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitize(item));
+    }
+
+    // Handle objects
+    const newObj: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (val !== undefined) {
+          newObj[key] = this.sanitize(val);
+        }
+      }
+    }
+    return newObj;
+  }
+
   public async logEvent(type: EventType, name: string, data?: any) {
     if (!this.isEnabled) return;
 
-    const event: MonitoringEvent = {
-        type,
-        name,
-        data,
-        path: window.location.pathname,
-        userId: auth.currentUser?.uid || null,
-        userAgent: navigator.userAgent,
+    let safeData = this.sanitize(data);
+    if (safeData === undefined) safeData = null;
+
+    const event: any = {
+        type: type || 'unknown',
+        name: name || 'unknown',
+        data: safeData,
+        path: typeof window !== 'undefined' ? (window.location.pathname || '/') : '/',
+        userId: auth?.currentUser?.uid || null,
+        userAgent: typeof navigator !== 'undefined' ? (navigator.userAgent || 'unknown') : 'unknown',
         timestamp: serverTimestamp(),
-        sessionId: session_id,
+        sessionId: session_id || 'unknown',
     };
 
+    // Failsafe to remove ANY lingering undefineds
+    const cleanEvent: any = {};
+    for (const key in event) {
+        if (event[key] !== undefined) {
+            cleanEvent[key] = event[key];
+        }
+    }
+
     try {
-      await addDoc(collection(db, 'system_logs'), event);
+      await addDoc(collection(db, 'system_logs'), cleanEvent);
     } catch (err) {
       // Fail silently to not impact user experience
       console.error('Monitoring Error:', err);
@@ -136,7 +169,7 @@ class Monitor {
       // For now, we log it to a special collection for the Admin dashboard to watch.
       addDoc(collection(db, 'system_alerts'), {
           message,
-          data,
+          data: this.sanitize(data),
           path: window.location.pathname,
           timestamp: serverTimestamp(),
           severity: 'critical'

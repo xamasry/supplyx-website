@@ -50,9 +50,9 @@ export const useAnalytics = () => {
     const handleClick = (e: MouseEvent) => {
         const target = e.target as HTMLElement;
         const info = {
-            id: target.id,
+            id: target.id || null,
             tag: target.tagName,
-            text: target.innerText?.substring(0, 30),
+            text: (target.innerText || target.textContent || '').substring(0, 30),
             x: e.clientX,
             y: e.clientY
         };

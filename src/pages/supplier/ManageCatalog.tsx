@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, orderBy } from 'firebase/firestore';
@@ -91,7 +91,7 @@ export default function ManageCatalog() {
     });
 
     const qOffers = query(
-      collection(db, 'exclusive_offers'),
+      collection(db, 'offers'),
       where('supplierId', '==', auth.currentUser.uid)
     );
 
@@ -108,7 +108,7 @@ export default function ManageCatalog() {
       }));
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'exclusive_offers');
+      handleFirestoreError(error, OperationType.LIST, 'offers');
       setLoading(false);
     });
 
@@ -119,12 +119,12 @@ export default function ManageCatalog() {
   }, []);
 
   const handleDeleteOffer = async (offer: any) => {
-    if (!window.confirm('هل أنت متأكد من حذف هذا العرض الحصري؟')) return;
+    if (!window.confirm('هل أنت متأكد من حذف هذا العرض؟')) return;
     try {
-      await deleteDoc(doc(db, 'exclusive_offers', offer.id));
-      toast.success('تم حذف العرض الحصري بنجاح');
+      await deleteDoc(doc(db, 'offers', offer.id));
+      toast.success('تم حذف العرض بنجاح');
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `exclusive_offers/${offer.id}`);
+      handleFirestoreError(error, OperationType.DELETE, `offers/${offer.id}`);
     }
   };
 
@@ -132,31 +132,45 @@ export default function ManageCatalog() {
     e.preventDefault();
     if (!auth.currentUser) return;
 
+    // RESTRICTION: Only Premium suppliers can publish offers
+    if (userData?.subscriptionTier !== 'premium') {
+      toast.error('عذراً، لا يمكن نشر العروض الترويجية إلا لمشتركي الباقة المميزة (Premium)');
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
+
     const offerData = {
-      ...offerFormData,
-      discountedPrice: parseFloat(offerFormData.discountedPrice),
+      title: offerFormData.title.trim(),
+      description: offerFormData.description.trim(),
+      offerPrice: parseFloat(offerFormData.discountedPrice),
       originalPrice: parseFloat(offerFormData.originalPrice),
       supplierId: auth.currentUser.uid,
-      businessName: userData?.businessName || 'مورد',
+      supplierName: userData?.businessName || 'مورد',
+      image: offerFormData.image.trim() || null,
+      unit: 'قطعة', // Default for this modal
+      quantity: 1,
+      status: 'active',
+      views: 0,
+      orders: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     try {
       if (editingOffer) {
-        await updateDoc(doc(db, 'exclusive_offers', editingOffer.id), {
+        await updateDoc(doc(db, 'offers', editingOffer.id), {
           ...offerData,
           updatedAt: serverTimestamp(),
         });
         toast.success('تم تحديث العرض بنجاح');
       } else {
-        await addDoc(collection(db, 'exclusive_offers'), offerData);
-        monitor.logConversion('Exclusive Offer Created', 1);
-        toast.success('تم نشر العرض الحصري بنجاح');
+        await addDoc(collection(db, 'offers'), offerData);
+        monitor.logConversion('Offer Created', 1);
+        toast.success('تم نشر العرض بنجاح');
       }
       closeOfferModal();
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'exclusive_offers');
+      handleFirestoreError(error, OperationType.WRITE, 'offers');
     }
   };
 
@@ -248,8 +262,8 @@ export default function ManageCatalog() {
       setOfferFormData({
         title: offer.title,
         description: offer.description,
-        discountedPrice: offer.discountedPrice.toString(),
-        originalPrice: offer.originalPrice.toString(),
+        discountedPrice: (offer.offerPrice || 0).toString(),
+        originalPrice: (offer.originalPrice || 0).toString(),
         validUntil: offer.validUntil || '',
         productId: offer.productId || '',
         image: offer.image || ''
@@ -309,17 +323,23 @@ export default function ManageCatalog() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 px-2 sm:px-0">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-display font-bold text-slate-900 leading-none">كتالوج المنتجات</h1>
-          <p className="text-slate-500 text-[10px] sm:text-sm mt-1 font-semibold">إدارة قائمة منتجاتك المصنفة</p>
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 leading-none">
+            {activeTab === 'exclusive_offers' ? 'إدارة العروض' : 'كتالوج المنتجات'}
+          </h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-2 font-semibold">
+            {activeTab === 'exclusive_offers' 
+              ? 'وفر خصومات لجذب المزيد من الطلبات والمبيعات' 
+              : 'إدارة قائمة منتجاتك وتصنيفات المتجر الخاص بك'}
+          </p>
         </div>
         <button 
           onClick={activeTab === 'products' ? () => openModal() : () => openOfferModal()}
-          className="bg-[var(--color-primary)] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-[var(--color-primary)]/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-xs sm:text-base shrink-0"
+          className="bg-[var(--color-success)] text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm sm:text-base shrink-0 group"
         >
-          <Plus size={18} />
-          {activeTab === 'products' ? 'إضافة منتج' : 'إضافة عرض حصري'}
+          <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+          {activeTab === 'products' ? 'منتج جديد' : 'عرض جديد'}
         </button>
       </div>
 
@@ -328,22 +348,22 @@ export default function ManageCatalog() {
         <button 
           onClick={() => setActiveTab('products')}
           className={cn(
-            "flex-1 py-3 rounded-xl text-[10px] sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
+            "flex-1 py-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
             activeTab === 'products' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
           )}
         >
-          <Package className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
-          المنتجات ({products.length})
+          <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+          الكتالوج ({products.length})
         </button>
         <button 
           onClick={() => setActiveTab('exclusive_offers')}
           className={cn(
-            "flex-1 py-3 rounded-xl text-[10px] sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
+            "flex-1 py-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all",
             activeTab === 'exclusive_offers' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
           )}
         >
-          <Tag className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
-          العروض الحصرية ({exclusiveOffers.length})
+          <Tag className="w-4 h-4 sm:w-5 sm:h-5" />
+          العروض ({exclusiveOffers.length})
         </button>
       </div>
 
@@ -455,64 +475,95 @@ export default function ManageCatalog() {
   )}
 
       {activeTab === 'exclusive_offers' && (
-        /* Exclusive Offers List */
-        <div className="space-y-4">
+        /* Exclusive Offers Grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {exclusiveOffers.length > 0 ? (
             exclusiveOffers.map(offer => (
               <motion.div 
                 layout
                 key={offer.id} 
-                className="bg-white border border-slate-100 rounded-[2rem] p-5 shadow-sm space-y-4 group"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all group relative flex flex-col"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-[var(--color-primary)]/5 rounded-2xl flex items-center justify-center text-[var(--color-primary)] overflow-hidden shrink-0">
-                       {offer.image ? (
-                         <img src={offer.image} className="w-full h-full object-cover" />
-                       ) : (
-                         <Tag size={28} />
-                       )}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm sm:text-base">{offer.title}</h3>
-                      <p className="text-[10px] sm:text-xs font-semibold text-slate-400 line-clamp-1">{offer.description}</p>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-lg font-black text-[var(--color-primary)] font-display">{offer.discountedPrice} ج.م</p>
-                    <p className="text-[10px] font-bold text-slate-400 line-through">{offer.originalPrice} ج.م</p>
-                  </div>
+                {/* Actions Overlay */}
+                <div className="absolute top-4 left-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={() => openOfferModal(offer)}
+                      className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-[var(--color-primary)] rounded-xl shadow-lg transition-all"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteOffer(offer)}
+                      className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-red-500 rounded-xl shadow-lg transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-3 pt-2">
-                   <div className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
-                     <Clock size={12} />
-                     ينتهي في: {offer.validUntil || 'غير محدد'}
+                <div className="aspect-square bg-slate-50 relative overflow-hidden">
+                   {offer.image ? (
+                     <img src={offer.image} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" alt={offer.title} />
+                   ) : (
+                     <div className="w-full h-full flex items-center justify-center text-slate-200">
+                        <Tag size={64} />
+                     </div>
+                   )}
+                   {/* Banner / Badge */}
+                   <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
+                      عرض حصري
                    </div>
-                   
-                   <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => openOfferModal(offer)}
-                        className="p-2 text-slate-400 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-xl transition-all"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteOffer(offer)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                   </div>
+                </div>
+
+                <div className="p-6 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base mb-1 group-hover:text-[var(--color-primary)] transition-colors">{offer.title}</h3>
+                    <p className="text-[11px] font-semibold text-slate-400 line-clamp-2 leading-relaxed mb-4">{offer.description}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-end justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{offer.originalPrice} ج.م</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xl font-black text-emerald-600 font-display">{offer.offerPrice}</span>
+                          <span className="text-[11px] font-black text-emerald-600">ج.م</span>
+                          <span className="text-[10px] font-bold text-slate-400 mr-1">/ قطعة</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                       <div className="flex gap-4">
+                          <div className="flex items-center gap-1.5 text-slate-400">
+                             <Package size={14} />
+                             <span className="text-xs font-black">{offer.orders || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-400">
+                             <Eye size={14} />
+                             <span className="text-[10px] font-bold">{offer.views || 0}</span>
+                          </div>
+                       </div>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-200">
-              <Tag size={48} className="mx-auto text-slate-200 mb-4" />
-              <p className="text-slate-500 font-bold text-sm">ليس لديك أي عروض حصرية حالياً</p>
-              <button onClick={() => openOfferModal()} className="mt-4 text-[var(--color-primary)] font-black text-sm hover:underline">
-                أنشئ أول عرض حصري لمتابعيك
+            <div className="col-span-full text-center py-24 bg-white rounded-[3rem] border-4 border-dashed border-slate-100">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Tag size={40} className="text-slate-200" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">ليس لديك أي عروض حصرية حالياً</h3>
+              <p className="text-slate-500 font-semibold text-sm max-w-[280px] mx-auto mb-8">
+                ابدأ بإضافة عروضك لزيادة مبيعاتك والوصول لمزيد من العملاء
+              </p>
+              <button 
+                onClick={() => openOfferModal()} 
+                className="bg-[var(--color-primary)] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-[var(--color-primary)]/20 hover:scale-105 transition-all text-sm"
+              >
+                أنشئ أول عرض الآن
               </button>
             </div>
           )}
