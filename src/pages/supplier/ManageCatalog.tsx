@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag, Eye, Settings2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, orderBy } from 'firebase/firestore';
@@ -31,6 +31,7 @@ export default function ManageCatalog() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [userData, setUserData] = useState<any>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -311,7 +312,7 @@ export default function ManageCatalog() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20 px-2 sm:px-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 leading-none">
             {activeTab === 'exclusive_offers' ? 'إدارة العروض' : 'كتالوج المنتجات'}
@@ -322,13 +323,29 @@ export default function ManageCatalog() {
               : 'إدارة قائمة منتجاتك وتصنيفات المتجر الخاص بك'}
           </p>
         </div>
-        <button 
-          onClick={activeTab === 'products' ? () => openModal() : () => openOfferModal()}
-          className="bg-[var(--color-success)] text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm sm:text-base shrink-0 group"
-        >
-          <Plus size={20} className="group-hover:rotate-90 transition-transform" />
-          {activeTab === 'products' ? 'منتج جديد' : 'عرض جديد'}
-        </button>
+        <div className="flex gap-2">
+          {activeTab === 'exclusive_offers' && (
+            <button 
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={cn(
+                "px-4 py-2.5 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm shrink-0",
+                isEditMode 
+                  ? "bg-[var(--color-primary)] text-white scale-105" 
+                  : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+              )}
+            >
+              <Settings2 size={18} />
+              {isEditMode ? 'إلغاء التعديل' : 'تعديل العروض'}
+            </button>
+          )}
+          <button 
+            onClick={activeTab === 'products' ? () => openModal() : () => openOfferModal()}
+            className="bg-[var(--color-success)] text-white px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm sm:text-base shrink-0 group"
+          >
+            <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+            {activeTab === 'products' ? 'منتج جديد' : 'عرض جديد'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -475,7 +492,10 @@ export default function ManageCatalog() {
                 className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all group relative flex flex-col"
               >
                 {/* Actions Overlay */}
-                <div className="absolute top-4 left-4 z-10 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className={cn(
+                  "absolute top-4 left-4 z-10 flex gap-2 transition-opacity",
+                  isEditMode ? "opacity-100" : "md:opacity-0 group-hover:opacity-100"
+                )}>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -663,13 +683,26 @@ export default function ManageCatalog() {
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
-                  <button 
-                    type="button"
-                    onClick={closeOfferModal}
-                    className="flex-1 py-4 text-slate-500 font-bold border-2 border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors"
-                  >
-                    إلغاء
-                  </button>
+                  {editingOffer ? (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        handleDeleteOffer(editingOffer);
+                        closeOfferModal();
+                      }}
+                      className="p-4 bg-red-50 text-red-600 font-bold rounded-2xl hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={24} />
+                    </button>
+                  ) : (
+                    <button 
+                      type="button"
+                      onClick={closeOfferModal}
+                      className="flex-1 py-4 text-slate-500 font-bold border-2 border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                  )}
                   <button 
                     type="submit"
                     className="flex-[2] py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-xl shadow-[var(--color-primary)]/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
