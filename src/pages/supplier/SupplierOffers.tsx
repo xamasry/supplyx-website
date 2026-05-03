@@ -110,9 +110,16 @@ export default function SupplierOffers() {
                   </span>
                 </div>
 
-                <div className="absolute top-2 right-2 flex flex-col gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="bg-white p-1.5 rounded-lg shadow-sm text-slate-600 hover:text-[var(--color-primary)]"><Edit2 className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => handleDelete(offer.id)} className="bg-white p-1.5 rounded-lg shadow-sm text-slate-600 hover:text-[var(--color-danger)]"><Trash2 className="w-3.5 h-3.5" /></button>
+                <div className="absolute top-2 right-2 flex flex-col gap-1 z-10 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Link to={`/supplier/offers/edit/${offer.id}`} className="bg-white p-1.5 rounded-lg shadow-md text-slate-600 hover:text-[var(--color-primary)] flex items-center justify-center transition-colors">
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </Link>
+                  <button 
+                    onClick={() => handleDelete(offer.id)} 
+                    className="bg-white p-1.5 rounded-lg shadow-md text-slate-600 hover:text-[var(--color-danger)] flex items-center justify-center transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
              </div>
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Upload, Percent, Loader2, ImagePlus } from 'lucide-react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { CATEGORIES } from '../../constants';
 import { convertArabicNumerals, resizeImage } from '../../lib/utils';
@@ -10,6 +10,8 @@ import SubscriptionModal from '../../components/SubscriptionModal';
 
 export default function NewSupplierOffer() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
   const [userData, setUserData] = useState<any>(null);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -20,15 +22,49 @@ export default function NewSupplierOffer() {
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('كيلو');
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(isEditMode);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       if (!auth.currentUser) return;
-      const snap = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      if (snap.exists()) setUserData(snap.data());
+      
+      // Fetch profile
+      const userSnap = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      if (userSnap.exists()) setUserData(userSnap.data());
+
+      // Fetch offer if in edit mode
+      if (isEditMode) {
+        try {
+          const offerSnap = await getDoc(doc(db, 'offers', id!));
+          if (offerSnap.exists()) {
+            const data = offerSnap.data();
+            if (data.supplierId !== auth.currentUser.uid) {
+              toast.error('ليس لديك صلاحية لتعديل هذا العرض');
+              navigate('/supplier/offers');
+              return;
+            }
+            setTitle(data.title || '');
+            setCategoryId(data.categoryId || '');
+            setImageUrl(data.image || '');
+            setOriginalPrice(String(data.originalPrice || ''));
+            setOfferPrice(String(data.offerPrice || ''));
+            setQuantity(String(data.quantity || '1'));
+            setUnit(data.unit || 'كيلو');
+          } else {
+            toast.error('العرض غير موجود');
+            navigate('/supplier/offers');
+          }
+        } catch (error) {
+          console.error('Error fetching offer:', error);
+          handleFirestoreError(error, OperationType.GET, `offers/${id}`);
+          navigate('/supplier/offers');
+        } finally {
+          setFetching(false);
+        }
+      }
     };
-    fetchProfile();
-  }, []);
+    fetchData();
+  }, [id, navigate, isEditMode]);
 
   const calcDiscount = () => {
     if(!originalPrice || !offerPrice) return 0;
@@ -85,10 +121,6 @@ export default function NewSupplierOffer() {
       const category = CATEGORIES.find(c => c.id === categoryId);
       
       const offerData = {
-        supplierId: auth.currentUser.uid,
-        supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
-        supplierRating: sData.rating || 0,
-        supplierTotalRatings: sData.totalRatings || 0,
         title: title.trim(),
         categoryId: categoryId,
         categoryName: category?.name || '',
@@ -99,26 +131,45 @@ export default function NewSupplierOffer() {
         image: imageUrl.trim() || null,
         quantity: Number(quantity) || 1,
         unit: unit || 'كيلو',
-        status: 'active',
-        views: 0,
-        orders: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        // Fields only for new offers
+        ...(isEditMode ? {} : {
+          supplierId: auth.currentUser.uid,
+          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
+          supplierRating: sData.rating || 0,
+          supplierTotalRatings: sData.totalRatings || 0,
+          status: 'active',
+          views: 0,
+          orders: 0,
+          createdAt: serverTimestamp(),
+        })
       };
 
-      console.log('Submitting offer:', offerData);
-      
-      await addDoc(collection(db, 'offers'), offerData);
+      if (isEditMode) {
+        await updateDoc(doc(db, 'offers', id!), offerData);
+        toast.success('تم تحديث العرض بنجاح');
+      } else {
+        await addDoc(collection(db, 'offers'), offerData);
+        toast.success('تم نشر العرض بنجاح');
+      }
 
-      toast.success('تم نشر العرض بنجاح');
       navigate('/supplier/offers');
     } catch (error) {
-      console.error('Error adding offer:', error);
-      handleFirestoreError(error, OperationType.CREATE, 'offers');
+      console.error('Error saving offer:', error);
+      handleFirestoreError(error, isEditMode ? OperationType.UPDATE : OperationType.CREATE, isEditMode ? `offers/${id}` : 'offers');
     } finally {
       setLoading(false);
     }
   };
+
+  if (fetching) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+        <Loader2 className="w-8 h-8 animate-spin mb-2" />
+        <p className="text-sm font-bold">جاري تحميل بيانات العرض...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-6 font-sans">
@@ -126,7 +177,9 @@ export default function NewSupplierOffer() {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200 text-slate-700">
           <ChevronRight className="w-6 h-6" />
         </button>
-        <h1 className="font-bold text-lg text-slate-900 font-display mr-2">إضافة عرض ترويجي جديد</h1>
+        <h1 className="font-bold text-lg text-slate-900 font-display mr-2">
+          {isEditMode ? 'تعديل العرض الترويجي' : 'إضافة عرض ترويجي جديد'}
+        </h1>
       </header>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 space-y-5">

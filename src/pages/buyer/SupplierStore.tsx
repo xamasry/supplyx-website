@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Search, Package, MapPin, Star, Phone, ChevronLeft, ShoppingBag, Plus, Minus, X, Loader2, Image as ImageIcon, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, getDoc, doc, limit, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDoc, doc, limit, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { SupplierStoreProduct, User } from '../../types';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -159,6 +159,63 @@ export default function SupplierStore() {
     }
   };
 
+  const handleOfferOrder = async (offer: any) => {
+    if (!auth.currentUser || !supplier) return;
+    
+    if (!window.confirm(`هل أنت متأكد من طلب "${offer.title}" بسعر ${offer.offerPrice} ج.م؟`)) return;
+
+    setLoading(true);
+    try {
+      const buyerDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+      const buyerData = buyerDoc.data();
+
+      const orderData = {
+        buyerId: auth.currentUser.uid,
+        buyerName: buyerData?.businessName || auth.currentUser.displayName,
+        buyerPhone: buyerData?.phoneNumber || '',
+        supplierId: supplierId,
+        supplierName: supplier.businessName,
+        items: [{
+          productId: offer.id,
+          name: offer.title,
+          quantity: offer.quantity || 1,
+          unit: offer.unit || 'قطعة',
+          price: offer.offerPrice
+        }],
+        totalAmount: offer.offerPrice,
+        status: 'pending',
+        type: 'exclusive_offer_order',
+        offerId: offer.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      const orderRef = await addDoc(collection(db, 'orders'), orderData);
+      
+      // Update offer orders count
+      await updateDoc(doc(db, 'offers', offer.id), {
+        orders: (offer.orders || 0) + 1
+      });
+
+      // Notify Supplier
+      await addDoc(collection(db, 'notifications'), {
+        userId: supplierId,
+        title: 'طلب عرض حصري جديد',
+        message: `وصلك طلب على العرض الحصري "${offer.title}" من ${orderData.buyerName}`,
+        type: 'offer_order',
+        read: false,
+        createdAt: serverTimestamp(),
+        link: `/supplier/orders/${orderRef.id}`
+      });
+
+      toast.success('تم إرسال طلبك للعرض بنجاح!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'orders');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || p.category === selectedCategory;
@@ -252,16 +309,27 @@ export default function SupplierStore() {
                   <div>
                     <span className="text-[10px] font-black text-[var(--color-accent)] uppercase tracking-[0.2em] mb-1 block">عرض خاص</span>
                     <h4 className="text-white font-bold text-lg leading-tight mb-2">{offer.title}</h4>
-                    <p className="text-slate-400 text-xs line-clamp-2">{offer.description}</p>
+                    <p className="text-slate-400 text-xs line-clamp-2">{offer.description || 'عرض حصري لهذا اليوم'}</p>
                   </div>
-                  <div className="mt-6 flex items-end justify-between">
-                    <div>
-                      <p className="text-slate-500 text-[10px] font-bold line-through">{offer.originalPrice} ج.م</p>
-                      <p className="text-white text-xl font-display font-black leading-none">{offer.offerPrice} <span className="text-xs">ج.م</span></p>
+                  <div className="mt-4 flex flex-col gap-4">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-slate-500 text-[10px] font-bold line-through">{offer.originalPrice} ج.م</p>
+                        <p className="text-white text-xl font-display font-black leading-none">{offer.offerPrice} <span className="text-xs">ج.م</span></p>
+                      </div>
+                      <div className="bg-[var(--color-accent)] text-slate-900 px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-[var(--color-accent)]/20">
+                        وفر {Math.round((1 - offer.offerPrice / offer.originalPrice) * 100)}%
+                      </div>
                     </div>
-                    <div className="bg-[var(--color-accent)] text-slate-900 px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-[var(--color-accent)]/20">
-                      وفر {Math.round((1 - offer.offerPrice / offer.originalPrice) * 100)}%
-                    </div>
+                    
+                    <button 
+                      onClick={() => handleOfferOrder(offer)}
+                      disabled={loading}
+                      className="w-full bg-white text-slate-900 hover:bg-[var(--color-accent)] transition-colors py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                    >
+                      <ShoppingBag size={18} />
+                      طلب العرض الآن
+                    </button>
                   </div>
                 </div>
               </motion.div>

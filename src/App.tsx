@@ -96,6 +96,7 @@ export default function App() {
             <Route path="/supplier/products" element={<ManageCatalog />} />
             <Route path="/supplier/offers" element={<SupplierOffers />} />
             <Route path="/supplier/offers/new" element={<NewSupplierOffer />} />
+            <Route path="/supplier/offers/edit/:id" element={<NewSupplierOffer />} />
             <Route path="/supplier/analytics" element={<SupplierAnalytics />} />
             <Route path="/supplier/profile" element={<SupplierProfile />} />
             <Route path="/supplier/notifications" element={<Notifications />} />
