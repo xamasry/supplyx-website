@@ -12,6 +12,7 @@ import SignupPage from './pages/auth/SignupPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import ReloadPrompt from './components/pwa/ReloadPrompt';
 import PushNotificationManager from './components/pwa/PushNotificationManager';
+import InstallPrompt from './components/pwa/InstallPrompt';
 import { Loader2 } from 'lucide-react';
 
 const BuyerHome = lazy(() => import('./pages/buyer/BuyerHome'));
@@ -55,6 +56,7 @@ export default function App() {
         <Toaster position="top-center" />
         <ReloadPrompt />
         <PushNotificationManager />
+        <InstallPrompt />
         <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
