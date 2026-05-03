@@ -126,7 +126,7 @@ export default function SupplierOffers() {
                 </div>
              </div>
 
-             <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col">
                 <h3 className="font-bold text-slate-900 leading-tight text-sm line-clamp-1 mb-1">{offer.title}</h3>
                 
                 <div className="flex flex-col gap-0.5 mb-2">
@@ -137,6 +137,24 @@ export default function SupplierOffers() {
                     )}
                   </div>
                   <span className="text-[10px] text-slate-400 line-through">({offer.originalPrice} ج)</span>
+                </div>
+
+                {/* Mobile Actions - Prominent */}
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-50 md:hidden">
+                  <Link 
+                    to={`/supplier/offers/edit/${offer.id}`} 
+                    className="flex items-center justify-center gap-1 py-2 bg-slate-50 text-slate-700 rounded-xl text-[10px] font-black border border-slate-100 active:bg-slate-100"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    تعديل
+                  </Link>
+                  <button 
+                    onClick={() => handleDelete(offer.id)}
+                    className="flex items-center justify-center gap-1 py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-black border border-red-100 active:bg-red-100"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    حذف
+                  </button>
                 </div>
 
                 <div className="mt-auto pt-2 border-t border-slate-100 flex items-center justify-between text-[9px] font-black text-slate-400 uppercase tracking-tighter">
