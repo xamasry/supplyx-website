@@ -13,11 +13,8 @@ export default function InstallPrompt() {
     setIsIOS(isIOSDevice);
 
     if (isInstallable && !isStandalone) {
-      const hasDismissed = localStorage.getItem('pwa_prompt_dismissed_v2');
-      if (!hasDismissed) {
-        const timer = setTimeout(() => setShowPrompt(true), 5000);
-        return () => clearTimeout(timer);
-      }
+      const timer = setTimeout(() => setShowPrompt(true), 3000);
+      return () => clearTimeout(timer);
     }
   }, [isInstallable, isStandalone]);
 
@@ -25,15 +22,11 @@ export default function InstallPrompt() {
     if (deferredPrompt) {
       await install();
       setShowPrompt(false);
-    } else if (isIOS) {
-      // For iOS, button just serves as a toggle or nudge, 
-      // but maybe we just keep the prompt open or scroll to instructions.
     }
   };
 
   const dismissPrompt = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa_prompt_dismissed_v2', Date.now().toString());
   };
 
   if (isStandalone || !showPrompt || !isInstallable) return null;
