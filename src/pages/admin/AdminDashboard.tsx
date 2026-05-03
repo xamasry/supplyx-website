@@ -51,9 +51,11 @@ import {
   Store,
   Package,
   Edit,
-  Zap
+  Zap,
+  Activity
 } from 'lucide-react';
 import { CATEGORIES } from '../../constants';
+import AnalyticsSystem from './AnalyticsSystem';
 import { 
   BarChart, 
   Bar, 
@@ -70,7 +72,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Tab = 'overview' | 'control_room' | 'analytics' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
+type Tab = 'overview' | 'control_room' | 'analytics' | 'monitoring' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
 
 import UserDetailsModal from './UserDetailsModal';
 import RequestDetailsAdminModal from './RequestDetailsAdminModal';
@@ -134,6 +136,7 @@ export default function AdminDashboard() {
     isTrial: false
   });
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [broadcast, setBroadcast] = useState({ title: '', message: '', target: 'all' as 'all' | 'buyer' | 'supplier' });
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [broadcasts, setBroadcasts] = useState<any[]>([]);
@@ -1030,29 +1033,52 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
-      {/* Sidebar - Desktop */}
-      <aside className="fixed right-0 top-0 h-full w-64 bg-slate-900 border-l border-slate-800 z-50 hidden lg:block">
+    <div className="min-h-screen bg-slate-950 text-slate-200 overflow-x-hidden" dir="rtl">
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar - Shared logic for Mobile/Desktop */}
+      <aside className={cn(
+        "fixed right-0 top-0 h-full w-64 bg-slate-900 border-l border-slate-800 z-[70] transition-transform duration-300 transform",
+        "lg:translate-x-0 lg:block",
+        isSidebarOpen ? "translate-x-0" : "translate-x-full"
+      )}>
         <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="bg-primary-500/20 p-2 rounded-lg">
-              <ShieldCheck className="w-6 h-6 text-primary-500" />
+          <div className="flex items-center justify-between lg:justify-start gap-3 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary-500/20 p-2 rounded-lg">
+                <ShieldCheck className="w-6 h-6 text-primary-500" />
+              </div>
+              <span className="font-bold text-xl text-white">إكس كونترول</span>
             </div>
-            <span className="font-bold text-xl text-white">إكس كونترول</span>
+            <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 text-slate-400">
+               <XCircle className="w-6 h-6" />
+            </button>
           </div>
 
           <nav className="space-y-1">
-            <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="نظرة عامة" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-            <NavItem icon={<Zap className="w-5 h-5" />} label="غرفة العمليات" active={activeTab === 'control_room'} onClick={() => setActiveTab('control_room')} badge={stats.newRequestsCount > 0 ? stats.newRequestsCount : undefined} badgeColor="bg-emerald-500" />
-            <NavItem icon={<BarChart3 className="w-5 h-5" />} label="التحليلات التفصيلية" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
-            <NavItem icon={<Users className="w-5 h-5" />} label="المستخدمين" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
-            <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="العروض" active={activeTab === 'offers'} onClick={() => setActiveTab('offers')} />
-            <NavItem icon={<ArrowRightLeft className="w-5 h-5" />} label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
-            <NavItem icon={<Tag className="w-5 h-5" />} label="الخدمات والأصناف" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} />
-            <NavItem icon={<ShieldCheck className="w-5 h-5" />} label="الاشتراكات" active={activeTab === 'subscriptions'} onClick={() => setActiveTab('subscriptions')} />
-            <NavItem icon={<Mail className="w-5 h-5" />} label="بث إشعارات" active={activeTab === 'broadcast'} onClick={() => setActiveTab('broadcast')} />
-            <NavItem icon={<DollarSign className="w-5 h-5" />} label="المالية والأرباح" active={activeTab === 'finances'} onClick={() => setActiveTab('finances')} />
-            <NavItem icon={<AlertCircle className="w-5 h-5" />} label="الإعدادات" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+            <NavItem icon={<LayoutDashboard className="w-5 h-5" />} label="نظرة عامة" active={activeTab === 'overview'} onClick={() => { setActiveTab('overview'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<Zap className="w-5 h-5" />} label="غرفة العمليات" active={activeTab === 'control_room'} onClick={() => { setActiveTab('control_room'); setIsSidebarOpen(false); }} badge={stats.newRequestsCount > 0 ? stats.newRequestsCount : undefined} badgeColor="bg-emerald-500" />
+            <NavItem icon={<Activity className="w-5 h-5" />} label="مراقبة النظام" active={activeTab === 'monitoring'} onClick={() => { setActiveTab('monitoring'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<BarChart3 className="w-5 h-5" />} label="التحليلات التفصيلية" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<Users className="w-5 h-5" />} label="المستخدمين" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<ShoppingBag className="w-5 h-5" />} label="العروض" active={activeTab === 'offers'} onClick={() => { setActiveTab('offers'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<ArrowRightLeft className="w-5 h-5" />} label="الطلبات" active={activeTab === 'requests'} onClick={() => { setActiveTab('requests'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<Tag className="w-5 h-5" />} label="الخدمات والأصناف" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<ShieldCheck className="w-5 h-5" />} label="الاشتراكات" active={activeTab === 'subscriptions'} onClick={() => { setActiveTab('subscriptions'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<Mail className="w-5 h-5" />} label="بث إشعارات" active={activeTab === 'broadcast'} onClick={() => { setActiveTab('broadcast'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<DollarSign className="w-5 h-5" />} label="المالية والأرباح" active={activeTab === 'finances'} onClick={() => { setActiveTab('finances'); setIsSidebarOpen(false); }} />
+            <NavItem icon={<AlertCircle className="w-5 h-5" />} label="الإعدادات" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} />
           </nav>
         </div>
 
@@ -1070,19 +1096,27 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="lg:pr-64 min-h-screen">
         {/* Top Header */}
-        <header className="h-16 bg-slate-900/50 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-6 flex items-center justify-between">
-          <h2 className="font-bold text-white text-lg">
-            {activeTab === 'overview' ? 'لوحة القيادة' : 
-             activeTab === 'users' ? 'إدارة المستخدمين' :
-             activeTab === 'offers' ? 'التحكم في العروض' :
-             activeTab === 'requests' ? 'متابعة الطلبات' :
-             activeTab === 'categories' ? 'إدارة الأصناف والخدمات' :
-             activeTab === 'subscriptions' ? 'إدارة الاشتراكات' :
-             activeTab === 'broadcast' ? 'بث رسائل للنظام' :
-             activeTab === 'finances' ? 'الأداء المالي' : 'الإعدادات العامة'}
-          </h2>
+        <header className="h-16 bg-slate-900/50 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 text-slate-400 bg-slate-800 rounded-lg"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+            </button>
+            <h2 className="font-bold text-white text-sm sm:text-lg">
+              {activeTab === 'overview' ? 'لوحة القيادة' : 
+               activeTab === 'users' ? 'إدارة المستخدمين' :
+               activeTab === 'offers' ? 'التحكم في العروض' :
+               activeTab === 'requests' ? 'متابعة الطلبات' :
+               activeTab === 'categories' ? 'إدارة الأصناف والخدمات' :
+               activeTab === 'subscriptions' ? 'إدارة الاشتراكات' :
+               activeTab === 'broadcast' ? 'بث رسائل للنظام' :
+               activeTab === 'finances' ? 'الأداء المالي' : 'الإعدادات العامة'}
+            </h2>
+          </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <div className="relative hidden md:block">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input 
@@ -1259,6 +1293,12 @@ export default function AdminDashboard() {
                       </ResponsiveContainer>
                     </div>
                  </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'monitoring' && (
+              <motion.div key="monitoring" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <AnalyticsSystem />
               </motion.div>
             )}
 

@@ -54,6 +54,8 @@ export interface FirestoreErrorInfo {
   }
 }
 
+import { monitor } from './monitor';
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, suppressThrow: boolean = true) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -71,6 +73,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
+  
+  // Log to centralized monitoring
+  monitor.logError(`Firestore Error: ${operationType} at ${path}`, errInfo);
+
   console.error('Firestore Error Detailed Object:', error);
   console.error('Firestore Error Info JSON:', JSON.stringify(errInfo));
   if (errInfo.error.includes('permissions')) {

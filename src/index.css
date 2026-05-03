@@ -38,7 +38,6 @@
     /* PWA safe area support */
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow-x: hidden;
-    user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
   

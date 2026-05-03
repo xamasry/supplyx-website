@@ -36,9 +36,8 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isSignedIn() && 
-        request.auth.token.keys().contains('email') && 
         (
-          request.auth.token.email.matches('(?i)masriboro@gmail\\.com') ||
+          (request.auth.token.keys().contains('email') && request.auth.token.email.lower() == 'masriboro@gmail.com') ||
           request.auth.uid == 'NiDR1AAMDuTGXqbYXfIs4TTijRk2'
         );
     }
@@ -101,7 +100,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow list: if isAdmin() || (isSignedIn() && resource.data.role == 'supplier');
-      allow get: if isSignedIn();
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin() || resource.data.role == 'supplier');
       allow create, update: if isOwner(userId) || isAdmin();
       
       match /payment_methods/{methodId} {
@@ -142,7 +141,7 @@ service cloud.firestore {
       allow list: if isSignedIn() && (
         resource.data.supplierId == request.auth.uid || 
         isAdmin() ||
-        isSuperAdmin()
+        (resource.data.keys().contains('requestId') && get(/databases/$(database)/documents/requests/$(resource.data.requestId)).data.buyerId == request.auth.uid)
       );
       allow get: if isSignedIn();
     }
@@ -214,6 +213,23 @@ service cloud.firestore {
     match /system_broadcasts/{broadcastId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
+    }
+
+    match /system_logs/{logId} {
+      allow create: if true; // Allow anyone to log (including public errors)
+      allow read: if isAdmin();
+    }
+
+    match /system_alerts/{alertId} {
+      allow create: if true;
+      allow read, update: if isAdmin();
+    }
+
+    match /exclusive_offers/{offerId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isSupplier() && isValidId(offerId);
+      allow update: if isSignedIn() && (isAdmin() || (resource.data.supplierId == request.auth.uid));
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.supplierId == request.auth.uid);
     }
 
     match /subscription_requests/{requestId} {

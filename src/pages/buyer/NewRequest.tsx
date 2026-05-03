@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, Search, MapPin, Loader2, DollarSign, Package } from 'lucide-react';
 import { cn, fetchWithRetry, convertArabicNumerals } from '../../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
+import { monitor } from '../../lib/monitor';
 import { trackEvent } from '../../lib/analytics';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -139,11 +140,7 @@ export default function NewRequest() {
 
       toast.success('تم إرسال الطلب بنجاح!');
       
-      trackEvent('request_created', {
-        type: isBulk ? 'bulk' : 'fast',
-        category: selectedCategory?.id,
-        itemsCount: isBulk ? bulkItems.length : 1
-      });
+      monitor.logConversion('Request Created', isBulk ? bulkItems.length : 1);
 
       navigate(`/buyer/request/${docRef.id}`);
     } catch (error) {

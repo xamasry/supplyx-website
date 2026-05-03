@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, Trash2, ChevronLeft, Clock, Info, CheckCircle2 } from 'lucide-react';
+import { Bell, Check, Trash2, ChevronLeft, Clock, Info, CheckCircle2, ChevronRight } from 'lucide-react';
 import Logo from '../components/ui/Logo';
 import { cn } from '../lib/utils';
 import { db, auth, OperationType, handleFirestoreError } from '../lib/firebase';
@@ -111,7 +111,7 @@ export default function Notifications() {
       <header className="flex items-center justify-between mb-6 sticky top-0 bg-slate-50 py-2 z-10">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-slate-200">
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronRight className="w-6 h-6" />
           </button>
           <h1 className="text-xl font-bold text-slate-900">التنبيهات</h1>
         </div>
