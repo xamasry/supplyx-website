@@ -487,64 +487,75 @@ export default function ManageCatalog() {
                 className="bg-white border border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all group relative flex flex-col"
               >
                 {/* Actions Overlay */}
-                <div className="absolute top-4 left-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-4 left-4 z-10 flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
-                      onClick={() => openOfferModal(offer)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openOfferModal(offer);
+                      }}
                       className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-[var(--color-primary)] rounded-xl shadow-lg transition-all"
                     >
                       <Edit2 size={16} />
                     </button>
                     <button 
-                      onClick={() => handleDeleteOffer(offer)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteOffer(offer);
+                      }}
                       className="p-2 bg-white/90 backdrop-blur-sm text-slate-600 hover:text-red-500 rounded-xl shadow-lg transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
                 </div>
 
-                <div className="aspect-square bg-slate-50 relative overflow-hidden">
-                   {offer.image ? (
-                     <img src={offer.image} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" alt={offer.title} />
-                   ) : (
-                     <div className="w-full h-full flex items-center justify-center text-slate-200">
-                        <Tag size={64} />
+                <div 
+                  className="cursor-pointer flex flex-col h-full"
+                  onClick={() => openOfferModal(offer)}
+                >
+                  <div className="aspect-square bg-slate-50 relative overflow-hidden">
+                     {offer.image ? (
+                       <img src={offer.image} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" alt={offer.title} />
+                     ) : (
+                       <div className="w-full h-full flex items-center justify-center text-slate-200">
+                          <Tag size={64} />
+                       </div>
+                     )}
+                     {/* Banner / Badge */}
+                     <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
+                        عرض حصري
                      </div>
-                   )}
-                   {/* Banner / Badge */}
-                   <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg">
-                      عرض حصري
-                   </div>
-                </div>
-
-                <div className="p-6 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-base mb-1 group-hover:text-[var(--color-primary)] transition-colors">{offer.title}</h3>
-                    <p className="text-[11px] font-semibold text-slate-400 line-clamp-2 leading-relaxed mb-4">{offer.description}</p>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="flex items-end justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{offer.originalPrice} ج.م</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-xl font-black text-emerald-600 font-display">{offer.offerPrice}</span>
-                          <span className="text-[11px] font-black text-emerald-600">ج.م</span>
-                          <span className="text-[10px] font-bold text-slate-400 mr-1">/ قطعة</span>
-                        </div>
-                      </div>
+                  <div className="p-6 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-base mb-1 group-hover:text-[var(--color-primary)] transition-colors">{offer.title}</h3>
+                      <p className="text-[11px] font-semibold text-slate-400 line-clamp-2 leading-relaxed mb-4">{offer.description}</p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                       <div className="flex gap-4">
-                          <div className="flex items-center gap-1.5 text-slate-400">
-                             <Package size={14} />
-                             <span className="text-xs font-black">{offer.orders || 0}</span>
+                    <div className="space-y-4">
+                      <div className="flex items-end justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{offer.originalPrice} ج.م</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black text-emerald-600 font-display">{offer.offerPrice}</span>
+                            <span className="text-[11px] font-black text-emerald-600">ج.م</span>
+                            <span className="text-[10px] font-bold text-slate-400 mr-1">/ قطعة</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-slate-400">
-                             <Eye size={14} />
-                             <span className="text-[10px] font-bold">{offer.views || 0}</span>
-                          </div>
-                       </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                         <div className="flex gap-4">
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                               <Package size={14} />
+                               <span className="text-xs font-black">{offer.orders || 0}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                               <Eye size={14} />
+                               <span className="text-[10px] font-bold">{offer.views || 0}</span>
+                            </div>
+                         </div>
+                      </div>
                     </div>
                   </div>
                 </div>
