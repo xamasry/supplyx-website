@@ -193,7 +193,7 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
       </nav>
       
       {/* Supplier Specific FAB */}
-      <Link to="/supplier/offers/new" className="fixed bottom-20 right-6 w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all z-40 md:bottom-10 md:right-10">
+      <Link to="/supplier/offers/new" className="fixed bottom-28 right-6 w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all z-40 md:bottom-10 md:right-10">
         <span className="text-3xl leading-none font-light">+</span>
       </Link>
     </div>
