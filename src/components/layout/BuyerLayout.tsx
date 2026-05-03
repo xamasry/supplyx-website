@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardList, Gift, User, Bell, Heart } from 'lucide-react';
+import { Home, ClipboardList, Gift, User, Bell, Heart, Smartphone } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { auth, db, handleFirestoreError, OperationType } from '../../lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -8,6 +8,7 @@ import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import { useNotifications } from '../../hooks/useNotifications';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -19,6 +20,8 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
   const [userProfile, setUserProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const path = location.pathname;
+
+  const { isInstallable, isStandalone, install } = usePWAInstall();
 
   useEffect(() => {
     let unsubNotifs: (() => void) | null = null;
@@ -111,6 +114,15 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
               </span>
             )}
           </Link>
+          {isInstallable && !isStandalone && (
+            <button 
+              onClick={install}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-primary-500/20 hover:bg-primary-600 transition-all active:scale-95"
+            >
+              <Smartphone size={18} />
+              <span className="hidden sm:inline">تثبيت التطبيق</span>
+            </button>
+          )}
           <Link to="/buyer/profile" className="flex items-center gap-3 group">
             <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-500 border border-slate-200 group-hover:border-[var(--color-primary)] transition-all">
               {userProfile?.businessName?.[0] || user?.displayName?.[0] || 'U'}
