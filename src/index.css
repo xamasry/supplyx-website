@@ -29,6 +29,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: var(--color-brand-bg);
     color: var(--color-dark);
@@ -39,6 +43,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
   
   /* Prevent horizontal scroll on mobile */

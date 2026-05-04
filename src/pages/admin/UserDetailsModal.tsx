@@ -377,6 +377,23 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
                 </>
               )}
               <button 
+                onClick={async () => {
+                  if (window.confirm('هل أنت متأكد من حذف هذا الحساب نهائياً؟ لا يمكن التراجع عن هذه الخطوة.')) {
+                    try {
+                      await deleteDoc(doc(db, 'users', user.id));
+                      toast.success('تم حذف الحساب بنجاح');
+                      onClose();
+                    } catch (error) {
+                      handleFirestoreError(error, OperationType.DELETE, `users/${user.id}`);
+                    }
+                  }
+                }}
+                className="p-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                title="حذف الحساب نهائياً"
+              >
+                <Trash2 size={18} />
+              </button>
+              <button 
                 onClick={onClose}
                 className="w-10 h-10 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center hover:bg-slate-700 hover:text-white transition-colors"
               >

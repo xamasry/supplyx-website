@@ -35,6 +35,7 @@ const ManageCatalog = lazy(() => import('./pages/supplier/ManageCatalog'));
 const SupplierStore = lazy(() => import('./pages/buyer/SupplierStore'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking'));
+const CategoryProducts = lazy(() => import('./pages/buyer/CategoryProducts'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 
@@ -72,6 +73,7 @@ export default function App() {
             </ProtectedRoute>
           }>
             <Route path="/buyer/home" element={<BuyerHome />} />
+            <Route path="/buyer/products" element={<CategoryProducts />} />
             <Route path="/buyer/request/new" element={<NewRequest />} />
             <Route path="/buyer/request/:id" element={<RequestDetail />} />
             <Route path="/buyer/orders" element={<BuyerOrders />} />

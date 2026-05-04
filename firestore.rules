@@ -101,7 +101,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow list: if isAdmin() || (isSignedIn() && resource.data.role == 'supplier');
       allow get: if isSignedIn() && (isOwner(userId) || isAdmin() || resource.data.role == 'supplier');
-      allow create, update: if isOwner(userId) || isAdmin();
+      allow create, update, delete: if isOwner(userId) || isAdmin();
       
       match /payment_methods/{methodId} {
         allow read, write: if isOwner(userId) || isAdmin();

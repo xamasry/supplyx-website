@@ -132,13 +132,13 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
       </header>
 
       <main className="flex-1 w-full lg:max-w-7xl mx-auto overflow-x-hidden pt-4 px-2 md:px-6">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
             className="w-full"
           >
             {children || <Outlet />}

@@ -148,13 +148,13 @@ export default function SupplierLayout({ children }: { children?: React.ReactNod
       </header>
 
       <main className="flex-1 w-full lg:max-w-6xl mx-auto pt-6 px-4 md:px-8">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, x: -10 }}
+            initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
             className="w-full"
           >
             {children || <Outlet />}
