@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { User, Store, MapPin, Bell, CreditCard, FileText, HelpCircle, LogOut, Loader2, X, Plus, Trash2, Star } from 'lucide-react';
 import { useState, useEffect, type FormEvent } from 'react';
+import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { auth, db, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -213,7 +214,7 @@ export default function BuyerProfile() {
         <div className="bg-white rounded-3xl p-2 border border-slate-200 shadow-sm">
           <div className="flex flex-col">
             <button 
-              onClick={() => setIsPaymentModalOpen(true)}
+              onClick={() => toast.error('عذراً، إضافة طرق دفع مباشرة غير متاحة حالياً. يتم الدفع عن طريق الكاش أو انستا باي (InstaPay) عند استلام الطلبات.', { duration: 5000, icon: '💡' })}
               className="flex items-center gap-3 p-4 hover:bg-slate-50 rounded-2xl transition-colors text-right relative border-b border-slate-100 w-full"
             >
               <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
