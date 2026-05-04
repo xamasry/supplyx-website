@@ -74,19 +74,17 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
     return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  // If role is required but not yet determined or wrong
   if (allowedRole && userRole !== allowedRole && userRole !== 'admin') {
     if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'supplier') return <Navigate to="/supplier/home" replace />;
     if (userRole === 'buyer') return <Navigate to="/buyer/home" replace />;
     
     // If user has no document in Firestore yet but is authenticated
-    // We might want to allow them through if allowedRole is not specified
-    // but usually they need a role.
     if (!userRole) {
        return <Navigate to="/auth/signup" replace />;
     }
 
+    console.warn(`Role mismatch: expected ${allowedRole}, got ${userRole}`);
     return <Navigate to="/" replace />;
   }
 

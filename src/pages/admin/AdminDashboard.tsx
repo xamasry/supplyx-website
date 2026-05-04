@@ -589,8 +589,10 @@ export default function AdminDashboard() {
     if (!window.confirm('هل أنت متأكد من الحذف النهائي؟')) return;
     try {
       await deleteDoc(doc(db, collectionName, id));
-    } catch (err) {
-      toast.error('فشل الحذف');
+      toast.success('تم الحذف بنجاح');
+    } catch (err: any) {
+      console.error(`Delete Error [${collectionName}]:`, err);
+      handleFirestoreError(err, OperationType.DELETE, `${collectionName}/${id}`);
     }
   };
 
