@@ -135,7 +135,7 @@ export default function NewSupplierOffer() {
         // Fields only for new offers
         ...(isEditMode ? {} : {
           supplierId: auth.currentUser.uid,
-          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
+          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد موثق',
           supplierRating: sData.rating || 0,
           supplierTotalRatings: sData.totalRatings || 0,
           status: 'active',

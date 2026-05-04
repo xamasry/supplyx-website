@@ -112,7 +112,7 @@ export default function NewRequest() {
         bidsCount: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        location: 'بنها، القليوبية',
+        location: 'الموقع المحدد',
         coordinates: location ? { lat: location.lat, lng: location.lng } : null
       };
 

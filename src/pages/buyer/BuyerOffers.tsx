@@ -233,7 +233,7 @@ export default function BuyerOffers() {
              <div className="w-20 h-20 bg-amber-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-amber-500/20 rotate-3">
                 <Flame className="w-10 h-10 text-white" />
              </div>
-             <h2 className="text-2xl font-black text-white mb-3">عروض بنها بريميوم (Premium)</h2>
+             <h2 className="text-2xl font-black text-white mb-3">عروض بريميوم (Premium)</h2>
              <p className="text-slate-400 text-sm mb-8 max-w-md mx-auto leading-relaxed">
                تصفح أقوى العروض والخصومات الحصرية من كبار الموردين الموثقين. هذه الخدمة متاحة فقط لمشتركي الباقة المميزة.
              </p>

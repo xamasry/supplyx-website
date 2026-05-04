@@ -501,7 +501,7 @@ export default function OrderTracking() {
              <div>
                <h4 className="font-bold text-sm text-slate-900">{isSupplier ? request.buyerName : request.supplierName}</h4>
                <p className="text-[10px] text-slate-500 flex items-center gap-1 font-bold">
-                 <MapPin className="w-3 h-3" /> {(isSupplier && (request.buyerConfirmPhone || request.buyerPhone)) ? `الهاتف: ${request.buyerConfirmPhone || request.buyerPhone}` : (request.location || 'بنها، القليوبية')}
+                 <MapPin className="w-3 h-3" /> {(isSupplier && (request.buyerConfirmPhone || request.buyerPhone)) ? `الهاتف: ${request.buyerConfirmPhone || request.buyerPhone}` : (request.location || 'الموقع المحدد')}
                </p>
                {isSupplier && (request.buyerConfirmPhone || request.buyerPhone) && (
                  <a href={`tel:${request.buyerConfirmPhone || request.buyerPhone}`} className="text-[10px] text-[var(--color-primary)] font-black mt-1 inline-block bg-[var(--color-primary)]/10 px-2 py-0.5 rounded">

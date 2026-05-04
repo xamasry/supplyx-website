@@ -130,7 +130,7 @@ export default function SupplierRequestDetail() {
         await addDoc(collection(db, bidsCollectionPath), {
           requestId: id,
           supplierId: auth.currentUser.uid,
-          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد بنها',
+          supplierName: sData.businessName || auth.currentUser.displayName || 'مورد موثق',
           supplierTier: sData.subscriptionTier || 'standard',
           isVerified: sData.isVerified || false,
           price: Number(price),
