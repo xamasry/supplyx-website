@@ -794,16 +794,25 @@ export default function ManageCatalog() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">التصنيف</label>
-                    <select 
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
-                    >
-                      {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 mr-1">التصنيف</label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                       {APP_CATEGORIES.map((cat) => (
+                         <button
+                           key={cat.name}
+                           type="button"
+                           onClick={() => setFormData({ ...formData, category: cat.name })}
+                           className={cn(
+                             "flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all gap-1.5",
+                             formData.category === cat.name
+                               ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/20"
+                               : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100"
+                           )}
+                         >
+                           <span className="text-xl">{cat.icon}</span>
+                           <span className="text-[10px] font-bold truncate w-full text-center">{cat.name}</span>
+                         </button>
+                       ))}
+                    </div>
                   </div>
 
                   <div className="space-y-2">

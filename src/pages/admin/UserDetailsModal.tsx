@@ -8,6 +8,7 @@ import { doc, updateDoc, collection, query, where, onSnapshot, addDoc, deleteDoc
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import ImageUpload from '../../components/ui/ImageUpload';
+import { CATEGORIES } from '../../constants';
 
 interface UserDetailsModalProps {
   user: any;
@@ -544,6 +545,27 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
                            <option value="قطعة">قطعة</option>
                            <option value="لتر">لتر</option>
                          </select>
+                       </div>
+                       <div className="col-span-2">
+                         <label className="text-[10px] text-slate-500 font-bold block mb-2">التصنيف</label>
+                         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-32 overflow-y-auto pr-2 scrollbar-thin">
+                            {CATEGORIES.map(cat => (
+                              <button
+                                key={cat.name}
+                                type="button"
+                                onClick={() => setProductForm({ ...productForm, category: cat.name })}
+                                className={cn(
+                                  "flex flex-col items-center justify-center p-2 rounded-xl border transition-all gap-1",
+                                  productForm.category === cat.name
+                                    ? "bg-blue-600 border-blue-500 text-white"
+                                    : "bg-slate-900 border-slate-700 text-slate-500 hover:bg-slate-800"
+                                )}
+                              >
+                                <span className="text-base">{cat.icon}</span>
+                                <span className="text-[8px] font-bold truncate w-full text-center">{cat.name}</span>
+                              </button>
+                            ))}
+                         </div>
                        </div>
                        <div className="col-span-2">
                          <label className="text-[10px] text-slate-500 font-bold block mb-2">صورة المنتج</label>

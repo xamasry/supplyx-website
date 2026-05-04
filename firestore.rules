@@ -110,31 +110,29 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isSupplier() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if isSignedIn() && isSupplier() && resource.data.supplierId == request.auth.uid && isValidProduct(incoming());
-      allow delete: if isSignedIn() && isSupplier() && resource.data.supplierId == request.auth.uid;
+      allow create: if isSignedIn() && (isSupplier() || isAdmin()) && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid)) && isValidProduct(incoming());
+      allow delete: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid));
     }
 
     // --- Validation Helpers ---
 
     function isValidProduct(data) {
       return data.keys().hasAll(['supplierId', 'supplierName', 'name', 'price', 'category']) &&
-             data.supplierId == request.auth.uid &&
+             (isAdmin() || data.supplierId == request.auth.uid) &&
              data.name is string && data.name.size() <= 200 &&
              data.price is number && data.price >= 0 &&
-             data.category is string &&
-             (!data.keys().hasAny(['description']) || data.description is string) &&
-             (!data.keys().hasAny(['image']) || data.image is string);
+             data.category is string;
     }
 
     match /offers/{offerId} {
       allow read: if true;
-      allow create: if isSignedIn() && isValidId(offerId);
+      allow create: if isSignedIn() && (isSupplier() || isAdmin()) && isValidId(offerId);
       allow update: if isAdmin() || (isSignedIn() && (
-        existing().supplierId == request.auth.uid ||
+        (isSupplier() && existing().supplierId == request.auth.uid) ||
         incoming().diff(existing()).affectedKeys().hasOnly(['orders', 'updatedAt'])
       ));
-      allow delete: if isAdmin() || (isSignedIn() && existing().supplierId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && isSupplier() && existing().supplierId == request.auth.uid);
     }
 
     match /{path=**}/bids/{bidId} {

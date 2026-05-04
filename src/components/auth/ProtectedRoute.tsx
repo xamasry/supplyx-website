@@ -75,7 +75,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
   }
 
   // If role is required but not yet determined or wrong
-  if (allowedRole && userRole !== allowedRole) {
+  if (allowedRole && userRole !== allowedRole && userRole !== 'admin') {
     if (userRole === 'admin') return <Navigate to="/admin/dashboard" replace />;
     if (userRole === 'supplier') return <Navigate to="/supplier/home" replace />;
     if (userRole === 'buyer') return <Navigate to="/buyer/home" replace />;
