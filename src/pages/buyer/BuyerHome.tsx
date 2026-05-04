@@ -329,7 +329,10 @@ export default function BuyerHome() {
         <div className="flex justify-between items-center mb-8 px-2">
           <div className="flex items-center gap-3">
             <div className="w-2 h-6 bg-rose-500 rounded-full" />
-            <h3 className="text-xl font-black text-slate-900">أقوى العروض الحالية</h3>
+            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <span>أقوى العروض الحالية لعملاء</span>
+              <span className="bg-slate-900 text-[var(--color-primary)] px-3 py-1 rounded-xl text-sm font-black tracking-tighter shadow-lg shadow-green-500/10">SupplyX</span>
+            </h3>
           </div>
         </div>
 

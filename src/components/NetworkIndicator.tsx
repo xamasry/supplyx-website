@@ -1,7 +1,7 @@
 import React from 'react';
 import { WifiOff } from 'lucide-react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function NetworkIndicator() {
   const isOnline = useNetworkStatus();
