@@ -156,10 +156,9 @@ service cloud.firestore {
     }
 
     match /requests/{requestId} {
-      allow list: if isAdmin() || (isSignedIn() && (
+      allow list: if resource.data.status == 'active' || isAdmin() || (isSignedIn() && (
         resource.data.buyerId == request.auth.uid || 
-        resource.data.supplierId == request.auth.uid || 
-        resource.data.status == 'active'
+        resource.data.supplierId == request.auth.uid
       ));
       allow get: if isAdmin() || isSignedIn();
       allow create: if isSignedIn() && isValidId(requestId) && incoming().buyerId == request.auth.uid;

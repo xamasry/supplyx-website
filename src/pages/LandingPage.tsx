@@ -4,6 +4,8 @@ import { motion } from 'motion/react';
 import Logo from '../components/ui/Logo';
 import { CATEGORIES } from '../constants';
 
+import MarketplacePreview from '../components/guest/MarketplacePreview';
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans selection:bg-[#22C55E]/20 text-[#0B1D2A] overflow-x-hidden">
@@ -12,6 +14,7 @@ export default function LandingPage() {
         <Logo size="md" />
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
           <Link to="/" className="text-[#22C55E]">الرئيسية</Link>
+          <Link to="/marketplace" className="hover:text-[#22C55E] transition-colors">السوق المفتوح</Link>
           <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول الموردين</Link>
           <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول المطاعم</Link>
         </nav>
@@ -188,6 +191,8 @@ export default function LandingPage() {
              </div>
           </div>
         </section>
+
+        <MarketplacePreview />
 
         {/* Categories Preview - Floating Cloud Grid */}
         <section className="py-16 px-6 bg-white overflow-hidden">

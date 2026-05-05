@@ -49,6 +49,7 @@ const PageLoader = () => (
 );
 
 import { AnalyticsProvider } from './lib/analytics';
+import GuestMarketplace from './pages/GuestMarketplace';
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/marketplace" element={<GuestMarketplace />} />
           
           {/* Auth */}
           <Route path="/auth/login" element={<LoginPage />} />
