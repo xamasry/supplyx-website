@@ -3526,44 +3526,38 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-400 mb-1">كلمة المرور المؤقتة</label>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">كلمة المرور</label>
                       <input 
                         type="password" 
                         required
-                        minLength={6}
                         value={newUser.password}
                         onChange={e => setNewUser({...newUser, password: e.target.value})}
                         className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500" 
                         placeholder="••••••••"
-                        dir="ltr"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold text-slate-400 mb-2">نوع الحساب</label>
-                        <div className="grid grid-cols-2 gap-2">
-                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.role === 'buyer' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                             <input type="radio" name="role" value="buyer" className="hidden" checked={newUser.role === 'buyer'} onChange={() => setNewUser({...newUser, role: 'buyer'})} />
-                             <span className="font-bold">مشتري</span>
-                           </label>
-                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.role === 'supplier' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                             <input type="radio" name="role" value="supplier" className="hidden" checked={newUser.role === 'supplier'} onChange={() => setNewUser({...newUser, role: 'supplier'})} />
-                             <span className="font-bold">مورد</span>
-                           </label>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold text-slate-400 mb-2">الباقة</label>
-                        <div className="grid grid-cols-2 gap-2">
-                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'standard' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                             <input type="radio" name="tier" value="standard" className="hidden" checked={newUser.subscriptionTier === 'standard'} onChange={() => setNewUser({...newUser, subscriptionTier: 'standard'})} />
-                             <span className="font-bold">Standard</span>
-                           </label>
-                           <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'premium' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                             <input type="radio" name="tier" value="premium" className="hidden" checked={newUser.subscriptionTier === 'premium'} onChange={() => setNewUser({...newUser, subscriptionTier: 'premium'})} />
-                             <span className="font-bold">Premium</span>
-                           </label>
-                        </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">نوع الحساب</label>
+                      <select 
+                        value={newUser.role}
+                        onChange={e => setNewUser({...newUser, role: e.target.value})}
+                        className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-primary-500"
+                      >
+                        <option value="buyer">مشتري</option>
+                        <option value="supplier">مورد</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-400 mb-1">باقة الاشتراك</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'standard' ? 'bg-primary-500/10 border-primary-500 text-primary-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                          <input type="radio" name="tier" value="standard" className="hidden" checked={newUser.subscriptionTier === 'standard'} onChange={() => setNewUser({...newUser, subscriptionTier: 'standard'})} />
+                          <span className="font-bold">Standard</span>
+                        </label>
+                        <label className={`flex items-center justify-center p-2 rounded-xl border cursor-pointer transition text-[10px] ${newUser.subscriptionTier === 'premium' ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
+                          <input type="radio" name="tier" value="premium" className="hidden" checked={newUser.subscriptionTier === 'premium'} onChange={() => setNewUser({...newUser, subscriptionTier: 'premium'})} />
+                          <span className="font-bold">Premium</span>
+                        </label>
                       </div>
                     </div>
 
