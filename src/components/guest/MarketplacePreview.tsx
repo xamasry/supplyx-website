@@ -97,10 +97,14 @@ export default function MarketplacePreview() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+                className="flex overflow-x-auto pb-6 gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 sm:overflow-x-visible -mx-6 px-6 sm:mx-0 sm:px-0 snap-x hide-scrollbar"
               >
-                {offers.length > 0 ? offers.map((offer) => (
-                  <div key={offer.id} className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col">
+                {offers.length > 0 ? (
+                  offers.map((offer) => (
+                    <div
+                      key={offer.id}
+                      className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col min-w-[260px] md:min-w-0 snap-center"
+                    >
                     <div className="relative aspect-square bg-slate-100 overflow-hidden">
                       {offer.image ? (
                         <img src={offer.image} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
@@ -115,36 +119,37 @@ export default function MarketplacePreview() {
                         </div>
                       )}
                     </div>
-                    <div className="p-5 flex-1 flex flex-col">
-                      <div className="mb-4">
-                        <h3 className="font-bold text-lg text-slate-900 mb-1 line-clamp-2">{offer.title}</h3>
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                           <Store size={12} />
+                    <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                      <div className="mb-3 sm:mb-4">
+                        <h3 className="font-bold text-base sm:text-lg text-slate-900 mb-1 line-clamp-2">{offer.title}</h3>
+                        <p className="text-[10px] sm:text-xs text-slate-500 font-medium flex items-center gap-1">
+                           <Store size={10} className="sm:w-3 sm:h-3" />
                            {offer.supplierName}
                         </p>
                       </div>
                       
-                      <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="mt-auto pt-3 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
                         <div>
                           {offer.originalPrice && (
-                            <span className="block text-[10px] text-slate-400 line-through font-bold">{offer.originalPrice} ج.م</span>
+                            <span className="block text-[9px] sm:text-[10px] text-slate-400 line-through font-bold">{offer.originalPrice} ج.م</span>
                           )}
                           <div className="flex items-baseline gap-1">
-                            <span className="font-black text-xl text-[#22C55E]">{offer.offerPrice}</span>
-                            <span className="text-xs font-bold text-slate-500">ج.م {offer.unit ? `/ ${offer.quantity || 1} ${offer.unit}` : ''}</span>
+                            <span className="font-black text-lg sm:text-xl text-[#22C55E]">{offer.offerPrice}</span>
+                            <span className="text-[10px] sm:text-xs font-bold text-slate-500">ج.م {offer.unit ? `/ ${offer.quantity || 1} ${offer.unit}` : ''}</span>
                           </div>
                         </div>
                         <button 
                           onClick={handleActionClick}
-                          className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#22C55E] hover:text-white transition-colors"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#22C55E] hover:text-white transition-colors"
                           title="يتطلب تسجيل الدخول للشراء"
                         >
-                          <ShoppingCart size={18} />
+                          <ShoppingCart size={16} className="sm:w-[18px] sm:h-[18px]" />
                         </button>
                       </div>
                     </div>
                   </div>
-                )) : (
+                ))
+                ) : (
                   <div className="col-span-full py-12 text-center text-slate-500">
                     لا توجد عروض متاحة حالياً.
                   </div>
