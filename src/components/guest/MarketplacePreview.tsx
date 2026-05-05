@@ -54,7 +54,7 @@ export default function MarketplacePreview() {
     <section className="py-20 px-6 bg-slate-50 overflow-hidden relative">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-5xl font-black text-[#0B1D2A] tracking-tight mb-4">تصفح السوق المفتوح</h2>
+          <h2 className="text-3xl md:text-5xl font-black text-[#0B1D2A] tracking-tight mb-4">عروض حصرية لعملاء SupplyX</h2>
           <p className="text-slate-500 max-w-2xl mx-auto text-lg">
             اكتشف أحدث العروض والطلبات الحالية في السوق. للقيام بعمليات الشراء أو المشاركة في المناقصات، يرجى إنشاء حساب.
           </p>
@@ -73,7 +73,7 @@ export default function MarketplacePreview() {
               العروض المتاحة
             </button>
             <button
-              onClick={() => setActiveTab('tenders')}
+              onClick={handleActionClick}
               className={`px-6 py-3 text-sm font-bold rounded-xl transition-all ${
                 activeTab === 'tenders' 
                   ? 'bg-[#0B1D2A] text-white shadow-md' 
