@@ -80,7 +80,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-type Tab = 'overview' | 'control_room' | 'analytics' | 'monitoring' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories';
+type Tab = 'overview' | 'control_room' | 'analytics' | 'monitoring' | 'users' | 'offers' | 'requests' | 'finances' | 'subscriptions' | 'settings' | 'broadcast' | 'categories' | 'ordering';
 
 import UserDetailsModal from './UserDetailsModal';
 import RequestDetailsAdminModal from './RequestDetailsAdminModal';
@@ -1169,6 +1169,7 @@ export default function AdminDashboard() {
                 badge={requests.filter(r => r.status === 'active' && !r.supplierId).length > 0 ? requests.filter(r => r.status === 'active' && !r.supplierId).length : undefined} 
                 badgeColor="bg-emerald-500" />
               <NavItem icon={<Activity className="w-5 h-5" />} label="مراقبة النظام" active={activeTab === 'monitoring'} onClick={() => { setActiveTab('monitoring'); setIsSidebarOpen(false); }} />
+              <NavItem icon={<Layers className="w-5 h-5" />} label="ترتيب العرض" active={activeTab === 'ordering'} onClick={() => { setActiveTab('ordering'); setIsSidebarOpen(false); }} />
               <NavItem icon={<BarChart3 className="w-5 h-5" />} label="التحليلات التفصيلية" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); setIsSidebarOpen(false); }} />
               <NavItem icon={<Users className="w-5 h-5" />} label="المستخدمين" active={activeTab === 'users'} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }} 
                 badge={users.filter(u => u.status === 'pending').length > 0 ? users.filter(u => u.status === 'pending').length : undefined} 
@@ -1211,6 +1212,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col">
                <h2 className="font-black text-white text-lg md:text-xl tracking-tight">
                  {activeTab === 'overview' ? 'لوحة القيادة' : 
+                  activeTab === 'ordering' ? 'ترتيب الموردين والعروض' :
                   activeTab === 'users' ? 'إدارة المستخدمين' :
                   activeTab === 'offers' ? 'التحكم في العروض' :
                   activeTab === 'requests' ? 'متابعة الطلبات' :
@@ -1242,6 +1244,124 @@ export default function AdminDashboard() {
         {/* Dashboard Pages */}
         <div className="p-6 md:p-8 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)]">
             <AnimatePresence mode="wait">
+            {activeTab === 'ordering' && (
+              <motion.div 
+                key="ordering" 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="space-y-8"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Suppliers Ordering */}
+                  <div className="bg-slate-900/50 rounded-[2rem] p-8 shadow-sm border border-slate-800">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-black text-white border-r-4 border-primary-500 pr-3">الموردين المميزين</h3>
+                      <p className="text-xs text-slate-400 font-bold">تحديد ترتيب ظهور الموردين في الصفحة الرئيسية</p>
+                    </div>
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {users.filter(u => u.role === 'supplier' && u.isTrusted).sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99)).map(s => (
+                        <div key={s.id} className="flex items-center justify-between bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 group">
+                          <div className="flex items-center gap-4">
+                            <img src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} className="w-10 h-10 rounded-xl object-cover" />
+                            <div>
+                              <p className="font-bold text-white">{s.businessName}</p>
+                              <p className="text-[10px] text-slate-500">{s.phone}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <label className="text-[10px] font-bold text-slate-500 block mb-1">الترتيب</label>
+                              <input 
+                                type="number" 
+                                defaultValue={s.sortOrder || 0}
+                                onBlur={async (e) => {
+                                  const val = parseInt(e.target.value);
+                                  await updateDoc(doc(db, 'users', s.id), { sortOrder: val, updatedAt: serverTimestamp() });
+                                  toast.success('تم التحديث');
+                                }}
+                                className="w-16 bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-center font-black focus:ring-2 focus:ring-primary-500 outline-none"
+                              />
+                            </div>
+                            <button 
+                              onClick={async () => {
+                                await updateDoc(doc(db, 'users', s.id), { isTrusted: false, updatedAt: serverTimestamp() });
+                                toast.success('تمت الإزالة من المميزين');
+                              }}
+                              className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {users.filter(u => u.role === 'supplier' && u.isTrusted).length === 0 && (
+                        <p className="text-center py-10 text-slate-500 font-bold italic">لا يوجد موردين مُميزين حالياً</p>
+                      )}
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-slate-800">
+                       <h4 className="text-sm font-bold text-slate-400 mb-4">إضافة مورد لقائمة المُميزين</h4>
+                       <div className="grid grid-cols-2 gap-3">
+                         {users.filter(u => u.role === 'supplier' && !u.isTrusted).slice(0, 8).map(s => (
+                           <button 
+                            key={s.id}
+                            onClick={async () => {
+                              await updateDoc(doc(db, 'users', s.id), { isTrusted: true, sortOrder: 99, updatedAt: serverTimestamp() });
+                              toast.success('تمت الإضافة');
+                            }}
+                            className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex items-center justify-between hover:border-primary-500 transition-all text-right"
+                           >
+                              <span className="font-bold text-xs text-white truncate max-w-[100px]">{s.businessName}</span>
+                              <Plus size={14} className="text-primary-500" />
+                           </button>
+                         ))}
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* Offers Ordering */}
+                  <div className="bg-slate-900/50 rounded-[2rem] p-8 shadow-sm border border-slate-800">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-black text-white border-r-4 border-amber-500 pr-3">العروض المٌميزة</h3>
+                      <p className="text-xs text-slate-400 font-bold">تحديد ترتيب ظهور العروض في قسم الـ Premium</p>
+                    </div>
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                      {offers.sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99)).map(offer => (
+                        <div key={offer.id} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50 flex items-center justify-between group">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-center overflow-hidden">
+                              <img src={offer.image} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="max-w-[150px]">
+                              <p className="font-bold text-white text-sm truncate">{offer.title}</p>
+                              <p className="text-[10px] text-slate-500 font-bold">{offer.supplierName}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <label className="text-[10px] font-bold text-slate-500 block mb-1">الترتيب</label>
+                              <input 
+                                type="number" 
+                                defaultValue={offer.sortOrder || 0}
+                                onBlur={async (e) => {
+                                  const val = parseInt(e.target.value);
+                                  await updateDoc(doc(db, 'offers', offer.id), { sortOrder: val, updatedAt: serverTimestamp() });
+                                  toast.success('تم تحديث الترتيب');
+                                }}
+                                className="w-16 bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-center font-black focus:ring-2 focus:ring-primary-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {offers.length === 0 && (
+                        <p className="text-center py-10 text-slate-500 font-bold italic">لا توجد عروض نشطة حالياً</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
             {activeTab === 'control_room' && (
               <motion.div 
                 key="control_room" 

@@ -60,6 +60,63 @@ export default function RequestDetail() {
   const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
   const [confirmPhone, setConfirmPhone] = useState('');
 
+  const handleAcceptItem = async (itemId: number, bidId: string) => {
+    if(!id || !request || !confirmPhone) {
+      if (!confirmPhone) toast.error("يرجى إدخال رقم الهاتف للتواصل");
+      return;
+    }
+
+    const bidToAccept = bids.find(b => b.id === bidId);
+    if (!bidToAccept) return;
+
+    setIsAccepting(`${itemId}-${bidId}`);
+    try {
+      const supplierDoc = await getDoc(doc(db, 'users', bidToAccept.supplierId));
+      const sData = supplierDoc.exists() ? supplierDoc.data() : {};
+      
+      const batch = writeBatch(db);
+      const updatedItems = [...request.items];
+      updatedItems[itemId] = {
+        ...updatedItems[itemId],
+        status: 'accepted',
+        acceptedBidId: bidId,
+        supplierId: bidToAccept.supplierId,
+        supplierName: bidToAccept.supplierName,
+        supplierPhone: sData.phone || 'غير متوفر',
+        price: Number(bidToAccept.itemsPrices[itemId])
+      };
+
+      const allAccepted = updatedItems.every(item => item.status === 'accepted');
+      
+      batch.update(doc(db, 'requests', id), {
+        items: updatedItems,
+        status: allAccepted ? 'accepted' : 'partially_accepted',
+        updatedAt: serverTimestamp(),
+        buyerConfirmPhone: confirmPhone,
+        buyerConfirmLocation: buyerLocation ? { lat: buyerLocation.lat, lng: buyerLocation.lng } : null
+      });
+
+      // Create notification for supplier
+      const notifRef = doc(collection(db, 'notifications'));
+      batch.set(notifRef, {
+        userId: bidToAccept.supplierId,
+        title: 'تم قبول جزء من عرضك!',
+        message: `تم قبول عرضك للمنتج "${updatedItems[itemId].productName}" في المناقصة "${request.productName}".`,
+        type: 'bid_accepted',
+        read: false,
+        createdAt: serverTimestamp(),
+        link: `/supplier/orders`
+      });
+
+      await batch.commit();
+      toast.success(`تم قبول عرض ${bidToAccept.supplierName} للمنتج بنجاح`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `requests/${id}/bids/${bidId}`);
+    } finally {
+      setIsAccepting(null);
+    }
+  };
+
   const handleAccept = async (bidId: string) => {
     if(!id || !request || !confirmPhone) {
       if (!confirmPhone) toast.error("يرجى إدخال رقم الهاتف للتواصل");
@@ -200,112 +257,162 @@ export default function RequestDetail() {
         </div>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-3 mt-6">
-          <h2 className="font-bold text-slate-900 text-right w-full">العروض المباشرة (Live Bids)</h2>
-          {request.status === 'active' && (
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          {bids.map((bid, index) => (
-            <div key={bid.id} className={cn(
-              "bg-white rounded-2xl p-4 shadow-sm border transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in",
-              index === 0 ? "border-[var(--color-success)] ring-1 ring-[var(--color-success)]/20" : "border-slate-200"
-            )}>
-              {index === 0 && bid.status !== 'accepted' && (
-                <div className="bg-[var(--color-success)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl absolute top-0 right-0 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  أفضل سعر
-                </div>
-              )}
-              
-              <div className="flex justify-between items-start mb-3 pt-2">
-                <div className="flex flex-col gap-0.5">
-                   <div className="flex items-center gap-2">
-                     <h3 className="font-bold text-slate-900 leading-tight pr-2">{bid.supplierName}</h3>
-                     {bid.supplierTier === 'premium' && (
-                       <div className="flex items-center gap-1 bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black border border-amber-200">
-                         <Star className="w-2.5 h-2.5 fill-current" /> مورد موثق
-                       </div>
-                     )}
-                   </div>
-                   {buyerLocation && bid.coordinates && (
-                     <span className="text-[10px] text-[var(--color-primary)] font-bold pr-2 flex items-center gap-1">
-                       <Navigation className="w-3 h-3" /> يبعد عنك {calculateDistance(buyerLocation.lat, buyerLocation.lng, bid.coordinates.lat, bid.coordinates.lng).toFixed(1)} كم
-                     </span>
-                   )}
-                </div>
-                <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-xs font-bold">
-                  4.8 <Star className="w-3 h-3 fill-current" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                <div className="text-right">
-                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">السعر الإجمالي</span>
-                  <span className="block font-bold text-lg text-[var(--color-primary)]">{bid.price} ج.م</span>
-                </div>
-                <div className="border-r border-slate-200 pr-2 text-right">
-                  <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">التوصيل خلال</span>
-                  <div className="flex items-center gap-1 text-slate-900 font-bold justify-end">
-                    <Clock className="w-4 h-4 text-orange-500" /> {bid.deliveryTime} {request.requestType === 'bulk' ? 'أيام' : 'دقيقة'}
+      {request.requestType === 'bulk' && Array.isArray(request.items) ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-2 px-1">
+             <h2 className="font-bold text-slate-800">تفاصيل بنود المناقصة</h2>
+             <span className="text-[10px] bg-slate-900 text-white px-2 py-1 rounded-full font-bold">بانتظار العروض لكل بند</span>
+          </div>
+          
+          {request.items.map((item: any, idx: number) => {
+            const itemBids = bids.filter(b => b.itemsPrices && b.itemsPrices[idx]);
+            const isAccepted = item.status === 'accepted';
+            
+            return (
+              <div key={idx} className={cn(
+                "bg-white rounded-2xl border p-4 shadow-sm transition-all",
+                isAccepted ? "border-green-200 bg-green-50/30" : "border-slate-100"
+              )}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="font-bold text-slate-900">{item.productName}</h3>
+                    <p className="text-xs text-slate-500 font-bold">{item.quantity} {item.unit}</p>
                   </div>
+                  {isAccepted && (
+                    <div className="flex items-center gap-1.5 text-green-600 bg-green-100 px-3 py-1 rounded-full text-[10px] font-black border border-green-200">
+                      <CheckCircle2 size={12} /> تم الاختيار: {item.supplierName}
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              {request.requestType === 'bulk' && bid.itemsPrices && request.items && (
-                <div className="mb-4 bg-white border border-slate-100 rounded-xl p-3 shadow-sm">
-                  <p className="text-[10px] text-slate-500 font-bold mb-2">تفصيل الأسعار</p>
-                  <ul className="space-y-1 text-xs">
-                    {request.items.map((item: any, idx: number) => (
-                      <li key={idx} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 font-bold text-slate-700">
-                        <span>{item.productName} <span className="text-slate-400 font-normal">({item.quantity} {item.unit})</span></span>
-                        <span className="text-[var(--color-primary)]">{bid.itemsPrices[idx] || 0} ج.م</span>
-                      </li>
+                
+                {!isAccepted && itemBids.length > 0 ? (
+                  <div className="space-y-2 mt-4">
+                    <p className="text-[10px] text-slate-400 font-bold mb-2">العروض المقدمة لهذا البند:</p>
+                    {itemBids.map((bid) => (
+                      <div key={bid.id} className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-slate-800">{bid.supplierName}</span>
+                          <span className="text-xs font-black text-[var(--color-primary)]">{bid.itemsPrices[idx]} ج.م</span>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (!confirmPhone) {
+                              setShowConfirmModal('pending');
+                              return;
+                            }
+                            handleAcceptItem(idx, bid.id);
+                          }}
+                          disabled={!!isAccepting}
+                          className="bg-white border border-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-all shadow-sm active:scale-95"
+                        >
+                          {isAccepting === `${idx}-${bid.id}` ? <Loader2 className="w-3 h-3 animate-spin" /> : 'قبول'}
+                        </button>
+                      </div>
                     ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 text-xs text-slate-500 font-semibold">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {bid.notes || 'سعر منافس جداً'}
-                </div>
-                {request.status === 'active' && (
-                  <button 
-                    onClick={() => {
-                      setShowConfirmModal(bid.id);
-                      setConfirmPhone(request.buyerPhone || '');
-                    }}
-                    disabled={!!isAccepting}
-                    className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold text-sm hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    اختيار العرض
-                  </button>
-                )}
-                {bid.status === 'accepted' && (
-                  <div className="px-4 py-2 bg-[var(--color-success)]/10 text-[var(--color-success)] rounded-lg font-bold text-sm border border-[var(--color-success)]/20">
-                    تم القبول
+                  </div>
+                ) : !isAccepted && (
+                  <div className="py-6 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                    <p className="text-[10px] text-slate-400 font-bold italic">لا توجد عروض لهذا البند حتى الآن</p>
                   </div>
                 )}
               </div>
-            </div>
-          ))}
-          {bids.length === 0 && (
-            <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-               <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-               <p className="text-slate-500 font-bold">بانتظار عروض الموردين...</p>
-               <p className="text-xs text-slate-400 mt-1">ستظهر العروض هنا فور إرسالها</p>
-            </div>
-          )}
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-3 mt-6">
+            <h2 className="font-bold text-slate-900 text-right w-full">العروض المباشرة (Live Bids)</h2>
+            {request.status === 'active' && (
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {bids.map((bid, index) => (
+              <div key={bid.id} className={cn(
+                "bg-white rounded-2xl p-4 shadow-sm border transition-all duration-500 animate-in slide-in-from-bottom-4 fade-in",
+                index === 0 && bid.status !== 'accepted' ? "border-[var(--color-success)] ring-1 ring-[var(--color-success)]/20" : "border-slate-200"
+              )}>
+                {index === 0 && bid.status !== 'accepted' && (
+                  <div className="bg-[var(--color-success)] text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl absolute top-0 right-0 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    أفضل سعر
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-start mb-3 pt-2">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-slate-900 leading-tight pr-2">{bid.supplierName}</h3>
+                      {bid.supplierTier === 'premium' && (
+                        <div className="flex items-center gap-1 bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[9px] font-black border border-amber-200">
+                          <Star className="w-2.5 h-2.5 fill-current" /> مورد موثق
+                        </div>
+                      )}
+                    </div>
+                    {buyerLocation && bid.coordinates && (
+                      <span className="text-[10px] text-[var(--color-primary)] font-bold pr-2 flex items-center gap-1">
+                        <Navigation className="w-3 h-3" /> يبعد عنك {calculateDistance(buyerLocation.lat, buyerLocation.lng, bid.coordinates.lat, bid.coordinates.lng).toFixed(1)} كم
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded text-xs font-bold">
+                    4.8 <Star className="w-3 h-3 fill-current" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <div className="text-right">
+                    <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">السعر الإجمالي</span>
+                    <span className="block font-bold text-lg text-[var(--color-primary)]">{bid.price} ج.م</span>
+                  </div>
+                  <div className="border-r border-slate-200 pr-2 text-right">
+                    <span className="block text-[10px] text-slate-500 font-semibold mb-0.5">التوصيل خلال</span>
+                    <div className="flex items-center gap-1 text-slate-900 font-bold justify-end">
+                      <Clock className="w-4 h-4 text-orange-500" /> {bid.deliveryTime} {request.requestType === 'bulk' ? 'أيام' : 'دقيقة'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1 text-xs text-slate-500 font-semibold">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {bid.notes || 'سعر منافس جداً'}
+                  </div>
+                  {request.status === 'active' && (
+                    <button 
+                      onClick={() => {
+                        setShowConfirmModal(bid.id);
+                        setConfirmPhone(request.buyerPhone || '');
+                      }}
+                      disabled={!!isAccepting}
+                      className="px-6 py-2 bg-[var(--color-primary)] text-white rounded-lg font-bold text-sm hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      اختيار العرض
+                    </button>
+                  )}
+                  {bid.status === 'accepted' && (
+                    <div className="px-4 py-2 bg-[var(--color-success)]/10 text-[var(--color-success)] rounded-lg font-bold text-sm border border-[var(--color-success)]/20">
+                      تم القبول
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {bids.length === 0 && (
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                <Clock className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-bold">بانتظار عروض الموردين...</p>
+                <p className="text-xs text-slate-400 mt-1">ستظهر العروض هنا فور إرسالها</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       {showConfirmModal && (

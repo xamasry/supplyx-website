@@ -57,6 +57,9 @@ export default function BuyerHome() {
       unsubSuppliers = onSnapshot(qSuppliers, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         data.sort((a, b) => {
+          const orderA = a.sortOrder ?? 999;
+          const orderB = b.sortOrder ?? 999;
+          if (orderA !== orderB) return orderA - orderB;
           if (a.subscriptionTier === 'premium' && b.subscriptionTier !== 'premium') return -1;
           if (a.subscriptionTier !== 'premium' && b.subscriptionTier === 'premium') return 1;
           return 0;
@@ -98,7 +101,12 @@ export default function BuyerHome() {
       const qOffers = query(collection(db, 'offers'), where('status', '==', 'active'), limit(20));
       unsubOffers = onSnapshot(qOffers, (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        data.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        data.sort((a: any, b: any) => {
+          const orderA = a.sortOrder ?? 999;
+          const orderB = b.sortOrder ?? 999;
+          if (orderA !== orderB) return orderA - orderB;
+          return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+        });
         setOffers(data);
       }, (error) => {
         console.error('Error fetching offers:', error);

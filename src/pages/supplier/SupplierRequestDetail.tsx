@@ -105,11 +105,19 @@ export default function SupplierRequestDetail() {
       const sData = supplierDoc.exists() ? supplierDoc.data() : {};
 
       if (request.requestType === 'bulk') {
-        if (request.items && Object.keys(itemsPrices).length !== request.items.length) {
-          toast.error('يرجى تسعير جميع المنتجات المطلوبة');
+        const pricedItemsCount = Object.values(itemsPrices).filter(v => v && Number(v) > 0).length;
+        if (pricedItemsCount === 0) {
+          toast.error('يرجى تسعير منتج واحد على الأقل للمشاركة في المناقصة');
           setSubmitting(false);
           return;
         }
+      }
+
+      const totalPrice = Number(price);
+      if (isNaN(totalPrice) || totalPrice <= 0) {
+        toast.error('يرجى تحديد سعر صحيح');
+        setSubmitting(false);
+        return;
       }
 
       if (existingBid) {

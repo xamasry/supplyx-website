@@ -11,7 +11,24 @@
         "quantity": { "type": "string", "description": "Amount requested (e.g. 10 cartons)" },
         "unit": { "type": "string", "description": "Unit of measurement (e.g. cartons)" },
         "category": { "type": "string", "description": "Category of the goods" },
-        "status": { "type": "string", "enum": ["active", "accepted", "preparing", "shipped", "delivered", "cancelled"] },
+        "status": { "type": "string", "enum": ["active", "accepted", "preparing", "shipped", "delivered", "cancelled", "partially_accepted"] },
+        "requestType": { "type": "string", "enum": ["standard", "bulk"] },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productName": { "type": "string" },
+              "quantity": { "type": "number" },
+              "unit": { "type": "string" },
+              "acceptedBidId": { "type": "string" },
+              "supplierId": { "type": "string" },
+              "supplierName": { "type": "string" },
+              "price": { "type": "number" },
+              "status": { "type": "string", "enum": ["pending", "accepted"] }
+            }
+          }
+        },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "deadline": { "type": "string", "format": "date-time" },
@@ -32,9 +49,10 @@
         "supplierId": { "type": "string" },
         "supplierName": { "type": "string" },
         "price": { "type": "number" },
-        "deliveryTime": { "type": "number" }
+        "deliveryTime": { "type": "number" },
+        "bidsCount": { "type": "number" }
       },
-      "required": ["buyerId", "productName", "quantity", "status", "createdAt"]
+      "required": ["buyerId", "productName", "status", "createdAt"]
     },
     "Notification": {
       "title": "Notification",
@@ -94,7 +112,8 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" },
         "views": { "type": "number" },
-        "orders": { "type": "number" }
+        "orders": { "type": "number" },
+        "sortOrder": { "type": "number", "description": "Admin defined display order" }
       },
       "required": ["supplierId", "title", "originalPrice", "offerPrice"]
     },
@@ -135,6 +154,8 @@
         "subscriptionExpiry": { "type": "string", "format": "date-time" },
         "isTrial": { "type": "boolean", "description": "Whether the user is currently in a trial period" },
         "isApproved": { "type": "boolean", "description": "Whether the admin has approved this account" },
+        "isTrusted": { "type": "boolean", "description": "Whether the supplier is featured on homepage" },
+        "sortOrder": { "type": "number", "description": "Admin defined display order" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
