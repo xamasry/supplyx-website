@@ -19,7 +19,12 @@ export default function MarketplacePreview() {
       try {
         // Fetch Offers
         const offersSnap = await getDocs(
-          query(collection(db, 'offers'), orderBy('createdAt', 'desc'), limit(8))
+          query(
+            collection(db, 'offers'), 
+            where('showInGuestMarketplace', '==', true),
+            orderBy('createdAt', 'desc'), 
+            limit(8)
+          )
         );
         const offersData = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOffers(offersData);

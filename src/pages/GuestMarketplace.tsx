@@ -21,7 +21,11 @@ export default function GuestMarketplace() {
       setLoading(true);
       try {
         const offersSnap = await getDocs(
-          query(collection(db, 'offers'), orderBy('createdAt', 'desc'))
+          query(
+            collection(db, 'offers'), 
+            where('showInGuestMarketplace', '==', true),
+            orderBy('createdAt', 'desc')
+          )
         );
         const offersData = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOffers(offersData);

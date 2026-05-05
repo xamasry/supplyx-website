@@ -2154,6 +2154,7 @@ export default function AdminDashboard() {
                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">المورد</th>
                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">السعر والخصم</th>
                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">الفعالية</th>
+                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none text-center">ظهور عام</th>
                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">الإحصائيات</th>
                              <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">إجراءات</th>
                            </tr>
