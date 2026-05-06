@@ -196,8 +196,8 @@ export default function GuestMarketplace() {
         ) : (
           <div className="relative">
             {/* Absolute Login Wall for Guest Marketplace */}
-            <div className="absolute inset-0 z-40 bg-slate-50/80 backdrop-blur-md flex flex-col items-center justify-center py-20 md:py-32 text-center px-4">
-              <div className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl border border-white max-w-xl mx-auto ring-1 ring-slate-200/50">
+            <div className="absolute inset-0 z-40 bg-slate-50/80 backdrop-blur-md flex flex-col items-center justify-start py-10 md:py-32 text-center px-4 overflow-y-auto">
+              <div className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl border border-white max-w-xl mx-auto ring-1 ring-slate-200/50 mt-10 md:mt-0">
                 <div className="w-16 h-16 md:w-24 md:h-24 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-inner ring-8 ring-[#22C55E]/5">
                   <Lock className="w-8 h-8 md:w-12 md:h-12" />
                 </div>
@@ -293,8 +293,8 @@ export default function GuestMarketplace() {
                 {/* Modal Content - Blurred */}
                 <div className="relative flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                   {/* Overlay Message */}
-                  <div className="absolute inset-x-0 top-0 bottom-0 z-20 flex flex-col items-center justify-center pointer-events-none p-4 md:p-6">
-                     <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border border-white shadow-2xl flex flex-col items-center text-center max-w-md pointer-events-auto">
+                  <div className="absolute inset-x-0 top-0 bottom-0 z-20 flex flex-col items-center justify-start md:justify-center pointer-events-none p-4 md:p-6 pt-12 md:pt-6">
+                     <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border border-white shadow-2xl flex flex-col items-center text-center max-w-md pointer-events-auto mt-4 md:mt-0">
                         <div className="w-16 h-16 md:w-20 md:h-20 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-[#22C55E]/5">
                            <Lock className="w-8 h-8 md:w-10 md:h-10" />
                         </div>
