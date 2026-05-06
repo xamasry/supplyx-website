@@ -221,6 +221,50 @@ export default function BuyerHome() {
         <Search className="absolute right-6 top-1/2 -translate-y-1/2 mt-2 text-slate-400 w-6 h-6 transition-colors" />
       </div>
 
+      {/* User Info Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden group border border-slate-800"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-primary-500/20 transition-all duration-700" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-[2rem] bg-slate-800 border-2 border-slate-700/50 flex items-center justify-center p-1 shadow-inner overflow-hidden">
+              <img 
+                src={userProfile?.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || userProfile?.name || 'U')}&background=0F172A&color=fff`} 
+                className="w-full h-full object-cover rounded-[1.5rem]" 
+                alt="Profile"
+              />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">{userProfile?.businessName || userProfile?.name || 'مرحباً بك'}</h1>
+              <div className="flex flex-wrap items-center gap-3 mt-2">
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
+                  <Phone size={12} className="text-primary-500" />
+                  {userProfile?.phone || '---'}
+                </span>
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
+                  <MapPin size={12} className="text-rose-500" />
+                  {userProfile?.address || '---'}
+                </span>
+                {userProfile?.subscriptionTier === 'premium' && (
+                  <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-black text-amber-500">
+                    <Zap size={10} className="fill-current" />
+                    بريميوم
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+              <Link to="/buyer/profile" className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-sm font-bold transition-all flex items-center gap-2">
+                إعدادات الحساب
+              </Link>
+          </div>
+        </div>
+      </motion.div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <div className="grid grid-cols-2 gap-4">

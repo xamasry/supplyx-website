@@ -19,12 +19,13 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Signup attempt started with data:", { role, name, email, phone, businessName });
+    console.log("Signup attempt started with data:", { role, name, email, phone, businessName, address });
     
-    if (!name.trim() || !email.trim() || !password || !phone.trim() || !businessName.trim()) {
+    if (!name.trim() || !email.trim() || !password || !phone.trim() || !businessName.trim() || !address.trim()) {
       console.warn("Validation failed: missing fields");
       toast.error('يرجى إكمال جميع البيانات المطلوبة');
       return;
@@ -65,6 +66,7 @@ export default function SignupPage() {
          role,
          phone: formattedPhone,
          whatsappPhone: formattedPhone,
+         address: address.trim(),
          whatsappOptIn: true,
          status: 'pending', // Requires admin approval
          disabled: true,
@@ -193,6 +195,18 @@ export default function SignupPage() {
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
               dir="ltr"
               placeholder="01xxxxxxxxx"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-1.5 block text-right">العنوان بالتفصيل</label>
+            <input
+              type="text"
+              required
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#22C55E] font-bold placeholder:font-normal text-right transition-shadow"
+              placeholder="المحافظة، الحي، الشارع، علامة مميزة"
             />
             <p className="text-xs text-slate-500 mt-2 text-right">سيتم مراجعة بياناتك وتفعيل حسابك من قبل الإدارة.</p>
           </div>

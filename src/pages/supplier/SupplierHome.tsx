@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star, CheckCircle2, Users } from 'lucide-react';
+import { Flame, Clock, MapPin, Search, Package, Navigation, Loader2, ChevronLeft, Star, CheckCircle2, Users, Phone, Settings } from 'lucide-react';
 import { cn, calculateDistance, isRequestExpired } from '../../lib/utils';
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -120,16 +120,47 @@ export default function SupplierHome() {
       
       {/* Tier Badge */}
       {userProfile && (
-        <div className="flex items-center justify-between px-2">
-           <div className="flex items-center gap-2">
-              <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${userProfile.subscriptionTier === 'premium' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'}`}>
-                {userProfile.subscriptionTier === 'premium' ? 'الباقة المميزة ✨' : 'الباقة العادية'}
+        <div className="space-y-4">
+          <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden group border border-slate-800">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary-500/10 rounded-full -mr-24 -mt-24 blur-2xl group-hover:bg-primary-500/15 transition-all duration-700" />
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-1 overflow-hidden shadow-inner flex-shrink-0">
+                 <img 
+                   src={userProfile?.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || userProfile?.name || 'S')}&background=1E293B&color=fff`} 
+                   className="w-full h-full object-cover rounded-xl" 
+                   alt="Supplier"
+                 />
               </div>
-              {userProfile.isVerified && <div className="bg-blue-500 text-white p-1 rounded-lg"><CheckCircle2 className="w-3 h-3" /></div>}
-           </div>
-           {userProfile.subscriptionTier !== 'premium' && (
-             <Link to="/supplier/settings?tab=subscription" className="text-xs font-bold text-amber-600 animate-pulse">ترقية الآن ↗️</Link>
-           )}
+              <div className="flex-1 min-w-0">
+                 <h2 className="text-xl font-black truncate">{userProfile?.businessName || userProfile?.name}</h2>
+                 <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Phone size={12} className="text-primary-500" />
+                      <span className="text-[11px] font-bold">{userProfile?.phone || '---'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <MapPin size={12} className="text-rose-500" />
+                      <span className="text-[11px] font-bold line-clamp-1">{userProfile?.address || '---'}</span>
+                    </div>
+                 </div>
+              </div>
+              <Link to="/supplier/profile" className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all">
+                <Settings size={18} className="text-slate-400" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-2">
+             <div className="flex items-center gap-2">
+                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${userProfile.subscriptionTier === 'premium' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500'}`}>
+                  {userProfile.subscriptionTier === 'premium' ? 'الباقة المميزة ✨' : 'الباقة العادية'}
+                </div>
+                {userProfile.isVerified && <div className="bg-blue-500 text-white p-1 rounded-lg"><CheckCircle2 className="w-3 h-3" /></div>}
+             </div>
+             {userProfile.subscriptionTier !== 'premium' && (
+               <Link to="/supplier/settings?tab=subscription" className="text-xs font-bold text-amber-600 animate-pulse">ترقية الآن ↗️</Link>
+             )}
+          </div>
         </div>
       )}
 

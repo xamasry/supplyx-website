@@ -14,7 +14,6 @@ export default function LandingPage() {
         <Logo size="md" />
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
           <Link to="/" className="text-[#22C55E]">الرئيسية</Link>
-          <Link to="/marketplace" className="hover:text-[#22C55E] transition-colors">السوق المفتوح</Link>
           <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول الموردين</Link>
           <Link to="/auth/login" className="hover:text-[#22C55E] transition-colors">دخول المطاعم</Link>
         </nav>

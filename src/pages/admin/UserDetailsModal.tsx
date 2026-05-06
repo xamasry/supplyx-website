@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ShoppingBag, ArrowRightLeft, DollarSign, XCircle, Package, CheckCircle2, Image as ImageIcon, Plus, Trash2, Edit2, Save, Loader2 } from 'lucide-react';
+import { X, ShoppingBag, ArrowRightLeft, DollarSign, XCircle, Package, CheckCircle2, Image as ImageIcon, Plus, Trash2, Edit2, Save, Loader2, Phone, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { db, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -482,8 +482,23 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
                     </div>
                  </div>
 
-                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-2">
+                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 space-y-4">
                     <h3 className="text-sm font-bold text-slate-400 mb-4">معلومات إضافية</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                       <div className="bg-slate-900 shadow-inner rounded-xl p-3 border border-slate-700/50">
+                          <span className="text-slate-500 block text-[10px] font-black uppercase mb-1">بيانات التواصل</span>
+                          <span className="text-white font-bold flex items-center gap-2 text-xs">
+                             <Phone size={12} className="text-primary-500" />
+                             {user.phone || '---'}
+                          </span>
+                       </div>
+                       <div className="bg-slate-900 shadow-inner rounded-xl p-3 border border-slate-700/50">
+                          <span className="text-slate-500 block text-[10px] font-black uppercase mb-1">العنوان بالتفصيل</span>
+                          <span className="text-white text-xs leading-relaxed line-clamp-2">
+                             {user.address || 'لم يتم تسجيل عنوان'}
+                          </span>
+                       </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-y-3 text-sm">
                        <div>
                           <span className="text-slate-500 block text-xs">تاريخ التسجيل</span>

@@ -2952,6 +2952,12 @@ export default function AdminDashboard() {
                             المستخدم والنشاط
                           </th>
                           <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
+                            التواصل
+                          </th>
+                          <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
+                            العنوان
+                          </th>
+                          <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
                             الرتبة والدور
                           </th>
                           <th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
@@ -3019,6 +3025,24 @@ export default function AdminDashboard() {
                                     </p>
                                   </div>
                                 </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                                    <Phone size={14} className="text-primary-500" />
+                                    {user.phone || "---"}
+                                  </p>
+                                  {(user.whatsappPhone && user.whatsappPhone !== user.phone) && (
+                                    <p className="text-[10px] text-emerald-500 font-medium">
+                                      واتساب: {user.whatsappPhone}
+                                    </p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-5">
+                                <p className="text-xs text-slate-300 font-medium line-clamp-2 max-w-[150px]">
+                                  {user.address || "---"}
+                                </p>
                               </td>
                               <td className="px-6 py-5">
                                 <div className="flex flex-col gap-1.5">
@@ -3117,6 +3141,16 @@ export default function AdminDashboard() {
                                         title="رفض"
                                       >
                                         <X size={16} />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteItem("users", user.id);
+                                        }}
+                                        className="p-2 bg-slate-800 text-slate-400 border border-slate-700 rounded-xl hover:bg-red-500 hover:border-red-500 hover:text-white transition-all"
+                                        title="حذف نهائي"
+                                      >
+                                        <Trash2 size={16} />
                                       </button>
                                     </div>
                                   ) : (
