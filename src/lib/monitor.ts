@@ -118,9 +118,13 @@ class Monitor {
 
     try {
       await addDoc(collection(db, 'system_logs'), cleanEvent);
-    } catch (err) {
-      // Fail silently to not impact user experience
-      console.error('Monitoring Error:', err);
+    } catch (err: any) {
+      // Document already exists can happen during sync retries with offline persistence
+      if (err?.code === 'already-exists' || err?.message?.includes('already exists')) {
+        return;
+      }
+      // Fail silently to not impact user experience but log to console in dev
+      console.warn('Monitoring Log Failed (Normal if offline):', err?.message || err);
     }
   }
 
