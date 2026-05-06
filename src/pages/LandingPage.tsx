@@ -36,38 +36,38 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative px-6 pt-12 pb-24 md:pt-20 md:pb-40 bg-gradient-to-b from-[#E6ECEF]/50 to-white overflow-hidden">
+        <section className="relative px-4 md:px-6 pt-10 pb-20 md:pt-20 md:pb-40 bg-gradient-to-b from-[#E6ECEF]/50 to-white overflow-hidden">
           <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-right z-10"
+              className="text-right z-10 flex flex-col items-center md:items-end text-center md:text-right"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#22C55E]/10 text-[#22C55E] rounded-full text-sm font-bold mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#22C55E]/10 text-[#22C55E] rounded-full text-xs md:text-sm font-bold mb-6">
                 <Star className="w-4 h-4 fill-current" />
                 <span>المنصة الأولى لإمدادات المطاعم في مصر</span>
               </div>
-              <h1 className="text-5xl md:text-7xl font-black text-[#0B1D2A] mb-6 leading-[1.1] tracking-tight">
-                منصة ذكية <br/>
-                <span className="text-[#22C55E]">لإمداد مطعمك</span> <br/>
+              <h1 className="text-4xl md:text-7xl font-black text-[#0B1D2A] mb-6 leading-[1.1] tracking-tight">
+                منصة ذكية <br className="hidden md:block" />
+                <span className="text-[#22C55E]">لإمداد مطعمك</span> <br className="hidden md:block" />
                 بكل ما تحتاجه
               </h1>
-              <p className="text-slate-500 mb-10 max-w-lg ml-auto text-xl leading-relaxed">
+              <p className="text-slate-500 mb-10 max-w-lg ml-auto text-base md:text-xl leading-relaxed">
                 نوفر لك أفضل الموردين بأسرع وقت وأسهل طريقة. اطلب خاماتك الآن واستلمها خلال دقائق.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <Link to="/auth/signup" className="w-full sm:w-auto px-10 py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all text-center">
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                <Link to="/auth/signup" className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-[#22C55E] text-white rounded-2xl font-bold text-base md:text-lg shadow-xl shadow-[#22C55E]/20 hover:scale-105 active:scale-95 transition-all text-center">
                   سجل الآن مجاناً
                 </Link>
-                <Link to="/auth/login" className="w-full sm:w-auto px-10 py-5 bg-white text-[#0B1D2A] border border-slate-200 rounded-2xl font-bold text-lg hover:border-[#22C55E] hover:text-[#22C55E] transition-all text-center">
+                <Link to="/auth/login" className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-white text-[#0B1D2A] border border-slate-200 rounded-2xl font-bold text-base md:text-lg hover:border-[#22C55E] hover:text-[#22C55E] transition-all text-center">
                   تسجيل الدخول
                 </Link>
               </div>
 
               {/* Trust Indicators */}
-              <div className="mt-12 flex items-center gap-8">
+              <div className="mt-12 flex items-center gap-8 justify-center md:justify-end">
                 <div className="flex flex-col items-center gap-1">
                   <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-[#22C55E]">
                     <Shield className="w-5 h-5" />
@@ -160,33 +160,33 @@ export default function LandingPage() {
         </section>
 
         {/* Branding Banner */}
-        <section className="bg-[#0B1D2A] py-20 px-6 overflow-hidden relative">
+        <section className="bg-[#0B1D2A] py-16 md:py-20 px-4 md:px-6 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
              {/* Pattern placeholder */}
-             <div className="w-full h-full grid grid-cols-12 gap-10">
+             <div className="w-full h-full grid grid-cols-6 md:grid-cols-12 gap-10">
                 {Array.from({ length: 48 }).map((_, i) => (
-                  <div key={i} className="text-white text-6xl font-black opacity-20">X</div>
+                  <div key={i} className="text-white text-4xl md:text-6xl font-black opacity-20">X</div>
                 ))}
              </div>
           </div>
           
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
-             <div className="text-right text-white">
-                <h2 className="text-3xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
-                   طلباتك تصل أسرع <br/>
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10 md:gap-12 relative z-10 text-center md:text-right">
+             <div className="text-white">
+                <h2 className="text-2xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
+                   طلباتك تصل أسرع <br />
                    <span className="text-[#22C55E]">من أقرب مورد، بأفضل سعر.</span>
                 </h2>
              </div>
              
-             <div className="flex bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 gap-16 text-center">
+             <div className="flex bg-white/5 backdrop-blur-xl p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/10 gap-8 md:gap-16 text-center">
                 <div>
-                   <p className="text-4xl font-black text-[#22C55E] mb-1">50</p>
-                   <p className="text-sm font-bold text-white/60 lowercase">مطعم ومقهى</p>
+                   <p className="text-3xl md:text-4xl font-black text-[#22C55E] mb-1">50</p>
+                   <p className="text-xs md:text-sm font-bold text-white/60 lowercase">مطعم ومقهى</p>
                 </div>
-                <div className="w-px h-16 bg-white/10"></div>
+                <div className="w-px h-12 md:h-16 bg-white/10"></div>
                 <div>
-                   <p className="text-4xl font-black text-white mb-1">30</p>
-                   <p className="text-sm font-bold text-white/60">مورد موثوق</p>
+                   <p className="text-3xl md:text-4xl font-black text-white mb-1">30</p>
+                   <p className="text-xs md:text-sm font-bold text-white/60">مورد موثوق</p>
                 </div>
              </div>
           </div>
@@ -211,8 +211,8 @@ export default function LandingPage() {
             </motion.div>
           </div>
 
-          <div className="max-w-[1400px] mx-auto">
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9 gap-4">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-0">
+            <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-9 gap-3 md:gap-4">
               {CATEGORIES.slice(0, 18).map((cat, idx) => (
                 <motion.div 
                   key={cat.id}
@@ -242,12 +242,12 @@ export default function LandingPage() {
                       ease: "easeInOut"
                     }
                   }}
-                  className="bg-slate-50/50 relative border border-slate-100 p-6 rounded-[2rem] flex flex-col items-center justify-center gap-3 group cursor-default transition-all hover:bg-white hover:border-[#22C55E]/20"
+                  className="bg-slate-50/50 relative border border-slate-100 p-4 md:p-6 rounded-2xl md:rounded-[2rem] flex flex-col items-center justify-center gap-2 md:gap-3 group cursor-default transition-all hover:bg-white hover:border-[#22C55E]/20"
                 >
-                  <span className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-2xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
                     {cat.icon}
                   </span>
-                  <span className="font-black text-slate-800 text-sm whitespace-nowrap">{cat.name}</span>
+                  <span className="font-black text-slate-800 text-[10px] md:text-sm whitespace-nowrap">{cat.name}</span>
                 </motion.div>
               ))}
             </div>

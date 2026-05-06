@@ -33,16 +33,16 @@ export default function FeaturedSuppliers() {
   if (!loading && suppliers.length === 0) return null;
 
   return (
-    <section className="py-24 px-6 bg-white overflow-hidden">
+    <section className="py-16 md:py-24 px-4 md:px-6 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-6">
-          <div className="text-right">
+        <div className="flex flex-col md:flex-row items-center md:items-end justify-between mb-12 gap-6 text-center md:text-right">
+          <div className="flex flex-col items-center md:items-end">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 text-amber-600 rounded-full text-sm font-bold mb-4">
               <Star className="w-4 h-4 fill-current" />
               <span>شركاء النجاح المميزين</span>
             </div>
             <h2 className="text-3xl md:text-5xl font-black text-[#0B1D2A] tracking-tight">الموردين المميزين لدينا</h2>
-            <p className="text-slate-500 mt-4 max-w-2xl text-lg">
+            <p className="text-slate-500 mt-4 max-w-2xl text-base md:text-lg">
               نخبة من أفضل الموردين الموثوقين في السوق المصري، يقدمون أفضل جودة وأسرع توصيل.
             </p>
           </div>
@@ -53,13 +53,13 @@ export default function FeaturedSuppliers() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {[1, 2, 3].map(i => (
               <div key={i} className="h-64 bg-slate-100 rounded-[2.5rem] animate-pulse" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {suppliers.map((supplier, idx) => (
               <motion.div
                 key={supplier.id}
@@ -71,7 +71,7 @@ export default function FeaturedSuppliers() {
               >
                 <Link 
                   to={`/marketplace?supplier=${supplier.id}`}
-                  className="block bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 hover:bg-white hover:shadow-2xl hover:shadow-slate-200 transition-all group relative overflow-hidden"
+                  className="block bg-slate-50 border border-slate-100 rounded-[2.5rem] p-6 md:p-8 hover:bg-white hover:shadow-2xl hover:shadow-slate-200 transition-all group relative overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                   

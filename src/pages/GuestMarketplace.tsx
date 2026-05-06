@@ -196,25 +196,25 @@ export default function GuestMarketplace() {
         ) : (
           <div className="relative">
             {/* Absolute Login Wall for Guest Marketplace */}
-            <div className="absolute inset-0 z-40 bg-slate-50/80 backdrop-blur-md flex flex-col items-center justify-center py-32 text-center">
-              <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border border-white max-w-xl mx-auto ring-1 ring-slate-200/50">
-                <div className="w-24 h-24 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner ring-8 ring-[#22C55E]/5">
-                  <Lock className="w-12 h-12" />
+            <div className="absolute inset-0 z-40 bg-slate-50/80 backdrop-blur-md flex flex-col items-center justify-center py-20 md:py-32 text-center px-4">
+              <div className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl border border-white max-w-xl mx-auto ring-1 ring-slate-200/50">
+                <div className="w-16 h-16 md:w-24 md:h-24 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 shadow-inner ring-8 ring-[#22C55E]/5">
+                  <Lock className="w-8 h-8 md:w-12 md:h-12" />
                 </div>
-                <h2 className="text-3xl font-black text-[#0B1D2A] mb-4">انضم إلى مجتمع SupplyX</h2>
-                <p className="text-slate-500 font-bold mb-10 leading-relaxed">
+                <h2 className="text-2xl md:text-3xl font-black text-[#0B1D2A] mb-4">انضم إلى مجتمع SupplyX</h2>
+                <p className="text-slate-500 text-sm md:text-base font-bold mb-8 md:mb-10 leading-relaxed">
                   السوق المفتوح متاح فقط للأعضاء المسجلين. سجل الآن لرؤية آلاف العروض، المناقصات، والوصول المباشر لكبار الموردين في مصر.
                 </p>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3 md:gap-4">
                   <button 
                     onClick={() => navigate('/auth/signup')}
-                    className="w-full py-5 bg-[#22C55E] text-white rounded-[1.5rem] font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#22C55E]/20"
+                    className="w-full py-4 md:py-5 bg-[#22C55E] text-white rounded-2xl md:rounded-[1.5rem] font-black text-lg md:text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#22C55E]/20"
                   >
                     سجل حسابك الآن مجاناً
                   </button>
                   <button 
                     onClick={() => navigate('/auth/login')}
-                    className="w-full py-5 bg-white border-2 border-slate-200 text-slate-700 rounded-[1.5rem] font-black text-xl hover:bg-slate-50 transition-all"
+                    className="w-full py-4 md:py-5 bg-white border-2 border-slate-200 text-slate-700 rounded-2xl md:rounded-[1.5rem] font-black text-lg md:text-xl hover:bg-slate-50 transition-all"
                   >
                     تسجيل الدخول
                   </button>
@@ -255,63 +255,63 @@ export default function GuestMarketplace() {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative bg-white rounded-[3rem] w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-white"
+                className="relative bg-white rounded-[2.5rem] md:rounded-[3rem] w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-white"
               >
                 {/* Modal Header */}
-                <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                  <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-white rounded-3xl shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden">
+                <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-4 md:gap-6">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
                       {selectedSupplier.profileImageUrl ? (
                         <img src={selectedSupplier.profileImageUrl} alt="Logo" className="w-full h-full object-cover" />
                       ) : (
-                        <Store className="w-10 h-10 text-slate-300" />
+                        <Store className="w-8 h-8 md:w-10 md:h-10 text-slate-300" />
                       )}
                     </div>
-                    <div>
-                      <h2 className="text-3xl font-black text-[#0B1D2A] mb-1">{selectedSupplier.businessName || selectedSupplier.name}</h2>
-                      <div className="flex gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-xl md:text-3xl font-black text-[#0B1D2A] mb-1 truncate">{selectedSupplier.businessName || selectedSupplier.name}</h2>
+                      <div className="flex flex-wrap gap-2">
                          {selectedSupplier.isTrusted && (
-                           <span className="bg-amber-500/10 text-amber-600 px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1.5">
-                             <UserCheck size={12} />
-                             مورد موثوق
+                           <span className="bg-amber-500/10 text-amber-600 px-2 md:px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black flex items-center gap-1 md:gap-1.5">
+                             <UserCheck size={10} className="md:w-3 md:h-3" />
+                             موثوق
                            </span>
                          )}
-                         <span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">
-                            Supplier Partner
+                         <span className="bg-slate-100 text-slate-500 px-2 md:px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase">
+                            مورد شريك
                          </span>
                       </div>
                     </div>
                   </div>
                   <button 
                     onClick={() => setSearchParams({})}
-                    className="w-12 h-12 rounded-full bg-white text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 shadow-sm border border-slate-100 transition-all"
+                    className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 shadow-sm border border-slate-100 transition-all flex-shrink-0"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-5 h-5 md:w-6 md:h-6" />
                   </button>
                 </div>
 
                 {/* Modal Content - Blurred */}
-                <div className="relative flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className="relative flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                   {/* Overlay Message */}
-                  <div className="absolute inset-x-0 top-0 bottom-0 z-20 flex flex-col items-center justify-center pointer-events-none p-6">
-                     <div className="bg-white/90 backdrop-blur-xl p-10 rounded-[3rem] border border-white shadow-2xl flex flex-col items-center text-center max-w-md pointer-events-auto">
-                        <div className="w-20 h-20 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-[#22C55E]/5">
-                           <Lock className="w-10 h-10" />
+                  <div className="absolute inset-x-0 top-0 bottom-0 z-20 flex flex-col items-center justify-center pointer-events-none p-4 md:p-6">
+                     <div className="bg-white/90 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] border border-white shadow-2xl flex flex-col items-center text-center max-w-md pointer-events-auto">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-[#22C55E]/10 text-[#22C55E] rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-[#22C55E]/5">
+                           <Lock className="w-8 h-8 md:w-10 md:h-10" />
                         </div>
-                        <h3 className="text-2xl font-black text-[#0B1D2A] mb-4 leading-tight">سجل دخولك أو اشترك الآن</h3>
-                        <p className="text-slate-500 font-bold mb-8 leading-relaxed">
+                        <h3 className="text-xl md:text-2xl font-black text-[#0B1D2A] mb-4 leading-tight">سجل دخولك أو اشترك الآن</h3>
+                        <p className="text-slate-500 text-sm md:text-base font-bold mb-6 md:mb-8 leading-relaxed">
                           يمكنك الآن رؤية كامل عروض وكتالوج هذا المورد والحصول على أفضل الأسعار الحصرية عند انضمامك لعائلة SupplyX.
                         </p>
                         <div className="flex flex-col w-full gap-3">
                            <button 
                              onClick={() => navigate('/auth/signup')}
-                             className="w-full py-4 bg-[#22C55E] text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#22C55E]/20"
+                             className="w-full py-4 bg-[#22C55E] text-white rounded-2xl font-black text-base md:text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#22C55E]/20"
                            >
                               سجل الآن مجاناً
                            </button>
                            <button 
                              onClick={() => navigate('/auth/login')}
-                             className="w-full py-4 bg-[#0B1D2A] text-white rounded-2xl font-black text-lg hover:bg-slate-800 transition-all"
+                             className="w-full py-4 bg-[#0B1D2A] text-white rounded-2xl font-black text-base md:text-lg hover:bg-slate-800 transition-all"
                            >
                               تسجيل الدخول
                            </button>

@@ -47,27 +47,27 @@ export default function FeaturedOffers() {
   if (!loading && offers.length === 0) return null;
 
   return (
-    <section className="py-24 px-6 bg-slate-50 overflow-hidden relative">
+    <section className="py-16 md:py-24 px-4 md:px-6 bg-slate-50 overflow-hidden relative">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12 md:mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#22C55E]/10 text-[#22C55E] rounded-full text-sm font-bold mb-4">
             <Tag className="w-4 h-4" />
             <span>عروض حصرية لفترة محدودة</span>
           </div>
           <h2 className="text-3xl md:text-5xl font-black text-[#0B1D2A] tracking-tight mb-4">أقوى عروض الموردين</h2>
-          <p className="text-slate-500 max-w-2xl mx-auto text-lg leading-relaxed">
+          <p className="text-slate-500 max-w-2xl mx-auto text-base md:text-lg leading-relaxed">
             استمتع بخصومات حصرية وأسعار تنافسية من أفضل الموردين في السوق. سجل الآن للاستفادة من هذه العروض.
           </p>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="h-96 bg-white rounded-[2.5rem] animate-pulse shadow-sm border border-slate-100" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {offers.map((offer, idx) => (
               <motion.div
                 key={offer.id}
@@ -90,7 +90,7 @@ export default function FeaturedOffers() {
                     </div>
                   )}
                   {offer.discount && (
-                    <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-black px-4 py-2 rounded-2xl shadow-xl z-10 animate-bounce">
+                    <div className="absolute top-4 right-4 bg-red-500 text-white text-[10px] font-black px-3 py-1.5 rounded-2xl shadow-xl z-10 animate-bounce">
                       خصم {offer.discount}
                     </div>
                   )}
@@ -104,8 +104,8 @@ export default function FeaturedOffers() {
                 
                 <div className="p-6 pt-2 flex-1 flex flex-col">
                   <div className="mb-4">
-                    <h3 className="font-black text-xl text-[#0B1D2A] mb-2 line-clamp-2 leading-tight group-hover:text-[#22C55E] transition-colors">{offer.title}</h3>
-                    <p className="text-xs text-slate-500 font-bold flex items-center gap-2">
+                    <h3 className="font-black text-lg md:text-xl text-[#0B1D2A] mb-2 line-clamp-2 leading-tight group-hover:text-[#22C55E] transition-colors">{offer.title}</h3>
+                    <p className="text-[10px] md:text-xs text-slate-500 font-bold flex items-center gap-2">
                        <Store size={14} className="text-[#22C55E]" />
                        {offer.supplierName}
                     </p>
@@ -114,17 +114,17 @@ export default function FeaturedOffers() {
                   <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-between">
                     <div>
                       {offer.originalPrice && (
-                        <span className="block text-xs text-slate-400 line-through font-bold mb-1">{offer.originalPrice} ج.م</span>
+                        <span className="block text-[10px] text-slate-400 line-through font-bold mb-1">{offer.originalPrice} ج.م</span>
                       )}
                       <div className="flex items-baseline gap-1">
-                        <span className="font-black text-3xl text-[#0B1D2A]">{offer.offerPrice}</span>
-                        <span className="text-xs font-bold text-slate-500">ج.م {offer.unit ? `/ ${offer.unit}` : ''}</span>
+                        <span className="font-black text-2xl md:text-3xl text-[#0B1D2A]">{offer.offerPrice}</span>
+                        <span className="text-[10px] font-bold text-slate-500">ج.م {offer.unit ? `/ ${offer.unit}` : ''}</span>
                       </div>
                     </div>
                     <button 
-                      className="w-14 h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-[#22C55E] group-hover:text-white transition-all shadow-inner"
+                      className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center group-hover:bg-[#22C55E] group-hover:text-white transition-all shadow-inner"
                     >
-                      <ShoppingCart size={24} />
+                      <ShoppingCart size={20} />
                     </button>
                   </div>
                 </div>
@@ -133,8 +133,8 @@ export default function FeaturedOffers() {
           </div>
         )}
 
-        <div className="mt-20 text-center">
-          <Link to="/marketplace" className="inline-flex items-center gap-3 px-10 py-5 bg-[#0B1D2A] text-white rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-[#0B1D2A]/20 group">
+        <div className="mt-16 md:mt-20 text-center">
+          <Link to="/marketplace" className="inline-flex items-center gap-3 px-6 md:px-10 py-4 md:py-5 bg-[#0B1D2A] text-white rounded-2xl font-black text-base md:text-lg hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-[#0B1D2A]/20 group">
             استكشاف جميع العروض في السوق
             <ArrowLeft size={24} className="group-hover:-translate-x-2 transition-transform" />
           </Link>
