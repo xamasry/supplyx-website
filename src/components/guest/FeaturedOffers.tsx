@@ -61,13 +61,13 @@ export default function FeaturedOffers() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 snap-x hide-scrollbar">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-96 bg-white rounded-[2.5rem] animate-pulse shadow-sm border border-slate-100" />
+              <div key={i} className="min-w-[75vw] md:min-w-0 h-96 bg-white rounded-[2.5rem] animate-pulse shadow-sm border border-slate-100 snap-center" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x hide-scrollbar scroll-smooth px-2 md:px-0">
             {offers.map((offer, idx) => (
               <motion.div
                 key={offer.id}
@@ -79,7 +79,7 @@ export default function FeaturedOffers() {
                   trackOfferInteraction(offer.id, 'click', { title: offer.title, supplierName: offer.supplierName });
                   handleActionClick();
                 }}
-                className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200 transition-all group flex flex-col cursor-pointer"
+                className="min-w-[75vw] md:min-w-0 bg-white rounded-[2.5rem] overflow-hidden border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-slate-200 transition-all group flex flex-col cursor-pointer snap-center"
               >
                 <div className="relative aspect-[4/5] bg-slate-50 overflow-hidden m-2 rounded-[2rem]">
                   {offer.image ? (

@@ -53,13 +53,13 @@ export default function FeaturedSuppliers() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 snap-x hide-scrollbar">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 bg-slate-100 rounded-[2.5rem] animate-pulse" />
+              <div key={i} className="min-w-[85vw] md:min-w-0 h-64 bg-slate-100 rounded-[2.5rem] animate-pulse snap-center" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 overflow-x-auto md:overflow-x-visible pb-8 md:pb-0 snap-x hide-scrollbar scroll-smooth px-2 md:px-0">
             {suppliers.map((supplier, idx) => (
               <motion.div
                 key={supplier.id}
@@ -68,10 +68,11 @@ export default function FeaturedSuppliers() {
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
                 whileHover={{ y: -10 }}
+                className="min-w-[85vw] md:min-w-0 snap-center"
               >
                 <Link 
                   to={`/marketplace?supplier=${supplier.id}`}
-                  className="block bg-slate-50 border border-slate-100 rounded-[2.5rem] p-6 md:p-8 hover:bg-white hover:shadow-2xl hover:shadow-slate-200 transition-all group relative overflow-hidden"
+                  className="block h-full bg-slate-50 border border-slate-100 rounded-[2.5rem] p-6 md:p-8 hover:bg-white hover:shadow-2xl hover:shadow-slate-200 transition-all group relative overflow-hidden"
                 >
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                   
