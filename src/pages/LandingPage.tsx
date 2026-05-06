@@ -4,7 +4,8 @@ import { motion } from 'motion/react';
 import Logo from '../components/ui/Logo';
 import { CATEGORIES } from '../constants';
 
-import MarketplacePreview from '../components/guest/MarketplacePreview';
+import FeaturedSuppliers from '../components/guest/FeaturedSuppliers';
+import FeaturedOffers from '../components/guest/FeaturedOffers';
 
 export default function LandingPage() {
   return (
@@ -190,8 +191,9 @@ export default function LandingPage() {
              </div>
           </div>
         </section>
-
-        <MarketplacePreview />
+        
+        <FeaturedSuppliers />
+        <FeaturedOffers />
 
         {/* Categories Preview - Floating Cloud Grid */}
         <section className="py-16 px-6 bg-white overflow-hidden">

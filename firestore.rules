@@ -99,8 +99,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.role == 'supplier');
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin() || resource.data.role == 'supplier');
+      allow list: if true;
+      allow get: if true;
       allow create, update, delete: if isOwner(userId) || isAdmin();
       
       match /payment_methods/{methodId} {
@@ -109,7 +109,7 @@ service cloud.firestore {
     }
 
     match /products/{productId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && (isSupplier() || isAdmin()) && isValidId(productId) && isValidProduct(incoming());
       allow update: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid)) && isValidProduct(incoming());
       allow delete: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid));

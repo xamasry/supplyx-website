@@ -114,6 +114,7 @@
         "views": { "type": "number" },
         "orders": { "type": "number" },
         "sortOrder": { "type": "number", "description": "Admin defined display order" },
+        "isFeatured": { "type": "boolean", "description": "Whether this offer is featured on the landing page" },
         "showInGuestMarketplace": { "type": "boolean", "description": "Whether to show this offer to non-authenticated users" }
       },
       "required": ["supplierId", "title", "originalPrice", "offerPrice"]

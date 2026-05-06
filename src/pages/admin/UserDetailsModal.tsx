@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ShoppingBag, ArrowRightLeft, DollarSign, XCircle, Package, CheckCircle2, Image as ImageIcon, Plus, Trash2, Edit2, Save, Loader2, Phone, MapPin } from 'lucide-react';
+import { X, ShoppingBag, ArrowRightLeft, DollarSign, XCircle, Package, CheckCircle2, Image as ImageIcon, Plus, Trash2, Edit2, Save, Loader2, Phone, MapPin, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { db, OperationType, handleFirestoreError } from '../../lib/firebase';
@@ -23,6 +23,7 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
   const [view, setView] = useState<'stats' | 'catalog' | 'offers'>('stats');
   
   const [isUpdatingTrusted, setIsUpdatingTrusted] = useState(false);
+  const [isUpdatingFeatured, setIsUpdatingFeatured] = useState(false);
   
   // Catalog & Bids Management State
   const [products, setProducts] = useState<any[]>([]);
@@ -87,6 +88,21 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
       handleFirestoreError(error, OperationType.WRITE, `users/${user.id}`);
     } finally {
       setIsUpdatingTrusted(false);
+    }
+  };
+
+  const toggleFeaturedStatus = async () => {
+    setIsUpdatingFeatured(true);
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        isFeatured: !user.isFeatured,
+        updatedAt: serverTimestamp()
+      });
+      toast.success(user.isFeatured ? 'تم إزالة المورد من المميزين' : 'تم إضافة المورد للمميزين بنجاح');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.id}`);
+    } finally {
+      setIsUpdatingFeatured(false);
     }
   };
 
@@ -345,6 +361,19 @@ export default function UserDetailsModal({ user, requests, onClose }: UserDetail
                   >
                     {isUpdatingTrusted ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                     {user.isTrusted ? 'إلغاء التوثيق' : 'تعيين كموثوق'}
+                  </button>
+                  <button 
+                    onClick={toggleFeaturedStatus}
+                    disabled={isUpdatingFeatured}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border",
+                      user.isFeatured 
+                        ? "bg-blue-500/10 border-blue-500/20 text-blue-500 hover:bg-blue-500/20" 
+                        : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+                    )}
+                  >
+                    {isUpdatingFeatured ? <Loader2 size={14} className="animate-spin" /> : <Star size={14} fill={user.isFeatured ? "currentColor" : "none"} />}
+                    {user.isFeatured ? 'إزالة من المميزين' : 'تمييز المورد'}
                   </button>
                   <button 
                     onClick={() => setView('catalog')}

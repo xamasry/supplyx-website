@@ -397,6 +397,7 @@ export default function AdminDashboard() {
 
         let dayRevenue = 0;
         let dayProfit = 0;
+        let daySubRev = 0;
 
         requests.forEach((r: any) => {
           if (r.status !== "delivered") return;
@@ -415,10 +416,24 @@ export default function AdminDashboard() {
           }
         });
 
+        subPayments.forEach((p: any) => {
+          const pTimestamp =
+            p.paymentDate?.toMillis?.() || new Date(p.paymentDate).getTime();
+          const pDate = new Date(pTimestamp);
+          if (
+            pDate.getHours() === hour &&
+            pDate.getDate() === d.getDate() &&
+            pDate.getMonth() === d.getMonth()
+          ) {
+            daySubRev += p.amount || 0;
+          }
+        });
+
         aggregatedData.push({
           name: `${hour}:00`,
           revenue: dayRevenue,
           profit: dayProfit,
+          subRevenue: daySubRev,
         });
       }
     } else if (reportType === "week") {
@@ -440,6 +455,7 @@ export default function AdminDashboard() {
 
         let dayRevenue = 0;
         let dayProfit = 0;
+        let daySubRev = 0;
 
         requests.forEach((r: any) => {
           if (r.status === "delivered" && (r.updatedAt || r.createdAt)) {
@@ -454,10 +470,19 @@ export default function AdminDashboard() {
           }
         });
 
+        subPayments.forEach((p: any) => {
+          const pTimestamp =
+            p.paymentDate?.toMillis?.() || new Date(p.paymentDate).getTime();
+          if (pTimestamp >= startOfDay && pTimestamp <= endOfDay) {
+            daySubRev += p.amount || 0;
+          }
+        });
+
         aggregatedData.push({
           name: dayName,
           revenue: dayRevenue,
           profit: dayProfit,
+          subRevenue: daySubRev,
         });
       }
     } else {
@@ -469,6 +494,7 @@ export default function AdminDashboard() {
 
         let rev = 0;
         let prof = 0;
+        let subRev = 0;
 
         requests.forEach((r: any) => {
           if (r.status !== "delivered") return;
@@ -483,10 +509,20 @@ export default function AdminDashboard() {
           }
         });
 
+        subPayments.forEach((p: any) => {
+          const pTimestamp =
+            p.paymentDate?.toMillis?.() || new Date(p.paymentDate).getTime();
+          const pDate = new Date(pTimestamp);
+          if (pDate >= start && pDate < end) {
+            subRev += p.amount || 0;
+          }
+        });
+
         aggregatedData.push({
           name: `أسبوع ${4 - i}`,
           revenue: rev,
           profit: prof,
+          subRevenue: subRev,
         });
       }
     }
@@ -574,6 +610,7 @@ export default function AdminDashboard() {
     rates,
     financeTimeFilter,
     subscriptionRequests,
+    subPayments,
   ]);
 
   const startStreamingData = () => {
@@ -621,6 +658,9 @@ export default function AdminDashboard() {
           ...prev,
           suppliersCount: data.filter((u: any) => u.role === "supplier").length,
           buyersCount: data.filter((u: any) => u.role === "buyer").length,
+          activeSubscriptions: data.filter(
+            (u: any) => u.subscriptionStatus === "active" && !u.isTrial,
+          ).length,
           pendingUsers: data.filter((u: any) => u.status === "pending").length,
         }));
       },
@@ -1154,6 +1194,7 @@ export default function AdminDashboard() {
         subscriptionTier: request.requestedTier,
         subscriptionStatus: "active",
         subscriptionExpiry: expiryDate.toISOString(),
+        isTrial: false,
         updatedAt: serverTimestamp(),
       });
 
@@ -1727,7 +1768,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                       {users
-                        .filter((u) => u.role === "supplier" && u.isTrusted)
+                        .filter((u) => u.role === "supplier" && u.isFeatured)
                         .sort(
                           (a, b) => (a.sortOrder || 99) - (b.sortOrder || 99),
                         )
@@ -1775,7 +1816,7 @@ export default function AdminDashboard() {
                               <button
                                 onClick={async () => {
                                   await updateDoc(doc(db, "users", s.id), {
-                                    isTrusted: false,
+                                    isFeatured: false,
                                     updatedAt: serverTimestamp(),
                                   });
                                   toast.success("تمت الإزالة من المميزين");
@@ -1787,7 +1828,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         ))}
-                      {users.filter((u) => u.role === "supplier" && u.isTrusted)
+                      {users.filter((u) => u.role === "supplier" && u.isFeatured)
                         .length === 0 && (
                         <p className="text-center py-10 text-slate-500 font-bold italic">
                           لا يوجد موردين مُميزين حالياً
@@ -1801,14 +1842,14 @@ export default function AdminDashboard() {
                       </h4>
                       <div className="grid grid-cols-2 gap-3">
                         {users
-                          .filter((u) => u.role === "supplier" && !u.isTrusted)
+                          .filter((u) => u.role === "supplier" && !u.isFeatured)
                           .slice(0, 8)
                           .map((s) => (
                             <button
                               key={s.id}
                               onClick={async () => {
                                 await updateDoc(doc(db, "users", s.id), {
-                                  isTrusted: true,
+                                  isFeatured: true,
                                   sortOrder: 99,
                                   updatedAt: serverTimestamp(),
                                 });
@@ -1833,11 +1874,12 @@ export default function AdminDashboard() {
                         العروض المٌميزة
                       </h3>
                       <p className="text-xs text-slate-400 font-bold">
-                        تحديد ترتيب ظهور العروض في قسم الـ Premium
+                        تحديد ترتيب ظهور العروض في الصفحة الرئيسية
                       </p>
                     </div>
-                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                       {offers
+                        .filter((o) => o.isFeatured)
                         .sort(
                           (a, b) => (a.sortOrder || 99) - (b.sortOrder || 99),
                         )
@@ -1848,10 +1890,14 @@ export default function AdminDashboard() {
                           >
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 bg-slate-900 rounded-xl border border-slate-700 flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={offer.image}
-                                  className="w-full h-full object-cover"
-                                />
+                                {offer.image ? (
+                                  <img
+                                    src={offer.image}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="text-slate-700" />
+                                )}
                               </div>
                               <div className="max-w-[150px]">
                                 <p className="font-bold text-white text-sm truncate">
@@ -1884,14 +1930,63 @@ export default function AdminDashboard() {
                                   className="w-16 bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-center font-black focus:ring-2 focus:ring-primary-500 outline-none"
                                 />
                               </div>
+                              <button
+                                onClick={async () => {
+                                  await updateDoc(doc(db, "offers", offer.id), {
+                                    isFeatured: false,
+                                    updatedAt: serverTimestamp(),
+                                  });
+                                  toast.success("تمت الإزالة من المميزين");
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
                         ))}
-                      {offers.length === 0 && (
+                      {offers.filter((o) => o.isFeatured).length === 0 && (
                         <p className="text-center py-10 text-slate-500 font-bold italic">
-                          لا توجد عروض نشطة حالياً
+                          لا توجد عروض مُميزة حالياً
                         </p>
                       )}
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-slate-800">
+                      <h4 className="text-sm font-bold text-slate-400 mb-4">
+                        إضافة عرض لقائمة المُميزين
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {offers
+                          .filter((o) => !o.isFeatured)
+                          .slice(0, 8)
+                          .map((offer) => (
+                            <button
+                              key={offer.id}
+                              onClick={async () => {
+                                await updateDoc(doc(db, "offers", offer.id), {
+                                  isFeatured: true,
+                                  sortOrder: 99,
+                                  updatedAt: serverTimestamp(),
+                                });
+                                toast.success("تمت الإضافة للمميزين");
+                              }}
+                              className="bg-slate-800 p-3 rounded-xl border border-slate-700 flex items-center justify-between hover:border-primary-500 transition-all text-right"
+                            >
+                              <div className="flex items-center gap-2 max-w-[120px]">
+                                <div className="w-6 h-6 rounded-md overflow-hidden bg-slate-900 flex-shrink-0">
+                                  {offer.image && (
+                                    <img src={offer.image} className="w-full h-full object-cover" />
+                                  )}
+                                </div>
+                                <span className="font-bold text-[10px] text-white truncate">
+                                  {offer.title}
+                                </span>
+                              </div>
+                              <Plus size={14} className="text-primary-500" />
+                            </button>
+                          ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2478,7 +2573,7 @@ export default function AdminDashboard() {
                     label="إيرادات الاشتراكات"
                     value={`${stats.subscriptionRevenue.toLocaleString()} ج.م`}
                     icon={<ShieldCheck className="w-6 h-6" />}
-                    trend="عضويات نشطة"
+                    trend={`${stats.activeSubscriptions} عضوية نشطة`}
                     color="purple"
                   />
                   <StatCard
