@@ -44,6 +44,8 @@ export default function AnalyticsSystem() {
   });
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState('24h');
+  const [pageStats, setPageStats] = useState<any[]>([]);
+  const [offerStats, setOfferStats] = useState<any[]>([]);
 
   useEffect(() => {
     // 1. Fetch real-time alerts
@@ -69,9 +71,23 @@ export default function AnalyticsSystem() {
       setLoading(false);
     });
 
+    // 3. Fetch Persistent Page Stats
+    const qPages = query(collection(db, 'page_stats'), orderBy('visits', 'desc'), limit(10));
+    const unsubPages = onSnapshot(qPages, (snap) => {
+      setPageStats(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    // 4. Fetch Persistent Offer Stats
+    const qOffers = query(collection(db, 'offer_stats'), orderBy('views', 'desc'), limit(10));
+    const unsubOffers = onSnapshot(qOffers, (snap) => {
+      setOfferStats(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubAlerts();
       unsubLogs();
+      unsubPages();
+      unsubOffers();
     };
   }, [timeFilter]);
 
@@ -248,65 +264,71 @@ export default function AnalyticsSystem() {
 
       {/* Behavioral Insights Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Page Analytics */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
           <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <MousePointer2 className="w-5 h-5 text-indigo-500" />
-            خرائط التفاعل (أكثر العناصر نقراً)
+            <Globe className="w-5 h-5 text-indigo-500" />
+            تحليل الصفحات (منذ البداية)
           </h3>
           <div className="space-y-4">
-            {sortedClicks.length > 0 ? (
-              sortedClicks.map(([el, count]: any) => (
-                <div key={el} className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold text-slate-400">
-                    <span className="font-mono text-indigo-400">{el}</span>
-                    <span>{count} نقرة</span>
+            {pageStats.length > 0 ? (
+              pageStats.map((stat) => (
+                <div key={stat.id} className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-mono text-indigo-400 block mb-1">/{stat.path}</span>
+                    <div className="flex items-center gap-3">
+                       <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                         <Activity size={12} className="text-emerald-500" />
+                         {stat.visits || 0} زيارة
+                       </span>
+                       <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                         <MousePointer2 size={12} className="text-blue-500" />
+                         {stat.clicks || 0} نقرة
+                       </span>
+                    </div>
                   </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(count / (sortedClicks[0][1] as any)) * 100}%` }}
-                      className="h-full bg-indigo-500"
-                    />
+                  <div className="text-[10px] text-slate-600 font-bold">
+                    نشط مؤخراً
                   </div>
                 </div>
               ))
             ) : (
-              <div className="py-12 text-center text-slate-600 font-bold">لا توجد بيانات تفاعل كافية</div>
+              <div className="py-12 text-center text-slate-600 font-bold">لا توجد بيانات صفحات</div>
             )}
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center text-center">
-          <div className="relative w-32 h-32 mb-4">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="64"
-                cy="64"
-                r="58"
-                fill="none"
-                stroke="#1e293b"
-                strokeWidth="10"
-              />
-              <motion.circle
-                cx="64"
-                cy="64"
-                r="58"
-                fill="none"
-                stroke="#8b5cf6"
-                strokeWidth="10"
-                strokeDasharray="364.4"
-                initial={{ strokeDashoffset: 364.4 }}
-                animate={{ strokeDashoffset: 364.4 - (364.4 * (avgScroll as number / 100)) }}
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-white">{Math.round(avgScroll)}%</span>
-              <span className="text-[10px] font-bold text-slate-500">متوسط</span>
-            </div>
+        {/* Offer Analytics */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" />
+            تفاعل العروض (منذ البداية)
+          </h3>
+          <div className="space-y-4">
+            {offerStats.length > 0 ? (
+              offerStats.map((stat) => (
+                <div key={stat.id} className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 flex items-center justify-between">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <span className="text-xs font-bold text-white block mb-1 truncate">{stat.offerTitle || 'عرض غير مسمى'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 block mb-2">{stat.supplierName || 'مورد غير معروف'}</span>
+                    <div className="flex items-center gap-4">
+                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                         <Activity size={10} />
+                         {stat.views || 0} مشاهدة
+                       </span>
+                       <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1">
+                         <MousePointer2 size={10} />
+                         {stat.clicks || 0} نقرة
+                       </span>
+                    </div>
+                  </div>
+                  <div className="h-10 w-1 bg-amber-500 rounded-full" />
+                </div>
+              ))
+            ) : (
+              <div className="py-12 text-center text-slate-600 font-bold">لا توجد تفاعلات للعروض</div>
+            )}
           </div>
-          <h3 className="text-lg font-bold text-white mb-2">عمق التصفح</h3>
-          <p className="text-xs text-slate-500 max-w-[200px]">يشير هذا الرقم إلى مدى وصول المستخدمين لأسفل الصفحات قبل مغادرتها</p>
         </div>
       </div>
 

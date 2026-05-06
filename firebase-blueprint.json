@@ -236,6 +236,30 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "message", "target", "createdAt"]
+    },
+    "PageStat": {
+      "title": "Page Analytics",
+      "description": "Counter for page visits and clicks",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "visits": { "type": "number" },
+        "clicks": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "OfferStat": {
+      "title": "Offer Analytics",
+      "description": "Interaction stats for a specific offer",
+      "type": "object",
+      "properties": {
+        "offerId": { "type": "string" },
+        "offerTitle": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "views": { "type": "number" },
+        "clicks": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -286,6 +310,14 @@
     "/subscription_payments/{paymentId}": {
       "schema": "SubscriptionPayment",
       "description": "History of all subscription payments"
+    },
+    "/page_stats/{pathId}": {
+      "schema": "PageStat",
+      "description": "Global page visit counters"
+    },
+    "/offer_stats/{offerId}": {
+      "schema": "OfferStat",
+      "description": "Offer engagement counters"
     }
   }
 }

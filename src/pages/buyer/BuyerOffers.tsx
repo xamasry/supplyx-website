@@ -6,6 +6,7 @@ import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebas
 import toast from 'react-hot-toast';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, increment, getDoc } from 'firebase/firestore';
+import { trackOfferInteraction } from '../../lib/analytics';
 
 import { CATEGORIES } from '../../constants';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -38,6 +39,14 @@ export default function BuyerOffers() {
       data.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
       setOffers(data);
       setLoading(false);
+
+      // Track views for all active offers
+      data.forEach((offer: any) => {
+        trackOfferInteraction(offer.id, 'view', { 
+          title: offer.title, 
+          supplierName: offer.supplierName 
+        });
+      });
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'offers');
       setLoading(false);
@@ -466,7 +475,10 @@ export default function BuyerOffers() {
 // Sub-component for Offer Card to keep code clean
 function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any, isOrdering: string | null, userProfile: any, handleOrder: () => void, key?: any }) {
   return (
-    <div className="bg-white border border-slate-300 rounded-3xl overflow-hidden shadow-sm hover:border-[var(--color-primary)] transition-colors flex flex-col">
+    <div 
+      onClick={() => trackOfferInteraction(offer.id, 'click', { title: offer.title, supplierName: offer.supplierName })}
+      className="bg-white border border-slate-300 rounded-3xl overflow-hidden shadow-sm hover:border-[var(--color-primary)] transition-colors flex flex-col cursor-pointer"
+    >
       <div className="h-44 bg-slate-100 relative overflow-hidden group flex items-center justify-center">
         {offer.image ? (
           <img 

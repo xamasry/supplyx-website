@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LogIn, Lock, Package, ArrowLeft, Tag, Info, ShieldAlert, ArrowRight, Search, Store } from 'lucide-react';
 import { CATEGORIES } from '../constants';
 import Logo from '../components/ui/Logo';
+import { trackOfferInteraction } from '../lib/analytics';
 
 export default function GuestMarketplace() {
   const [activeTab, setActiveTab] = useState<'offers' | 'tenders'>('offers');
@@ -29,6 +30,11 @@ export default function GuestMarketplace() {
         );
         const offersData = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOffers(offersData);
+
+        // Track views
+        offersData.forEach((offer: any) => {
+          trackOfferInteraction(offer.id, 'view', { title: offer.title, supplierName: offer.supplierName });
+        });
 
         const requestsSnap = await getDocs(
           query(collection(db, 'requests'), where('status', '==', 'active'), orderBy('createdAt', 'desc'))
@@ -164,7 +170,11 @@ export default function GuestMarketplace() {
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
               >
                 {filteredOffers.length > 0 ? filteredOffers.map((offer) => (
-                  <div key={offer.id} className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col pt-1">
+                  <div 
+                    key={offer.id} 
+                    onClick={() => trackOfferInteraction(offer.id, 'click', { title: offer.title, supplierName: offer.supplierName })}
+                    className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col pt-1 cursor-pointer"
+                  >
                     <div className="relative aspect-square bg-slate-100 overflow-hidden m-3 rounded-2xl">
                       {offer.image ? (
                         <img src={offer.image} alt={offer.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />

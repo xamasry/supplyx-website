@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LogIn, Lock, Package, ArrowLeft, Tag, Info, ShieldAlert, Store } from 'lucide-react';
 import { CATEGORIES } from '../../constants';
+import { trackOfferInteraction } from '../../lib/analytics';
 
 export default function MarketplacePreview() {
   const [activeTab, setActiveTab] = useState<'offers' | 'tenders'>('offers');
@@ -28,6 +29,14 @@ export default function MarketplacePreview() {
         );
         const offersData = offersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setOffers(offersData);
+
+        // Track views for fetched offers
+        offersData.forEach((offer: any) => {
+          trackOfferInteraction(offer.id, 'view', { 
+            title: offer.title, 
+            supplierName: offer.supplierName 
+          });
+        });
 
         // Fetch Requests (Tenders/Urgent)
         const requestsSnap = await getDocs(
@@ -103,7 +112,8 @@ export default function MarketplacePreview() {
                   offers.map((offer) => (
                     <div
                       key={offer.id}
-                      className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col min-w-[260px] md:min-w-0 snap-center"
+                      onClick={() => trackOfferInteraction(offer.id, 'click', { title: offer.title, supplierName: offer.supplierName })}
+                      className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group flex flex-col min-w-[260px] md:min-w-0 snap-center cursor-pointer"
                     >
                     <div className="relative aspect-square bg-slate-100 overflow-hidden">
                       {offer.image ? (
