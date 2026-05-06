@@ -101,80 +101,34 @@ async function startServer() {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: 'custom',
+      appType: 'spa',
     });
     
-    // IMPORTANT: Serve Vite middlewares FIRST to handle static assets
+    // Vite handles static assets AND SPA fallback automatically in 'spa' mode
     app.use(vite.middlewares);
-
-    // SPA Fallback for Development
-    app.get('*', async (req, res, next) => {
-      const url = req.originalUrl;
-      const originalPath = req.path;
-      
-      // 1. Skip API routes
-      if (url.startsWith('/api')) {
-        console.log(`[Dev API] 404: ${url}`);
-        return next();
-      }
-
-      // 2. Skip files with extensions (likely missing static assets)
-      // If Vite middlewares didn't catch it above, it's likely a missing file.
-      // We don't want to serve index.html for missing images or JS files.
-      if (originalPath.includes('.') && !originalPath.endsWith('.html')) {
-        console.log(`[Dev Asset] Not Found: ${originalPath}`);
-        return next();
-      }
-
-      try {
-        console.log(`[Dev SPA] Fallback for: ${url}`);
-        const indexPath = path.resolve(process.cwd(), 'index.html');
-        if (!fs.existsSync(indexPath)) {
-          console.error(`[Dev SPA] CRITICAL: index.html missing at ${indexPath}`);
-          return res.status(500).send('Development index.html is missing. Please check project structure.');
-        }
-
-        let template = fs.readFileSync(indexPath, 'utf-8');
-        template = await vite.transformIndexHtml(url, template);
-        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
-      } catch (e) {
-        vite.ssrFixStacktrace(e as Error);
-        console.error(`[Dev SPA] Vite transform error for ${url}:`, e);
-        res.status(500).json({ 
-          error: 'Vite Transformation Error', 
-          message: e instanceof Error ? e.message : String(e) 
-        });
-      }
-    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     
-    // Serve static files from dist
-    app.use(express.static(distPath, { index: false }));
+    // 1. Serve static files with extensions first
+    app.use(express.static(distPath, { 
+      maxAge: '1d',
+      index: false 
+    }));
     
-    // SPA Fallback for Production
+    // 2. SPA Fallback: Serve index.html for all non-API, non-asset routes
     app.get('*', (req, res, next) => {
-      const url = req.url;
-      const originalPath = req.path;
+      // Skip API
+      if (req.url.startsWith('/api')) return next();
+      
+      // Skip files (already tried express.static)
+      if (req.path.includes('.')) return next();
 
-      // 1. Skip API routes
-      if (url.startsWith('/api')) {
-        return next();
-      }
-
-      // 2. Skip files with extensions that weren't found by express.static
-      if (originalPath.includes('.')) {
-        return next();
-      }
-
-      console.log(`[Prod SPA] Fallback for: ${url}`);
-      const indexPath = path.join(distPath, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        console.error(`[Prod SPA] CRITICAL: Build index.html missing at ${indexPath}`);
-        res.status(404).send('Application build not found. If you just deployed, wait a moment or run npm run build.');
-      }
+      res.sendFile(path.join(distPath, 'index.html'), (err) => {
+        if (err) {
+          console.error('[Prod SPA] Error sending index.html:', err);
+          res.status(404).send('Application build not found. Please run npm run build.');
+        }
+      });
     });
   }
 
