@@ -1476,9 +1476,19 @@ export default function AdminDashboard() {
 
   return (
     <div
-      className="min-h-screen bg-slate-950 text-slate-200 overflow-x-hidden"
+      className="min-h-screen bg-[#030712] text-slate-200 overflow-x-hidden relative selection:bg-primary-500/30"
       dir="rtl"
     >
+      {/* Shadcnblocks Hero-195 Aesthetic Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none flex justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary-500 opacity-[0.15] blur-[100px]"></div>
+        <div className="absolute left-1/3 right-0 bottom-0 -z-10 m-auto h-[400px] w-[400px] rounded-full bg-emerald-500 opacity-[0.1] blur-[120px]"></div>
+      </div>
+      
+      {/* Relative container to stay above background */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+
       {/* Mobile Sidebar Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -1495,13 +1505,15 @@ export default function AdminDashboard() {
       {/* Sidebar - Shared logic for Mobile/Desktop */}
       <aside
         className={cn(
-          "fixed right-0 top-0 h-full w-72 bg-slate-900 border-l border-slate-800/50 z-[70] transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) transform shadow-2xl lg:shadow-none",
+          "fixed right-0 top-0 h-full w-72 bg-[#030712]/80 backdrop-blur-3xl border-l border-white/[0.05] z-[70] transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) transform shadow-[0_0_80px_-20px_rgba(37,99,235,0.15)]",
           "lg:translate-x-0",
           isSidebarOpen ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="flex flex-col h-full bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.05),transparent)]">
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32">
+        <div className="flex flex-col h-full relative">
+          {/* Subtle glow inside sidebar */}
+          <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-b from-primary-500/5 to-transparent pointer-events-none" />
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 pb-32 relative z-10">
             <div className="flex items-center justify-between gap-3 mb-10">
               <Link
                 to="/admin/dashboard"
@@ -1673,10 +1685,10 @@ export default function AdminDashboard() {
             </nav>
           </div>
 
-          <div className="absolute bottom-0 w-full p-6 border-t border-slate-800 bg-slate-900">
+          <div className="absolute bottom-0 w-full p-6 border-t border-white/[0.05] bg-[#030712]/50 backdrop-blur-md z-20">
             <button
               onClick={() => auth.signOut().then(() => navigate("/"))}
-              className="flex items-center gap-3 text-slate-400 hover:text-red-500 transition-colors w-full"
+              className="flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-3 rounded-xl transition-all w-full"
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">تسجيل الخروج</span>
@@ -1686,10 +1698,10 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:pr-64 min-h-screen">
+      <main className="lg:pr-72 min-h-screen relative z-10 w-full overflow-hidden">
         {/* Top Header */}
-        <header className="h-20 bg-slate-950/60 backdrop-blur-xl border-b border-slate-800/50 sticky top-0 z-[50] px-6 md:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="h-24 bg-[#030712]/40 backdrop-blur-2xl border-b border-white/[0.05] sticky top-0 z-[50] px-6 md:px-10 flex items-center justify-between">
+          <div className="flex items-center gap-5">
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden p-2.5 text-slate-400 bg-slate-900 border border-slate-800 rounded-xl hover:text-white transition-all shadow-sm"
@@ -1734,19 +1746,20 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden md:block">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <div className="relative hidden md:block group">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary-500/20 to-emerald-500/20 blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
               <input
                 type="text"
                 placeholder="بحث عام..."
-                className="bg-slate-900 border border-slate-800 text-sm text-white rounded-xl pr-10 pl-4 py-2 outline-none focus:border-primary-500 transition-colors w-64"
+                className="relative bg-[#030712]/50 border border-white/[0.08] text-sm text-white rounded-2xl pr-12 pl-4 py-2.5 outline-none focus:border-primary-500/50 focus:bg-[#030712]/80 transition-all w-72 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
               />
             </div>
           </div>
         </header>
 
         {/* Dashboard Pages */}
-        <div className="p-6 md:p-8 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)]">
+        <div className="p-6 md:p-10 max-w-[1800px] mx-auto min-h-[calc(100vh-96px)] relative z-10">
           <AnimatePresence mode="wait">
             {activeTab === "ordering" && (
               <motion.div
@@ -5575,6 +5588,7 @@ export default function AdminDashboard() {
           )}
         </div>
       </main>
+      </div>
     </div>
   );
 }
@@ -5583,28 +5597,28 @@ function NavItem({ icon, label, active, onClick, badge, badgeColor }: any) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
         active
-          ? "bg-primary-600/10 text-primary-400 border border-primary-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-          : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent"
+          ? "bg-white/[0.03] text-white border border-white/[0.08] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
+          : "text-slate-400 hover:bg-white/[0.02] hover:text-slate-200 border border-transparent"
       }`}
     >
       {active && (
         <motion.div
           layoutId="activeTab"
-          className="absolute right-0 w-1 h-6 bg-primary-500 rounded-l-full"
+          className="absolute right-0 w-1 h-8 bg-primary-500 rounded-l-full shadow-[0_0_15px_rgba(59,130,246,0.6)]"
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         />
       )}
       <div
-        className={`transition-colors duration-200 ${active ? "text-primary-400" : "group-hover:text-primary-400"}`}
+        className={`transition-colors duration-300 ${active ? "text-primary-400" : "group-hover:text-primary-400"}`}
       >
         {icon}
       </div>
-      <span className="font-semibold text-sm">{label}</span>
+      <span className="font-bold text-[13px] tracking-wide">{label}</span>
       {badge !== undefined && (
         <span
-          className={`mr-auto px-2 py-0.5 rounded-full text-[10px] font-bold ring-1 ring-white/10 ${badgeColor || "bg-red-500"} text-white`}
+          className={`mr-auto px-2.5 py-0.5 rounded-full text-[10px] font-black shadow-lg ${badgeColor || "bg-red-500"} text-white border border-white/20`}
         >
           {badge}
         </span>
@@ -5615,13 +5629,13 @@ function NavItem({ icon, label, active, onClick, badge, badgeColor }: any) {
 
 function StatCard({ label, value, icon, trend, color }: any) {
   const colorStyles: any = {
-    emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/10",
-    sky: "text-sky-400 bg-sky-500/10 border-sky-500/10",
-    amber: "text-amber-400 bg-amber-500/10 border-amber-500/10",
-    indigo: "text-indigo-400 bg-indigo-500/10 border-indigo-500/10",
-    blue: "text-blue-400 bg-blue-500/10 border-blue-500/10",
-    purple: "text-purple-400 bg-purple-500/10 border-purple-500/10",
-    rose: "text-rose-400 bg-rose-500/10 border-rose-500/10",
+    emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20 shadow-[inset_0_1px_1px_rgba(16,185,129,0.2)]",
+    sky: "text-sky-400 bg-sky-500/10 border-sky-500/20 shadow-[inset_0_1px_1px_rgba(14,165,233,0.2)]",
+    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20 shadow-[inset_0_1px_1px_rgba(245,158,11,0.2)]",
+    indigo: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20 shadow-[inset_0_1px_1px_rgba(99,102,241,0.2)]",
+    blue: "text-blue-400 bg-blue-500/10 border-blue-500/20 shadow-[inset_0_1px_1px_rgba(59,130,246,0.2)]",
+    purple: "text-purple-400 bg-purple-500/10 border-purple-500/20 shadow-[inset_0_1px_1px_rgba(168,85,247,0.2)]",
+    rose: "text-rose-400 bg-rose-500/10 border-rose-500/20 shadow-[inset_0_1px_1px_rgba(244,63,94,0.2)]",
   };
 
   const style = colorStyles[color] || colorStyles.emerald;
@@ -5629,24 +5643,25 @@ function StatCard({ label, value, icon, trend, color }: any) {
 
   return (
     <motion.div
-      whileHover={{ y: -4 }}
-      className={`bg-slate-900/50 backdrop-blur-sm border ${parts[2]} rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200`}
+      whileHover={{ y: -4, scale: 1.01 }}
+      className={`relative bg-[#030712]/40 backdrop-blur-3xl border ${parts[2]} rounded-[2rem] p-6 group overflow-hidden ${parts[3]}`}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-2.5 rounded-xl ${parts.slice(0, 2).join(" ")}`}>
-          {React.cloneElement(icon as React.ReactElement, { size: 20 } as any)}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="flex items-center justify-between mb-6 relative z-10">
+        <div className={`p-3 rounded-2xl ${parts.slice(0, 2).join(" ")} bg-white/[0.02] border border-white/[0.05]`}>
+          {React.cloneElement(icon as React.ReactElement, { size: 24 } as any)}
         </div>
         {trend && (
           <span
-            className={`text-[10px] font-bold px-2 py-1 rounded-lg ${style}`}
+            className={`text-[10px] font-black px-2.5 py-1.5 rounded-xl border border-white/10 ${style}`}
           >
             {trend}
           </span>
         )}
       </div>
-      <div className="space-y-1">
-        <p className="text-slate-500 text-xs font-medium">{label}</p>
-        <h4 className="text-xl font-bold text-white tracking-tight">{value}</h4>
+      <div className="space-y-2 relative z-10">
+        <p className="text-slate-400 text-sm font-medium tracking-wide">{label}</p>
+        <h4 className="text-3xl font-black text-white tracking-tighter drop-shadow-md">{value}</h4>
       </div>
     </motion.div>
   );
@@ -5666,24 +5681,25 @@ function LegendItem({ dot, label, value }: any) {
 
 function FinanceCard({ label, value, color, icon }: any) {
   const styles: any = {
-    emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
-    sky: "bg-sky-500/10 border-sky-500/20 text-sky-500",
-    amber: "bg-amber-500/10 border-amber-500/20 text-amber-500",
+    emerald: "bg-emerald-500/5 border-emerald-500/20 text-emerald-500 from-emerald-500/10 to-transparent",
+    sky: "bg-sky-500/5 border-sky-500/20 text-sky-500 from-sky-500/10 to-transparent",
+    amber: "bg-amber-500/5 border-amber-500/20 text-amber-500 from-amber-500/10 to-transparent",
   };
 
   const style = styles[color] || styles.emerald;
   const parts = style.split(" ");
 
   return (
-    <div className={`bg-slate-900 border ${parts[1]} p-6 rounded-2xl`}>
-      <div className="flex items-center gap-3 mb-2">
-        <div className={`p-2 rounded-lg ${parts.slice(0, 1).join(" ")}`}>
+    <div className={`relative bg-[#030712]/60 backdrop-blur-xl border ${parts[1]} p-8 rounded-[2rem] overflow-hidden`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${parts[3]} ${parts[4]} opacity-50`}></div>
+      <div className="relative z-10 flex items-center gap-4 mb-4">
+        <div className={`p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] ${parts[2]} drop-shadow-md`}>
           {icon}
         </div>
-        <p className="text-slate-400 text-sm">{label}</p>
+        <p className="text-slate-300 text-sm font-bold tracking-wide">{label}</p>
       </div>
-      <h4 className="text-2xl font-bold text-white">
-        {value.toLocaleString()} ج.م
+      <h4 className="relative z-10 text-3xl font-black text-white tracking-tighter drop-shadow-lg">
+        {value.toLocaleString()} <span className="text-lg text-slate-500 font-bold">ج.م</span>
       </h4>
     </div>
   );
