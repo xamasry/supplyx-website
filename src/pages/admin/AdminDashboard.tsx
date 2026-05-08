@@ -357,6 +357,21 @@ export default function AdminDashboard() {
       }
     });
 
+    let filteredSubRevenue = 0;
+    subPayments.forEach((p: any) => {
+      const pTime = p.paymentDate?.toMillis?.() || new Date(p.paymentDate || 0).getTime();
+      const diff = nowTime - pTime;
+
+      let isInFilter = true;
+      if (financeTimeFilter === "today") isInFilter = diff <= oneDay;
+      else if (financeTimeFilter === "week") isInFilter = diff <= oneWeek;
+      else if (financeTimeFilter === "month") isInFilter = diff <= oneMonth;
+
+      if (isInFilter) {
+        filteredSubRevenue += p.amount || 0;
+      }
+    });
+
     setStats((prev) => ({
       ...prev,
       totalOrders: requests.length,
@@ -365,8 +380,15 @@ export default function AdminDashboard() {
       cancelledOrders: cancelled,
       totalRevenue: totalRevenue,
       platformProfit: platformProfit,
+      subscriptionRevenue: filteredSubRevenue,
       bidsCount: bidsCount,
       newRequestsCount: newRequests,
+      suppliersCount: users.filter((u: any) => u.role === "supplier").length,
+      buyersCount: users.filter((u: any) => u.role === "buyer").length,
+      activeSubscriptions: users.filter(
+        (u: any) => u.subscriptionStatus === "active" && !u.isTrial,
+      ).length,
+      pendingUsers: users.filter((u: any) => u.status === "pending").length,
     }));
 
     setReports({
@@ -654,15 +676,6 @@ export default function AdminDashboard() {
           ...doc.data(),
         }));
         setUsers(data);
-        setStats((prev) => ({
-          ...prev,
-          suppliersCount: data.filter((u: any) => u.role === "supplier").length,
-          buyersCount: data.filter((u: any) => u.role === "buyer").length,
-          activeSubscriptions: data.filter(
-            (u: any) => u.subscriptionStatus === "active" && !u.isTrial,
-          ).length,
-          pendingUsers: data.filter((u: any) => u.status === "pending").length,
-        }));
       },
       (err) => {
         console.error("Users stream error:", err);
@@ -762,12 +775,6 @@ export default function AdminDashboard() {
           ...doc.data(),
         }));
         setSubPayments(payments);
-
-        const totalSubRev = payments.reduce(
-          (acc, curr: any) => acc + (curr.amount || 0),
-          0,
-        );
-        setStats((prev) => ({ ...prev, subscriptionRevenue: totalSubRev }));
       },
       (error) => {
         handleFirestoreError(
@@ -1760,6 +1767,38 @@ export default function AdminDashboard() {
 
         {/* Dashboard Pages */}
         <div className="p-6 md:p-10 max-w-[1800px] mx-auto min-h-[calc(100vh-96px)] relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <h1 className="text-3xl font-black text-white tracking-tighter">
+              {activeTab === 'overview' ? 'نظرة عامة على الأداء' : 'تحليلات البيانات'}
+            </h1>
+            <div className="flex rounded-2xl bg-[#030712]/60 backdrop-blur-xl p-1.5 border border-white/[0.08] shadow-2xl">
+              <button
+                onClick={() => setFinanceTimeFilter("all")}
+                className={`px-6 py-2 text-[11px] font-black rounded-xl transition-all duration-300 ${financeTimeFilter === "all" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30 translate-y-[-1px]" : "text-slate-500 hover:text-slate-200"}`}
+              >
+                الكل
+              </button>
+              <button
+                onClick={() => setFinanceTimeFilter("today")}
+                className={`px-6 py-2 text-[11px] font-black rounded-xl transition-all duration-300 ${financeTimeFilter === "today" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30 translate-y-[-1px]" : "text-slate-500 hover:text-slate-200"}`}
+              >
+                اليوم
+              </button>
+              <button
+                onClick={() => setFinanceTimeFilter("week")}
+                className={`px-6 py-2 text-[11px] font-black rounded-xl transition-all duration-300 ${financeTimeFilter === "week" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30 translate-y-[-1px]" : "text-slate-500 hover:text-slate-200"}`}
+              >
+                الأسبوع
+              </button>
+              <button
+                onClick={() => setFinanceTimeFilter("month")}
+                className={`px-6 py-2 text-[11px] font-black rounded-xl transition-all duration-300 ${financeTimeFilter === "month" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30 translate-y-[-1px]" : "text-slate-500 hover:text-slate-200"}`}
+              >
+                الشهر
+              </button>
+            </div>
+          </div>
+
           <AnimatePresence mode="wait">
             {activeTab === "ordering" && (
               <motion.div
@@ -2341,13 +2380,13 @@ export default function AdminDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-8"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
                     <h3 className="font-bold text-slate-500 mb-3 text-sm flex items-center gap-2">
-                      <TrendingUp size={16} /> مم إجمالي حجم التداولات (GMV)
+                      <TrendingUp size={16} /> إجمالي حجم التداولات
                     </h3>
-                    <p className="text-4xl font-black text-emerald-400 font-display">
+                    <p className="text-3xl font-black text-emerald-400 font-display">
                       {stats.totalRevenue.toLocaleString("en-US")}{" "}
                       <span className="text-xs text-slate-500 font-bold">
                         ج.م
@@ -2357,9 +2396,9 @@ export default function AdminDashboard() {
                   <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
                     <h3 className="font-bold text-slate-500 mb-3 text-sm flex items-center gap-2">
-                      <DollarSign size={16} /> إيرادات المنصة (العمولات)
+                      <DollarSign size={16} /> عمولات المنصة
                     </h3>
-                    <p className="text-4xl font-black text-primary-400 font-display">
+                    <p className="text-3xl font-black text-primary-400 font-display">
                       {stats.platformProfit.toLocaleString("en-US")}{" "}
                       <span className="text-xs text-slate-500 font-bold">
                         ج.م
@@ -2371,8 +2410,20 @@ export default function AdminDashboard() {
                     <h3 className="font-bold text-slate-500 mb-3 text-sm flex items-center gap-2">
                       <ShieldCheck size={16} /> إيرادات الاشتراكات
                     </h3>
-                    <p className="text-4xl font-black text-amber-400 font-display">
+                    <p className="text-3xl font-black text-amber-400 font-display">
                       {stats.subscriptionRevenue.toLocaleString("en-US")}{" "}
+                      <span className="text-xs text-slate-500 font-bold">
+                        ج.م
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform" />
+                    <h3 className="font-bold text-slate-500 mb-3 text-sm flex items-center gap-2">
+                      <BarChart3 size={16} className="text-emerald-500" /> صافي الأرباح الكلي
+                    </h3>
+                    <p className="text-3xl font-black text-emerald-400 font-display">
+                      {(stats.platformProfit + stats.subscriptionRevenue).toLocaleString("en-US")}{" "}
                       <span className="text-xs text-slate-500 font-bold">
                         ج.م
                       </span>
@@ -4927,49 +4978,23 @@ export default function AdminDashboard() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="space-y-10"
               >
-                <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900 p-8 border border-slate-800 rounded-3xl shadow-xl gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-emerald-500/10 p-3 rounded-2xl">
+                <div className="flex flex-col md:flex-row justify-between items-center bg-slate-900/40 backdrop-blur-xl p-8 border border-white/10 rounded-[2rem] shadow-2xl gap-6">
+                  <div className="flex items-center gap-5">
+                    <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20">
                       <LineChart className="w-8 h-8 text-emerald-500" />
                     </div>
                     <div>
                       <h3 className="font-black text-2xl text-white tracking-tight">
-                        التقارير والاستقرار المالي
+                        التحليل المالي العميق
                       </h3>
-                      <p className="text-xs text-slate-500 mt-1">
-                        تتبع التدفقات النقدية وعمولات المنصة بدقة
+                      <p className="text-xs text-slate-400 mt-1 font-bold">
+                        رصد الأداء المالي والأرباح التشغيلية بدقة متناهية
                       </p>
                     </div>
                   </div>
-                  <div className="flex rounded-2xl bg-slate-800/50 p-1.5 border border-slate-700/50">
-                    <button
-                      onClick={() => setFinanceTimeFilter("all")}
-                      className={`px-6 py-2 text-[10px] font-black rounded-xl transition-all ${financeTimeFilter === "all" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      الكل
-                    </button>
-                    <button
-                      onClick={() => setFinanceTimeFilter("today")}
-                      className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${financeTimeFilter === "today" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      اليوم
-                    </button>
-                    <button
-                      onClick={() => setFinanceTimeFilter("week")}
-                      className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${financeTimeFilter === "week" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      الأسبوع
-                    </button>
-                    <button
-                      onClick={() => setFinanceTimeFilter("month")}
-                      className={`px-4 py-2 text-[10px] font-black rounded-xl transition-all ${financeTimeFilter === "month" ? "bg-primary-500 text-white shadow-lg shadow-primary-500/20" : "text-slate-500 hover:text-slate-300"}`}
-                    >
-                      الشهر
-                    </button>
-                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                   <FinanceCard
                     label="إجمالي حجم التداول"
                     value={stats.totalRevenue}
@@ -4983,11 +5008,151 @@ export default function AdminDashboard() {
                     icon={<Percent />}
                   />
                   <FinanceCard
-                    label="مستحقات الموردين"
-                    value={stats.totalRevenue - stats.platformProfit}
-                    color="amber"
-                    icon={<Store />}
+                    label="إيرادات الاشتراكات"
+                    value={stats.subscriptionRevenue}
+                    color="indigo"
+                    icon={<ShieldCheck />}
                   />
+                  <FinanceCard
+                    label="صافي أرباح المنصة"
+                    value={stats.platformProfit + stats.subscriptionRevenue}
+                    color="emerald"
+                    icon={<DollarSign />}
+                  />
+                </div>
+
+                {/* Daily Transaction Ledger */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                  <div className="p-8 border-b border-slate-800/60 bg-slate-800/40 backdrop-blur-md flex justify-between items-center">
+                    <div>
+                      <h3 className="font-black text-xl text-white tracking-tight">
+                        سجل المعاملات التفصيلي اليومي
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        تفاصيل العمليات المالية (طلبات واشتراكات) للفترة المحددة
+                      </p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right">
+                      <thead>
+                        <tr className="bg-slate-800/30 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                          <th className="px-8 py-5 border-b border-slate-800/50 text-right">التاريخ والوقت</th>
+                          <th className="px-8 py-5 border-b border-slate-800/50 text-right">نوع العملية</th>
+                          <th className="px-8 py-5 border-b border-slate-800/50 text-right">الطرف المعني</th>
+                          <th className="px-8 py-5 border-b border-slate-800/50 text-right">القيمة الإجمالية</th>
+                          <th className="px-8 py-5 border-b border-slate-800/50 text-right text-primary-400">صافي ربح المنصة</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {(() => {
+                          const ledgerItems: any[] = [];
+                          
+                          // Add Delivered Orders
+                          requests.forEach(r => {
+                            if (r.status !== 'delivered') return;
+                            const rTime = r.updatedAt?.toMillis?.() || r.createdAt?.toMillis?.() || new Date(r.updatedAt || r.createdAt || 0).getTime();
+                            const diff = new Date().getTime() - rTime;
+                            
+                            let isInFilter = true;
+                            const oneDay = 24 * 60 * 60 * 1000;
+                            if (financeTimeFilter === "today") isInFilter = diff <= oneDay;
+                            else if (financeTimeFilter === "week") isInFilter = diff <= oneDay * 7;
+                            else if (financeTimeFilter === "month") isInFilter = diff <= oneDay * 30;
+                            
+                            if (isInFilter) {
+                              let reqRate = rates.fast;
+                              if (r.requestType === "bulk") reqRate = rates.bulk;
+                              else if (r.offerId) reqRate = rates.offer;
+                              const amount = r.totalAmount || r.price || 0;
+                              const profit = amount * (reqRate / 100);
+                              
+                              ledgerItems.push({
+                                id: r.id,
+                                date: rTime,
+                                type: r.requestType === 'bulk' ? 'طلب جملة' : r.offerId ? 'صفقة خاصة' : 'طلب سريع',
+                                party: r.supplierName || 'مورد',
+                                amount: amount,
+                                profit: profit,
+                                isSubscription: false
+                              });
+                            }
+                          });
+                          
+                          // Add Subscription Payments
+                          subPayments.forEach(p => {
+                            const pTime = p.paymentDate?.toMillis?.() || new Date(p.paymentDate || 0).getTime();
+                            const diff = new Date().getTime() - pTime;
+                            
+                            let isInFilter = true;
+                            const oneDay = 24 * 60 * 60 * 1000;
+                            if (financeTimeFilter === "today") isInFilter = diff <= oneDay;
+                            else if (financeTimeFilter === "week") isInFilter = diff <= oneDay * 7;
+                            else if (financeTimeFilter === "month") isInFilter = diff <= oneDay * 30;
+                            
+                            if (isInFilter) {
+                              ledgerItems.push({
+                                id: p.id,
+                                date: pTime,
+                                type: 'اشتراك عضوية',
+                                party: p.userName || 'مستخدم',
+                                amount: p.amount || 0,
+                                profit: p.amount || 0,
+                                isSubscription: true
+                              });
+                            }
+                          });
+                          
+                          ledgerItems.sort((a, b) => b.date - a.date);
+                          
+                          if (ledgerItems.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={5} className="px-8 py-16 text-center text-slate-600 italic font-bold">
+                                  لا توجد معاملات مالية في هذه الفترة
+                                </td>
+                              </tr>
+                            );
+                          }
+                          
+                          return ledgerItems.map(item => (
+                            <tr key={item.id} className="hover:bg-slate-800/40 transition-colors group">
+                              <td className="px-8 py-5">
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                                  <Clock size={12} className="text-slate-500" />
+                                  {new Date(item.date).toLocaleString('ar-EG', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </td>
+                              <td className="px-8 py-5">
+                                <span className={cn(
+                                  "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                                  item.isSubscription 
+                                    ? "bg-purple-500/10 text-purple-400 border-purple-500/20" 
+                                    : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                )}>
+                                  {item.type}
+                                </span>
+                              </td>
+                              <td className="px-8 py-5">
+                                <span className="text-sm font-bold text-slate-200">{item.party}</span>
+                              </td>
+                              <td className="px-8 py-5">
+                                <span className="text-sm font-black text-white">{(item.amount || 0).toLocaleString()} <span className="text-[10px] text-slate-500">ج.م</span></span>
+                              </td>
+                              <td className="px-8 py-5">
+                                <span className="text-sm font-black text-emerald-400">{(item.profit || 0).toLocaleString()} <span className="text-[10px] text-emerald-500/50">ج.م</span></span>
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
