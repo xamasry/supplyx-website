@@ -105,9 +105,9 @@ export interface SupplierStoreProduct {
   category: string;
   image?: string;
   available: boolean;
+  stock?: number;
   createdAt: string;
   updatedAt: string;
-  variants?: any[]; // For advanced inventory
 }
 
 export interface Notification {

@@ -295,9 +295,6 @@ export default function CategoryProducts() {
                   
                   <div className="mt-5 flex items-center justify-between">
                      <div className="flex flex-col gap-1 items-start">
-                       {product.variants && product.variants.length > 0 && (
-                          <span className="text-[8px] text-[var(--color-primary)] font-bold mb-0.5">متاح تعبئة وكميات</span>
-                       )}
                        <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                          <span className="text-[var(--color-primary)] font-display font-black text-base">
                            {product.price}<span className="text-[10px] mr-0.5">ج.م</span>

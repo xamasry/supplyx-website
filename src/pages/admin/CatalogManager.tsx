@@ -20,7 +20,6 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import ProductFormModal from "../../components/supplier/ProductFormModal";
 import { db, OperationType, handleFirestoreError } from "../../lib/firebase";
 import {
   collection,
@@ -70,7 +69,6 @@ export default function CatalogManager({
     available: true,
     image: "",
     supplierId: "",
-    variants: [] as any[],
   });
 
   const [offerFormData, setOfferFormData] = useState({
@@ -136,60 +134,6 @@ export default function CatalogManager({
       });
     }
     setIsModalOpen(true);
-  };
-
-  const handleProductSubmit = async (modalFormData: any, variants: any[]) => {
-    setIsSaving(true);
-    try {
-        const supplier = users.find(u => u.id === modalFormData.supplierId);
-        
-        // Map default variant to root fields for backwards compatibility
-        let price = parseFloat(modalFormData.price) || 0;
-        let stock = parseFloat(modalFormData.stock) || 0;
-        let unit = modalFormData.unit;
-        
-        if (variants.length > 0) {
-           const defaultVariant = variants.find(v => v.isDefault) || variants[0];
-           if (defaultVariant) {
-              price = defaultVariant.price;
-              stock = defaultVariant.stock;
-              const { generateVariantName } = await import('../../lib/inventoryUnits');
-              unit = generateVariantName(defaultVariant) || defaultVariant.baseUnit;
-           }
-        }
-
-        const data = {
-          name: modalFormData.name.trim(),
-          description: modalFormData.description.trim(),
-          price,
-          stock,
-          unit,
-          variants,
-          category: modalFormData.category,
-          available: modalFormData.available,
-          image: modalFormData.image.trim() || null,
-          supplierId: modalFormData.supplierId || supplier?.id || "",
-          supplierName: supplier?.businessName || supplier?.name || "مورد",
-          updatedAt: serverTimestamp(),
-        };
-
-        if (editingItem) {
-          await updateDoc(doc(db, "products", editingItem.id), data);
-          toast.success("تم تحديث المنتج بنجاح");
-        } else {
-          await addDoc(collection(db, "products"), {
-            ...data,
-            createdAt: serverTimestamp(),
-          });
-          toast.success("تم إضافة المنتج بنجاح");
-        }
-        setIsModalOpen(false);
-    } catch (error) {
-      console.error("Save error:", error);
-      toast.error("حدث خطأ أثناء الحفظ");
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -456,31 +400,19 @@ export default function CatalogManager({
                       <p className="text-slate-500 text-xs italic mt-1 line-clamp-2 min-h-[2rem]">{p.description}</p>
                       
                       <div className="mt-4 flex flex-col gap-2">
-                        {p.variants && p.variants.length > 0 ? (
-                           <div className="flex flex-col gap-1 text-[10px] bg-primary-500/10 border border-primary-500/20 p-2 rounded-xl">
-                              <span className="font-bold text-primary-400">نظام تسعير متقدم ({p.variants.length} خيارات)</span>
-                              <div className="flex items-center justify-between text-slate-300">
-                                <span>يبدأ من:</span>
-                                <span className="font-black text-white">{Math.min(...p.variants.map((v: any) => v.price))} ج.م</span>
-                              </div>
-                           </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-black text-white">{p.price}</span>
-                                <span className="text-[10px] text-slate-500 font-bold">ج.م / {p.unit}</span>
-                              </div>
-                              <div className={`text-[10px] font-black px-2 py-1 rounded-lg border ${p.available ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10' : 'bg-red-500/10 text-red-500 border-red-500/10'}`}>
-                                {p.available ? 'متاح' : 'غير متاح'}
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 bg-white/5 p-2 rounded-lg">
-                              <span>الكمية المتاحة:</span>
-                              <span className="text-white">{p.stock || 0} {p.unit}</span>
-                            </div>
-                          </>
-                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-xl font-black text-white">{p.price}</span>
+                            <span className="text-[10px] text-slate-500 font-bold">ج.م / {p.unit}</span>
+                          </div>
+                          <div className={`text-[10px] font-black px-2 py-1 rounded-lg border ${p.available ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10' : 'bg-red-500/10 text-red-500 border-red-500/10'}`}>
+                            {p.available ? 'متاح' : 'غير متاح'}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 bg-white/5 p-2 rounded-lg">
+                          <span>الكمية المتاحة:</span>
+                          <span className="text-white">{p.stock || 0} {p.unit}</span>
+                        </div>
                       </div>
                     </div>
                     
@@ -598,7 +530,7 @@ export default function CatalogManager({
 
       {/* Product / Offer Modal */}
       <AnimatePresence>
-        {isModalOpen && modalType === "offer" && (
+        {isModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
@@ -632,8 +564,11 @@ export default function CatalogManager({
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 mr-2 uppercase tracking-widest">المورد المالك</label>
                     <select
-                      value={offerFormData.supplierId}
-                      onChange={(e) => setOfferFormData({ ...offerFormData, supplierId: e.target.value })}
+                      value={modalType === "product" ? formData.supplierId : offerFormData.supplierId}
+                      onChange={(e) => {
+                        if (modalType === "product") setFormData({ ...formData, supplierId: e.target.value });
+                        else setOfferFormData({ ...offerFormData, supplierId: e.target.value });
+                      }}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 appearance-none font-bold"
                       required
                     >
@@ -644,8 +579,109 @@ export default function CatalogManager({
                   </div>
                 )}
 
-                <>
-                  <div className="space-y-2">
+                {modalType === "product" ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2">اسم المنتج</label>
+                        <input
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-bold"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2">الفئة</label>
+                        <select
+                          value={formData.category}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 appearance-none font-bold"
+                          required
+                        >
+                          {CATEGORIES.map(c => (
+                            <option key={c} value={c} className="bg-slate-900">{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2">السعر (ج.م)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.price}
+                          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-bold"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2">الكمية المتاحة</label>
+                        <input
+                          type="number"
+                          value={formData.stock}
+                          onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-bold"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black text-slate-400 mr-2">وحدة القياس</label>
+                        <input
+                          type="text"
+                          value={formData.unit}
+                          onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-bold"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 mr-2">الوصف</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-bold min-h-[100px]"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-black text-slate-400 mr-2">رابط صورة المنتج</label>
+                      <input
+                        type="url"
+                        value={formData.image}
+                        onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                        placeholder="https://example.com/image.jpg"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-primary-500/50 font-mono text-sm"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, available: !formData.available })}
+                        className={cn(
+                          "w-12 h-6 rounded-full relative transition-colors duration-300",
+                          formData.available ? "bg-emerald-500" : "bg-slate-700"
+                        )}
+                      >
+                        <div className={cn(
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-sm",
+                          formData.available ? "left-1" : "left-7"
+                        )} />
+                      </button>
+                      <span className="text-sm font-bold text-slate-300">المنتج متاح حالياً للطلب</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
                       <label className="text-xs font-black text-slate-400 mr-2">عنوان العرض</label>
                       <input
                         type="text"
@@ -722,6 +758,7 @@ export default function CatalogManager({
                       />
                     </div>
                   </>
+                )}
 
                 <div className="pt-8 flex gap-4">
                   <button
@@ -732,7 +769,7 @@ export default function CatalogManager({
                     {isSaving ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      editingItem ? "حفظ التعديلات" : "إضافة العرض"
+                      editingItem ? "حفظ التعديلات" : `إضافة ال${modalType === "product" ? "منتج" : "عرض"}`
                     )}
                   </button>
                   <button

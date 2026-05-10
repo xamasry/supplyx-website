@@ -402,14 +402,9 @@ export default function SupplierStore() {
                       </div>
                       
                       <div className="mt-3 flex items-center justify-between">
-                         <div className="flex flex-col">
-                           {product.variants && product.variants.length > 0 && (
-                               <span className="text-[8px] text-[var(--color-primary)] font-bold mb-0.5">متاح تعبئة وكميات</span>
-                           )}
-                           <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                             {product.price}ج
-                           </span>
-                         </div>
+                         <span className="text-[var(--color-primary)] font-display font-black text-sm">
+                           {product.price}ج
+                         </span>
                          
                          <div className="flex items-center bg-slate-50 rounded-xl p-0.5">
                             {cart[product.id] ? (

@@ -77,7 +77,8 @@ import {
   Bell,
   Menu,
   Server,
-  Target
+  Target,
+  Globe
 } from "lucide-react";
 import { CATEGORIES } from "../../constants";
 import AnalyticsSystem from "./AnalyticsSystem";
