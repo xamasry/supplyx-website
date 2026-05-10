@@ -230,6 +230,7 @@ export default function CategoryProducts() {
                     <div>
                       <p className="text-[10px] text-slate-300 font-bold line-through ml-1">{Number(offer.offerPrice) + 100} جم</p>
                       <span className="text-rose-500 font-black text-2xl">{offer.offerPrice} <span className="text-xs">جم</span></span>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1">متوفر: {offer.stock || 0} {offer.unit || 'قطعة'}</p>
                     </div>
                     <div className="bg-slate-900 text-white p-3 rounded-2xl group-hover:bg-[var(--color-primary)] transition-colors shadow-lg shadow-slate-900/10 group-hover:shadow-[var(--color-primary)]/20">
                       <ChevronLeft size={20} />
@@ -293,10 +294,16 @@ export default function CategoryProducts() {
                   </div>
                   
                   <div className="mt-5 flex items-center justify-between">
-                     <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                       <span className="text-[var(--color-primary)] font-display font-black text-base">
-                         {product.price}<span className="text-[10px] mr-0.5">ج.م</span>
-                       </span>
+                     <div className="flex flex-col gap-1 items-start">
+                       {product.variants && product.variants.length > 0 && (
+                          <span className="text-[8px] text-[var(--color-primary)] font-bold mb-0.5">متاح تعبئة وكميات</span>
+                       )}
+                       <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
+                         <span className="text-[var(--color-primary)] font-display font-black text-base">
+                           {product.price}<span className="text-[10px] mr-0.5">ج.م</span>
+                         </span>
+                       </div>
+                       <span className="text-[10px] text-slate-400 font-bold mr-1">المخزون: {product.stock || 0}</span>
                      </div>
                      
                      <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center group-hover:bg-[var(--color-primary)] transition-all shadow-lg shadow-slate-900/10 group-hover:shadow-[var(--color-primary)]/20 active:scale-90">

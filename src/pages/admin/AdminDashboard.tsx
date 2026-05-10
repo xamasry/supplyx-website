@@ -69,6 +69,15 @@ import {
   CreditCard,
   Layers,
   Settings,
+  Inbox,
+  UserCheck,
+  ShieldAlert,
+  Send,
+  LifeBuoy,
+  Bell,
+  Menu,
+  Server,
+  Target
 } from "lucide-react";
 import { CATEGORIES } from "../../constants";
 import AnalyticsSystem from "./AnalyticsSystem";
@@ -102,10 +111,12 @@ type Tab =
   | "settings"
   | "broadcast"
   | "categories"
-  | "ordering";
+  | "ordering"
+  | "catalog";
 
 import UserDetailsModal from "./UserDetailsModal";
 import RequestDetailsAdminModal from "./RequestDetailsAdminModal";
+import CatalogManager from "./CatalogManager";
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -140,10 +151,13 @@ export default function AdminDashboard() {
     bidsCount: 0,
     pendingUsers: 0,
     newRequestsCount: 0,
+    productsCount: 0,
+    offersCount: 0,
   });
 
   const [users, setUsers] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [reports, setReports] = useState({
     fast: { count: 0, revenue: 0, profit: 0 },
@@ -389,6 +403,8 @@ export default function AdminDashboard() {
         (u: any) => u.subscriptionStatus === "active" && !u.isTrial,
       ).length,
       pendingUsers: users.filter((u: any) => u.status === "pending").length,
+      productsCount: products.length,
+      offersCount: offers.length,
     }));
 
     setReports({
@@ -633,6 +649,8 @@ export default function AdminDashboard() {
     financeTimeFilter,
     subscriptionRequests,
     subPayments,
+    products,
+    offers,
   ]);
 
   const startStreamingData = () => {
@@ -808,6 +826,18 @@ export default function AdminDashboard() {
       },
     );
     unsubscribes.current.push(unsubSubRequests);
+
+    // 8. Products Stream
+    const unsubProducts = onSnapshot(
+      query(collection(db, "products"), orderBy("createdAt", "desc")),
+      (snapshot) => {
+        setProducts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, "products", true);
+      },
+    );
+    unsubscribes.current.push(unsubProducts);
 
     setLoading(false);
   };
@@ -1546,149 +1576,116 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <nav className="space-y-1">
-              <NavItem
-                icon={<LayoutDashboard className="w-5 h-5" />}
-                label="نظرة عامة"
-                active={activeTab === "overview"}
-                onClick={() => {
-                  setActiveTab("overview");
-                  setIsSidebarOpen(false);
-                }}
-                badge={alerts.length > 0 ? alerts.length : undefined}
-                badgeColor="bg-amber-500"
-              />
-              <NavItem
-                icon={<Zap className="w-5 h-5" />}
-                label="غرفة العمليات"
-                active={activeTab === "control_room"}
-                onClick={() => {
-                  setActiveTab("control_room");
-                  setIsSidebarOpen(false);
-                }}
-                badge={
-                  requests.filter((r) => r.status === "active" && !r.supplierId)
-                    .length > 0
-                    ? requests.filter(
-                        (r) => r.status === "active" && !r.supplierId,
-                      ).length
-                    : undefined
-                }
-                badgeColor="bg-emerald-500"
-              />
-              <NavItem
-                icon={<Activity className="w-5 h-5" />}
-                label="مراقبة النظام"
-                active={activeTab === "monitoring"}
-                onClick={() => {
-                  setActiveTab("monitoring");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<Layers className="w-5 h-5" />}
-                label="ترتيب العرض"
-                active={activeTab === "ordering"}
-                onClick={() => {
-                  setActiveTab("ordering");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<BarChart3 className="w-5 h-5" />}
-                label="التحليلات التفصيلية"
-                active={activeTab === "analytics"}
-                onClick={() => {
-                  setActiveTab("analytics");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<Users className="w-5 h-5" />}
-                label="المستخدمين"
-                active={activeTab === "users"}
-                onClick={() => {
-                  setActiveTab("users");
-                  setIsSidebarOpen(false);
-                }}
-                badge={
-                  users.filter((u) => u.status === "pending").length > 0
-                    ? users.filter((u) => u.status === "pending").length
-                    : undefined
-                }
-                badgeColor="bg-primary-500"
-              />
-              <NavItem
-                icon={<ShoppingBag className="w-5 h-5" />}
-                label="العروض"
-                active={activeTab === "offers"}
-                onClick={() => {
-                  setActiveTab("offers");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<ArrowRightLeft className="w-5 h-5" />}
-                label="الطلبات"
-                active={activeTab === "requests"}
-                onClick={() => {
-                  setActiveTab("requests");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<Tag className="w-5 h-5" />}
-                label="الخدمات والأصناف"
-                active={activeTab === "categories"}
-                onClick={() => {
-                  setActiveTab("categories");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<ShieldCheck className="w-5 h-5" />}
-                label="الاشتراكات"
-                active={activeTab === "subscriptions"}
-                onClick={() => {
-                  setActiveTab("subscriptions");
-                  setIsSidebarOpen(false);
-                }}
-                badge={
-                  subscriptionRequests.filter((r) => r.status === "pending")
-                    .length > 0
-                    ? subscriptionRequests.filter((r) => r.status === "pending")
-                        .length
-                    : undefined
-                }
-                badgeColor="bg-amber-500"
-              />
-              <NavItem
-                icon={<Mail className="w-5 h-5" />}
-                label="بث إشعارات"
-                active={activeTab === "broadcast"}
-                onClick={() => {
-                  setActiveTab("broadcast");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<DollarSign className="w-5 h-5" />}
-                label="المالية والأرباح"
-                active={activeTab === "finances"}
-                onClick={() => {
-                  setActiveTab("finances");
-                  setIsSidebarOpen(false);
-                }}
-              />
-              <NavItem
-                icon={<AlertCircle className="w-5 h-5" />}
-                label="الإعدادات"
-                active={activeTab === "settings"}
-                onClick={() => {
-                  setActiveTab("settings");
-                  setIsSidebarOpen(false);
-                }}
-              />
+            <nav className="space-y-6">
+              <NavGroup title="المنصة">
+                <NavItem
+                  icon={<LayoutDashboard className="w-5 h-5" />}
+                  label="نظرة عامة"
+                  active={activeTab === "overview"}
+                  onClick={() => { setActiveTab("overview"); setIsSidebarOpen(false); }}
+                  badge={alerts.length > 0 ? alerts.length : undefined}
+                  badgeColor="bg-amber-500"
+                />
+                <NavItem
+                  icon={<Zap className="w-5 h-5" />}
+                  label="العمليات الحية (Live)"
+                  active={activeTab === "control_room"}
+                  onClick={() => { setActiveTab("control_room"); setIsSidebarOpen(false); }}
+                  badge={requests.filter((r) => r.status === "active" && !r.supplierId).length > 0 ? requests.filter((r) => r.status === "active" && !r.supplierId).length : undefined}
+                  badgeColor="bg-emerald-500"
+                />
+              </NavGroup>
+
+              <NavGroup title="العمليات والطلبات">
+                <NavItem
+                  icon={<ArrowRightLeft className="w-5 h-5" />}
+                  label="إدارة الطلبات"
+                  active={activeTab === "requests"}
+                  onClick={() => { setActiveTab("requests"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<Layers className="w-5 h-5" />}
+                  label="ترتيب عروض الموردين"
+                  active={activeTab === "ordering"}
+                  onClick={() => { setActiveTab("ordering"); setIsSidebarOpen(false); }}
+                />
+              </NavGroup>
+
+              <NavGroup title="المنتجات والكتالوج">
+                <NavItem
+                  icon={<Archive className="w-5 h-5" />}
+                  label="إدارة الكتالوج الشامل"
+                  active={activeTab === "catalog"}
+                  onClick={() => { setActiveTab("catalog"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<Tag className="w-5 h-5" />}
+                  label="الأقسام والتصنيفات"
+                  active={activeTab === "categories"}
+                  onClick={() => { setActiveTab("categories"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<ShoppingBag className="w-5 h-5" />}
+                  label="العروض المميزة"
+                  active={activeTab === "offers"}
+                  onClick={() => { setActiveTab("offers"); setIsSidebarOpen(false); }}
+                />
+              </NavGroup>
+
+              <NavGroup title="الشبكة">
+                <NavItem
+                  icon={<Users className="w-5 h-5" />}
+                  label="الموردين والمطاعم"
+                  active={activeTab === "users"}
+                  onClick={() => { setActiveTab("users"); setIsSidebarOpen(false); }}
+                  badge={users.filter((u) => u.status === "pending").length > 0 ? users.filter((u) => u.status === "pending").length : undefined}
+                  badgeColor="bg-primary-500"
+                />
+                <NavItem
+                  icon={<ShieldCheck className="w-5 h-5" />}
+                  label="إدارة الاشتراكات"
+                  active={activeTab === "subscriptions"}
+                  onClick={() => { setActiveTab("subscriptions"); setIsSidebarOpen(false); }}
+                  badge={subscriptionRequests.filter((r) => r.status === "pending").length > 0 ? subscriptionRequests.filter((r) => r.status === "pending").length : undefined}
+                  badgeColor="bg-amber-500"
+                />
+              </NavGroup>
+
+              <NavGroup title="النمو">
+                <NavItem
+                  icon={<DollarSign className="w-5 h-5" />}
+                  label="المالية والأرباح"
+                  active={activeTab === "finances"}
+                  onClick={() => { setActiveTab("finances"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<BarChart3 className="w-5 h-5" />}
+                  label="التحليلات التفصيلية"
+                  active={activeTab === "analytics"}
+                  onClick={() => { setActiveTab("analytics"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<Mail className="w-5 h-5" />}
+                  label="نظام البث التسويقي"
+                  active={activeTab === "broadcast"}
+                  onClick={() => { setActiveTab("broadcast"); setIsSidebarOpen(false); }}
+                />
+              </NavGroup>
+
+              <NavGroup title="النظام">
+                <NavItem
+                  icon={<Activity className="w-5 h-5" />}
+                  label="مراقبة النظام"
+                  active={activeTab === "monitoring"}
+                  onClick={() => { setActiveTab("monitoring"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
+                  icon={<AlertCircle className="w-5 h-5" />}
+                  label="إعدادات المنصة"
+                  active={activeTab === "settings"}
+                  onClick={() => { setActiveTab("settings"); setIsSidebarOpen(false); }}
+                />
+              </NavGroup>
             </nav>
           </div>
 
@@ -1707,60 +1704,68 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="lg:pr-72 min-h-screen relative z-10 w-full overflow-hidden">
         {/* Top Header */}
-        <header className="h-24 bg-[#030712]/40 backdrop-blur-2xl border-b border-white/[0.05] sticky top-0 z-[50] px-6 md:px-10 flex items-center justify-between">
-          <div className="flex items-center gap-5">
+        <header className="h-20 bg-[#030712]/60 backdrop-blur-3xl border-b border-white/[0.05] sticky top-0 z-[50] px-6 lg:px-10 flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2.5 text-slate-400 bg-slate-900 border border-slate-800 rounded-xl hover:text-white transition-all shadow-sm"
+              className="lg:hidden p-2 text-slate-400 bg-white/[0.02] border border-white/[0.05] rounded-xl hover:text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500/50"
             >
-              <LayoutDashboard size={20} />
+              <Menu size={20} />
             </button>
-            <div className="flex flex-col">
-              <h2 className="font-black text-white text-lg md:text-xl tracking-tight">
-                {activeTab === "overview"
-                  ? "لوحة القيادة"
-                  : activeTab === "ordering"
-                    ? "ترتيب الموردين والعروض"
-                    : activeTab === "users"
-                      ? "إدارة المستخدمين"
-                      : activeTab === "offers"
-                        ? "التحكم في العروض"
-                        : activeTab === "requests"
-                          ? "متابعة الطلبات"
-                          : activeTab === "categories"
-                            ? "إدارة الأصناف والخدمات"
-                            : activeTab === "subscriptions"
-                              ? "إدارة الاشتراكات"
-                              : activeTab === "broadcast"
-                                ? "بث رسائل للنظام"
-                                : activeTab === "finances"
-                                  ? "الأداء المالي"
-                                  : activeTab === "control_room"
-                                    ? "غرفة العمليات"
-                                    : "الإعدادات العامة"}
+            <div className="hidden sm:flex flex-col">
+              <h2 className="font-black text-white text-lg tracking-tight flex items-center gap-2">
+                {activeTab === "overview" && <><LayoutDashboard className="w-4 h-4 text-primary-500" /> لوحة القيادة التنفيذية</>}
+                {activeTab === "control_room" && <><Zap className="w-4 h-4 text-emerald-500" /> غرفة العمليات الحية</>}
+                {activeTab === "requests" && <><ArrowRightLeft className="w-4 h-4 text-blue-500" /> إدارة الطلبات والصفقات</>}
+                {activeTab === "ordering" && <><Layers className="w-4 h-4 text-purple-500" /> ترتيب عروض الموردين</>}
+                {activeTab === "catalog" && <><Archive className="w-4 h-4 text-amber-500" /> إدارة الكتالوج الشامل</>}
+                {activeTab === "categories" && <><Tag className="w-4 h-4 text-rose-500" /> الأقسام والتصنيفات</>}
+                {activeTab === "offers" && <><ShoppingBag className="w-4 h-4 text-orange-500" /> العروض المميزة</>}
+                {activeTab === "users" && <><Users className="w-4 h-4 text-indigo-500" /> إدارة المستخدمين والشبكة</>}
+                {activeTab === "subscriptions" && <><ShieldCheck className="w-4 h-4 text-green-500" /> تراخيص واشتراكات الأعمال</>}
+                {activeTab === "finances" && <><DollarSign className="w-4 h-4 text-teal-500" /> الأداء المالي والمحاسبة</>}
+                {activeTab === "analytics" && <><BarChart3 className="w-4 h-4 text-cyan-500" /> التحليلات الاستراتيجية</>}
+                {activeTab === "broadcast" && <><Mail className="w-4 h-4 text-pink-500" /> مركز الإشعارات والتسويق</>}
+                {activeTab === "monitoring" && <><Activity className="w-4 h-4 text-red-500" /> مراقبة أداء النظام</>}
+                {activeTab === "settings" && <><Settings className="w-4 h-4 text-slate-400" /> الإعدادات المتقدمة</>}
               </h2>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                <Clock size={12} className="text-primary-500" />
-                <span>
-                  {new Date().toLocaleDateString("ar-EG", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </span>
-              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="relative hidden md:block group">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary-500/20 to-emerald-500/20 blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+          <div className="flex items-center gap-3 md:gap-5 flex-1 justify-end">
+            <div className="relative hidden md:flex items-center group max-w-sm w-full">
+              <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
               <input
                 type="text"
-                placeholder="بحث عام..."
-                className="relative bg-[#030712]/50 border border-white/[0.08] text-sm text-white rounded-2xl pr-12 pl-4 py-2.5 outline-none focus:border-primary-500/50 focus:bg-[#030712]/80 transition-all w-72 backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                placeholder="البحث الشامل في المنصة... (⌘+K)"
+                className="w-full bg-white/[0.03] border border-white/[0.08] text-[13px] text-white rounded-xl pr-10 pl-4 py-2.5 outline-none focus:border-primary-500/50 focus:bg-[#030712] transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)] placeholder:text-slate-500 font-medium font-mono"
               />
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex gap-1">
+                <kbd className="hidden sm:inline-flex items-center gap-1 border border-white/10 bg-white/5 px-2 rounded-[6px] text-[10px] font-mono text-slate-400">
+                  <span className="text-xs">⌘</span> K
+                </kbd>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+              <button className="relative w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.08] transition-all focus:outline-none">
+                <Bell size={18} />
+                {alerts.length > 0 && (
+                  <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-[#030712] animate-pulse" />
+                )}
+              </button>
+              
+              <div className="h-10 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.05] flex items-center gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-black text-xs shadow-lg">
+                  X
+                </div>
+                <div className="hidden sm:flex flex-col">
+                  <span className="text-xs font-bold text-white leading-none">مدير النظام</span>
+                  <span className="text-[10px] text-emerald-400 font-black tracking-wider uppercase mt-0.5 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> متصل
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -1769,7 +1774,8 @@ export default function AdminDashboard() {
         <div className="p-6 md:p-10 max-w-[1800px] mx-auto min-h-[calc(100vh-96px)] relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h1 className="text-3xl font-black text-white tracking-tighter">
-              {activeTab === 'overview' ? 'نظرة عامة على الأداء' : 'تحليلات البيانات'}
+              {activeTab === 'overview' ? 'نظرة عامة على الأداء' : 
+               activeTab === 'catalog' ? 'الكتالوج الشامل' : 'تحليلات البيانات'}
             </h1>
             <div className="flex rounded-2xl bg-[#030712]/60 backdrop-blur-xl p-1.5 border border-white/[0.08] shadow-2xl">
               <button
@@ -2373,6 +2379,20 @@ export default function AdminDashboard() {
               </motion.div>
             )}
 
+            {activeTab === "catalog" && (
+              <motion.div
+                key="catalog"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <CatalogManager 
+                  users={users}
+                  products={products}
+                  offers={offers}
+                />
+              </motion.div>
+            )}
+
             {activeTab === "analytics" && (
               <motion.div
                 key="analytics"
@@ -2572,7 +2592,7 @@ export default function AdminDashboard() {
                 key="overview"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-10"
+                className="space-y-8"
               >
                 {/* Priority Alerts Bar */}
                 {alerts.length > 0 && (
@@ -2583,33 +2603,36 @@ export default function AdminDashboard() {
                         animate={{ opacity: 1, scale: 1 }}
                         key={alert.id}
                         className={cn(
-                          "p-4 rounded-2xl border flex items-start gap-3 shadow-lg transition-all hover:scale-[1.02] cursor-pointer",
+                          "relative p-4 rounded-2xl border flex items-start gap-4 shadow-lg transition-all hover:-translate-y-1 cursor-pointer overflow-hidden group",
                           alert.type === "error"
-                            ? "bg-red-500/10 border-red-500/30"
+                            ? "bg-red-500/5 border-red-500/20 hover:border-red-500/50 hover:bg-red-500/10"
                             : alert.type === "warning"
-                              ? "bg-amber-500/10 border-amber-500/30"
-                              : "bg-blue-500/10 border-blue-500/30",
+                              ? "bg-amber-500/5 border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/10"
+                              : "bg-blue-500/5 border-blue-500/20 hover:border-blue-500/50 hover:bg-blue-500/10"
                         )}
                         onClick={() => setActiveTab(alert.actionTab)}
                       >
+                        {alert.type === "error" && <div className="absolute top-0 left-0 w-2 h-full bg-red-500 rounded-l-full" />}
+                        {alert.type === "warning" && <div className="absolute top-0 left-0 w-2 h-full bg-amber-500 rounded-l-full" />}
+                        {alert.type === "info" && <div className="absolute top-0 left-0 w-2 h-full bg-blue-500 rounded-l-full" />}
                         <div
                           className={cn(
-                            "p-2 rounded-xl mt-0.5",
+                            "p-2.5 rounded-xl shadow-inner",
                             alert.type === "error"
-                              ? "bg-red-500/20 text-red-500"
+                              ? "bg-red-500/10 text-red-500"
                               : alert.type === "warning"
-                                ? "bg-amber-500/20 text-amber-500"
-                                : "bg-blue-500/20 text-blue-500",
+                                ? "bg-amber-500/10 text-amber-500"
+                                : "bg-blue-500/10 text-blue-500",
                           )}
                         >
-                          <AlertCircle size={18} />
+                          <AlertCircle size={20} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-black text-xs text-white leading-relaxed line-clamp-2">
+                        <div className="flex-1 min-w-0 pr-1">
+                          <p className="font-bold text-[13px] text-white leading-snug">
                             {alert.message}
                           </p>
-                          <span className="inline-block mt-2 text-[10px] font-black uppercase tracking-widest text-primary-400 group-hover:text-primary-300">
-                            {alert.actionLabel} ←
+                          <span className="inline-block mt-2.5 text-[10px] font-mono tracking-widest uppercase text-slate-400 group-hover:text-white transition-colors">
+                            {alert.actionLabel} &rarr;
                           </span>
                         </div>
                       </motion.div>
@@ -2617,385 +2640,160 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Stats Grid - Enhanced */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <StatCard
-                    label="إجمالي تداولات المنصة"
-                    value={`${(stats.totalRevenue + stats.subscriptionRevenue).toLocaleString()} ج.م`}
-                    icon={<TrendingUp className="w-6 h-6" />}
-                    trend="+12.5%"
-                    color="emerald"
-                  />
-                  <StatCard
-                    label="صافي أرباح العمليات"
-                    value={`${stats.platformProfit.toLocaleString()} ج.م`}
-                    icon={<DollarSign className="w-6 h-6" />}
-                    trend="عمولات مباشرة"
-                    color="sky"
-                  />
-                  <StatCard
-                    label="إيرادات الاشتراكات"
-                    value={`${stats.subscriptionRevenue.toLocaleString()} ج.م`}
-                    icon={<ShieldCheck className="w-6 h-6" />}
-                    trend={`${stats.activeSubscriptions} عضوية نشطة`}
-                    color="purple"
-                  />
-                  <StatCard
-                    label="طلبات قيد الانتظار"
-                    value={stats.newRequestsCount}
-                    icon={<Package className="w-6 h-6" />}
-                    trend="بانتظار مورد"
-                    color="amber"
-                  />
+                {/* KPI Grid - Enterprise Architecture */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500"><DollarSign size={18} /></div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">+14.2%</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mb-1 z-10 relative">إجمالي حجم التداولات (GMV)</p>
+                    <p className="text-2xl font-black text-white font-mono tracking-tight z-10 relative">
+                      {(stats.totalRevenue + stats.subscriptionRevenue).toLocaleString()} <span className="text-[10px] text-slate-500 ml-1">EGP</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500"><TrendingUp size={18} /></div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400">+8.1%</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mb-1 z-10 relative">أرباح المنصة (العمولات)</p>
+                    <p className="text-2xl font-black text-white font-mono tracking-tight z-10 relative">
+                      {stats.platformProfit.toLocaleString()} <span className="text-[10px] text-slate-500 ml-1">EGP</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500"><ArrowRightLeft size={18} /></div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">Stable</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mb-1 z-10 relative">الطلبات النشطة (Live)</p>
+                    <p className="text-2xl font-black text-white font-mono tracking-tight z-10 relative">
+                      {(stats.activeOrders || 0).toLocaleString()} <span className="text-[10px] text-slate-500 ml-1 text-right inline-block">عقود<br />جارية</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500"><Clock size={18} /></div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-red-500/10 text-red-400">+3 ⚠️</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mb-1 z-10 relative">العطاءات المفتوحة (Pending RFQs)</p>
+                    <p className="text-2xl font-black text-white font-mono tracking-tight z-10 relative">
+                      {(stats.newRequestsCount || 0).toLocaleString()} <span className="text-[10px] text-slate-500 ml-1 text-right inline-block">قيد<br />التسعير</span>
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden group hidden 2xl:block">
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                      <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500"><Users size={18} /></div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">↑ 12 مستخدم يومياً</span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mb-1 z-10 relative">إجمالي المستخدمين</p>
+                    <p className="text-2xl font-black text-white font-mono tracking-tight z-10 relative">
+                      {(users.length || 0).toLocaleString()} <span className="text-[10px] text-slate-500 ml-1 text-right inline-block">نشط</span>
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Revenue Chart - Main */}
-                  <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary-600/[0.03] rounded-full -mr-48 -mt-48" />
-
-                    <div className="flex flex-col md:flex-row items-center justify-between mb-10 relative z-10 gap-6">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-primary-500/10 p-3 rounded-2xl">
-                          <BarChart3 className="w-8 h-8 text-primary-500" />
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  {/* Smart Insights Panel */}
+                  <div className="flex flex-col gap-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden h-full flex flex-col">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/[0.03] rounded-full blur-2xl" />
+                      
+                      <div className="flex items-center gap-3 mb-6 relative z-10">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex flex-col items-center justify-center text-indigo-400 border border-indigo-500/20">
+                          <Target size={16} />
                         </div>
-                        <div>
-                          <h3 className="font-black text-2xl text-white tracking-tight">
-                            تحليل التدفق النقدي
-                          </h3>
-                          <p className="text-xs text-slate-500 mt-1">
-                            مؤشر نمو الأرباح والعوائد التشغيلية
-                          </p>
+                        <h3 className="font-bold text-lg text-white">تحليل العمليات (Smart Insights)</h3>
+                      </div>
+                      
+                      <div className="space-y-3 flex-1">
+                        <div className="bg-[#030712] rounded-xl p-4 border border-slate-800/80 group">
+                          <div className="flex items-start gap-3">
+                            <span className="text-rose-500 mt-0.5"><Clock size={14} /></span>
+                            <div>
+                               <p className="text-[13px] font-bold text-white mb-1 group-hover:text-primary-400 transition-colors">تأخر في تسعير جملة الجمبري</p>
+                               <p className="text-[11px] text-slate-400 leading-relaxed">متوسط سرعة استجابة الموردين في قسم الأسماك انخفض بنسبة 14% اليوم.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#030712] rounded-xl p-4 border border-slate-800/80 group">
+                          <div className="flex items-start gap-3">
+                            <span className="text-emerald-500 mt-0.5"><TrendingUp size={14} /></span>
+                            <div>
+                               <p className="text-[13px] font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors">ارتفاع الطلب في القاهرة والمناطق السياحية</p>
+                               <p className="text-[11px] text-slate-400 leading-relaxed">زيادة بنسبة 32% في طلبات "المشروبات" مقارنة بالأسبوع الماضي.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-[#030712] rounded-xl p-4 border border-slate-800/80 group">
+                          <div className="flex items-start gap-3">
+                            <span className="text-amber-500 mt-0.5"><ShieldAlert size={14} /></span>
+                            <div>
+                               <p className="text-[13px] font-bold text-white mb-1 group-hover:text-amber-400 transition-colors">3 موردين يسببون تأخيراً</p>
+                               <p className="text-[11px] text-slate-400 leading-relaxed">تم تسجيل 5 حالات إلغاء بسبب تجاوز وقت التحضير عن المتوقع.</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex bg-slate-800/40 p-1.5 rounded-2xl border border-slate-800 backdrop-blur-md shadow-inner">
-                        {[
-                          { id: "day", label: "يومي" },
-                          { id: "week", label: "أسبوعي" },
-                          { id: "month", label: "شهري" },
-                        ].map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => setReportType(t.id as any)}
-                            className={`px-6 py-2.5 text-[11px] font-black rounded-xl transition-all ${
-                              reportType === t.id
-                                ? "bg-primary-600 text-white shadow-lg"
-                                : "text-slate-500 hover:text-slate-300"
-                            }`}
-                          >
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="h-[380px] relative z-10">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={chartData}>
-                          <defs>
-                            <linearGradient
-                              id="colorProfitOverview"
-                              x1="0"
-                              y1="0"
-                              x2="0"
-                              y2="1"
-                            >
-                              <stop
-                                offset="5%"
-                                stopColor="#3b82f6"
-                                stopOpacity={0.25}
-                              />
-                              <stop
-                                offset="60%"
-                                stopColor="#3b82f6"
-                                stopOpacity={0.05}
-                              />
-                              <stop
-                                offset="95%"
-                                stopColor="#3b82f6"
-                                stopOpacity={0}
-                              />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid
-                            strokeDasharray="4 4"
-                            vertical={false}
-                            stroke="#1e293b"
-                          />
-                          <XAxis
-                            dataKey="name"
-                            stroke="#475569"
-                            fontSize={11}
-                            tickLine={false}
-                            axisLine={false}
-                            dy={15}
-                          />
-                          <YAxis
-                            stroke="#475569"
-                            fontSize={11}
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(val) => `${val.toLocaleString()} ج`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#0f172a",
-                              border: "1px solid #1e293b",
-                              borderRadius: "20px",
-                              padding: "16px",
-                              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
-                            }}
-                            itemStyle={{ color: "#fff", fontWeight: "bold" }}
-                            labelStyle={{
-                              color: "#64748b",
-                              marginBottom: "8px",
-                              fontWeight: "900",
-                              fontSize: "10px",
-                              textTransform: "uppercase",
-                            }}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="profit"
-                            stroke="#3b82f6"
-                            strokeWidth={4}
-                            fillOpacity={1}
-                            fill="url(#colorProfitOverview)"
-                            animationDuration={2000}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Sidebar Stats */}
-                  <div className="space-y-8">
-                    {/* Activity Feed */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col h-[525px]">
-                      <div className="flex items-center justify-between mb-8">
+                  {/* Right Realtime Activity Center (2 cols) */}
+                  <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col h-[600px]">
+                      <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-md sticky top-0 z-20">
                         <div className="flex items-center gap-3">
-                          <Activity className="w-5 h-5 text-primary-500" />
-                          <h3 className="font-black text-xl text-white tracking-tight">
-                            النشاط المباشر
-                          </h3>
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                             <Activity size={16} />
+                          </div>
+                          <h3 className="font-black text-lg text-white">مركز العمليات الحي (Live Feed)</h3>
                         </div>
-                        <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="flex items-center gap-2 px-3 py-1 bg-[#030712] border border-slate-800 rounded-lg">
+                           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                           <span className="text-[10px] font-mono text-slate-400">Real-time Connection</span>
+                        </div>
                       </div>
 
-                      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
-                        {[...requests]
-                          .sort((a: any, b: any) => {
-                            const dateA =
-                              a.updatedAt?.toMillis?.() ||
-                              a.updatedAt ||
-                              a.createdAt?.toMillis?.() ||
-                              a.createdAt ||
-                              0;
-                            const dateB =
-                              b.updatedAt?.toMillis?.() ||
-                              b.updatedAt ||
-                              b.createdAt?.toMillis?.() ||
-                              b.createdAt ||
-                              0;
-                            return (
-                              new Date(dateB).getTime() -
-                              new Date(dateA).getTime()
-                            );
-                          })
-                          .slice(0, 30)
-                          .map((req) => (
-                            <motion.div
-                              key={req.id}
-                              whileHover={{ scale: 1.02 }}
-                              onClick={() => setSelectedRequestId(req.id)}
-                              className="bg-slate-800/40 p-5 rounded-2xl border border-slate-800/50 hover:border-slate-600/50 cursor-pointer transition-all hover:bg-slate-800/60 group"
-                            >
-                              <div className="flex justify-between items-start mb-3">
-                                <span className="font-black text-sm text-white group-hover:text-primary-400 transition-colors truncate">
-                                  {req.productName}
-                                </span>
-                                <span
-                                  className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${
-                                    req.status === "delivered"
-                                      ? "bg-emerald-500/10 text-emerald-500"
-                                      : req.status === "cancelled"
-                                        ? "bg-rose-500/10 text-rose-500"
-                                        : "bg-blue-500/10 text-blue-500"
-                                  }`}
-                                >
-                                  {getStatusLabel(req.status)}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center">
-                                    <Users className="w-3 h-3 text-slate-400" />
-                                  </div>
-                                  <span className="text-[10px] font-bold text-slate-500 truncate max-w-[120px]">
-                                    {req.supplierName ||
-                                      req.buyerName ||
-                                      "مستخدم مجهول"}
-                                  </span>
+                      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3 bg-[#030712]/40">
+                        {requests.slice(0, 50).map((req: any) => (
+                          <div key={req.id} onClick={() => setSelectedRequestId(req.id)} className="group bg-[#030712] border border-slate-800/60 p-4 rounded-xl hover:border-slate-600 transition-all cursor-pointer flex items-center justify-between">
+                             <div className="flex items-center gap-4">
+                                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs ring-4 ring-[#030712]", 
+                                    req.status === 'delivered' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    req.status === 'cancelled' ? 'bg-rose-500/10 text-rose-500' :
+                                    'bg-blue-500/10 text-blue-500'
+                                )}>
+                                   {req.status === 'delivered' ? <Check size={16}/> : req.status === 'cancelled' ? <X size={16}/> : <Clock size={16} />}
                                 </div>
-                                <div className="text-[10px] font-black text-slate-600 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
-                                  {req.updatedAt
-                                    ? new Date(
-                                        req.updatedAt?.toDate?.() ||
-                                          req.updatedAt,
-                                      ).toLocaleTimeString("ar-EG", {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })
-                                    : req.createdAt
-                                      ? new Date(
-                                          req.createdAt?.toDate?.() ||
-                                            req.createdAt,
-                                        ).toLocaleTimeString("ar-EG", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })
-                                      : ""}
+                                <div className="flex flex-col gap-1">
+                                   <div className="flex items-center gap-2">
+                                       <span className="font-bold text-sm text-white group-hover:text-primary-400 transition-colors">{req.productName}</span>
+                                       <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-800 text-slate-300 border border-slate-700 rounded uppercase">{req.requestType === 'bulk' ? 'جملة' : req.offerId ? 'عروض' : 'طلب سريع'}</span>
+                                   </div>
+                                   <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                      <Users size={12} className="opacity-60" />
+                                      <span>مشتري: <span className="text-slate-300 font-bold">{req.buyerName || 'مجهول'}</span></span>
+                                      <span className="opacity-50">•</span>
+                                      <span>مورد: <span className="text-slate-300 font-bold">{req.supplierName || 'بانتظار الموافقة'}</span></span>
+                                   </div>
                                 </div>
-                              </div>
-                            </motion.div>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                             </div>
 
-                {/* Recent Activity Mini Tables */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <h3 className="font-black text-lg text-white">
-                          أحدث المستخدمين
-                        </h3>
-                        <p className="text-[10px] text-slate-500">
-                          آخر 4 أعضاء انضموا للمنصة
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setActiveTab("users")}
-                        className="text-[10px] font-black text-primary-400 hover:text-primary-300 uppercase tracking-widest bg-primary-500/10 px-4 py-2 rounded-xl border border-primary-500/10 transition-all"
-                      >
-                        الكل ←
-                      </button>
-                    </div>
-                    <div className="space-y-4">
-                      {[...users]
-                        .sort((a: any, b: any) => {
-                          const dateA =
-                            a.createdAt?.toDate?.() ||
-                            new Date(a.createdAt || 0);
-                          const dateB =
-                            b.createdAt?.toDate?.() ||
-                            new Date(b.createdAt || 0);
-                          return dateB.getTime() - dateA.getTime();
-                        })
-                        .slice(0, 4)
-                        .map((user: any) => (
-                          <div
-                            key={user.id}
-                            className="flex items-center justify-between p-4 bg-slate-800/20 rounded-2xl border border-slate-800/50 hover:border-slate-700 transition-all group"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-slate-300 group-hover:bg-primary-500/10 group-hover:text-primary-500 transition-all">
-                                {user.displayName?.[0] ||
-                                  user.email?.[0] ||
-                                  "U"}
-                              </div>
-                              <div>
-                                <p className="text-sm font-black text-white group-hover:text-primary-400 transition-all">
-                                  {user.displayName ||
-                                    user.fullName ||
-                                    "مستخدم جديد"}
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-medium">
-                                  {user.email}
-                                </p>
-                              </div>
-                            </div>
-                            <span
-                              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${
-                                user.role === "supplier"
-                                  ? "bg-purple-500/10 text-purple-400 border-purple-500/10"
-                                  : "bg-blue-500/10 text-blue-400 border-blue-500/10"
-                              }`}
-                            >
-                              {user.role === "supplier" ? "مورد" : "مشتري"}
-                            </span>
+                             <div className="flex flex-col items-end gap-1.5 min-w-[100px]">
+                                <span className="font-mono font-black text-sm text-white">{req.price ? `${req.price} EGP` : 'التسعير جاري'}</span>
+                                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-mono bg-slate-800/80 px-2 rounded-full border border-slate-700">
+                                   {req.updatedAt ? new Date(req.updatedAt.toDate ? req.updatedAt.toDate() : req.updatedAt).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}) : 'الآن'}
+                                </span>
+                             </div>
                           </div>
                         ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <h3 className="font-black text-lg text-white">
-                          الطلبات الأخيرة
-                        </h3>
-                        <p className="text-[10px] text-slate-500">
-                          آخر عمليات الشراء والتعاقدات
-                        </p>
                       </div>
-                      <button
-                        onClick={() => setActiveTab("requests")}
-                        className="text-[10px] font-black text-emerald-400 hover:text-emerald-300 uppercase tracking-widest bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/10 transition-all"
-                      >
-                        السجل ←
-                      </button>
-                    </div>
-                    <div className="space-y-4">
-                      {[...requests]
-                        .sort((a: any, b: any) => {
-                          const dateA =
-                            a.createdAt?.toDate?.() ||
-                            new Date(a.createdAt || 0);
-                          const dateB =
-                            b.createdAt?.toDate?.() ||
-                            new Date(b.createdAt || 0);
-                          return dateB.getTime() - dateA.getTime();
-                        })
-                        .slice(0, 4)
-                        .map((req: any) => (
-                          <div
-                            key={req.id}
-                            className="flex items-center justify-between p-4 bg-slate-800/20 rounded-2xl border border-slate-800/50 hover:border-emerald-500/50 transition-all group"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <ShoppingBag className="w-6 h-6 text-emerald-500" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-black text-white group-hover:text-emerald-400 transition-all">
-                                  {req.productName}
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-medium">
-                                  {req.createdAt
-                                    ? (req.createdAt.toDate
-                                        ? req.createdAt.toDate()
-                                        : new Date(req.createdAt)
-                                      ).toLocaleDateString("ar-EG")
-                                    : "-"}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end">
-                              <span className="font-black text-emerald-500 text-sm">
-                                {(req.price || 0).toLocaleString()}{" "}
-                                <span className="text-[10px]">ج.م</span>
-                              </span>
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
-                                مدفوع
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -3402,7 +3200,7 @@ export default function AdminDashboard() {
                             المورد
                           </th>
                           <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                            السعر والخصم
+                            السعر والكمية
                           </th>
                           <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none">
                             الفعالية
@@ -3471,15 +3269,20 @@ export default function AdminDashboard() {
                                   <div className="flex items-baseline gap-2">
                                     <span className="font-black text-emerald-500 text-lg leading-tight">
                                       {o.offerPrice}{" "}
-                                      <span className="text-[10px]">ج</span>
+                                      <span className="text-[10px]">ج.م</span>
                                     </span>
                                     <span className="text-[11px] text-slate-600 font-bold line-through">
-                                      {o.originalPrice} ج
+                                      {o.originalPrice} ج.م
                                     </span>
                                   </div>
-                                  <span className="text-[9px] text-rose-500 font-black tracking-widest mt-0.5 uppercase">
-                                    SAVE {o.discount}
-                                  </span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[9px] text-rose-500 font-black tracking-widest uppercase bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/10">
+                                      وفر {o.discount || Math.round((1 - o.offerPrice/o.originalPrice) * 100) + "%"}
+                                    </span>
+                                    <span className="text-[9px] text-amber-500 font-black tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/10">
+                                      متوفر: {o.stock || 0} {o.unit || 'وحدة'}
+                                    </span>
+                                  </div>
                                 </div>
                               </td>
                               <td className="px-8 py-6">
@@ -3678,29 +3481,52 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Requests Table */}
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden relative">
-                  <div className="overflow-x-auto custom-scrollbar">
+                {/* Enterprise Data Table */}
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col h-[700px] relative">
+                  {/* Table Inner Toolbar */}
+                  <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between sticky top-0 z-20 rounded-t-3xl backdrop-blur-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                         <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-primary-500 focus:ring-primary-500 focus:ring-offset-slate-900" />
+                         <span className="text-xs text-slate-400 font-bold ml-2">تحديد الكل</span>
+                      </div>
+                      <div className="h-4 w-px bg-slate-700 mx-2" />
+                      <button className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors flex items-center gap-1.5">
+                        <Check size={14} /> إجراء مجمع
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <button className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5">
+                         <Filter size={14} /> الفلاتر الذكية
+                       </button>
+                       <button className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1.5">
+                         <Settings size={14} /> الأعمدة
+                       </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 overflow-auto custom-scrollbar">
                     <table className="w-full text-right border-collapse">
-                      <thead>
-                        <tr className="bg-slate-800/40 border-b border-slate-800">
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
+                      <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm shadow-sm ring-1 ring-slate-800">
+                        <tr>
+                          <th className="px-6 py-4 w-12 text-center text-xs font-black text-slate-400"></th>
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
                             تفاصيل المحتوى
                           </th>
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
                             الأطراف المعنية
                           </th>
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
-                            القيمة الإجمالية
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
+                            القيمة المالية
                           </th>
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
-                            توقيت العملية
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
+                            سجل الوقت
                           </th>
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
-                            مؤشر الحالة
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">
+                            الوضع الحالي
                           </th>
-                          <th className="px-8 py-6 text-xs font-black text-slate-400 uppercase tracking-widest leading-none">
-                            خيارات
+                          <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-left">
+                            الإجراءات
                           </th>
                         </tr>
                       </thead>
@@ -3711,33 +3537,24 @@ export default function AdminDashboard() {
                             return (
                               (r.productName || "").toLowerCase().includes(s) ||
                               (r.buyerName || "").toLowerCase().includes(s) ||
-                              (r.supplierName || "")
-                                .toLowerCase()
-                                .includes(s) ||
+                              (r.supplierName || "").toLowerCase().includes(s) ||
                               (r.id || "").toLowerCase().includes(s)
                             );
                           })
                           .filter((r) => {
-                            if (requestFilter === "bulk")
-                              return r.requestType === "bulk";
+                            if (requestFilter === "bulk") return r.requestType === "bulk";
                             if (requestFilter === "offer") return !!r.offerId;
                             return r.requestType !== "bulk" && !r.offerId;
                           })
                           .filter((r) => {
                             if (requestsStatusFilter === "all") return true;
-                            if (requestsStatusFilter === "new")
-                              return r.status === "active" && !r.supplierId;
-                            if (requestsStatusFilter === "in_progress")
-                              return r.status === "active" && !!r.supplierId;
+                            if (requestsStatusFilter === "new") return r.status === "active" && !r.supplierId;
+                            if (requestsStatusFilter === "in_progress") return r.status === "active" && !!r.supplierId;
                             return r.status === requestsStatusFilter;
                           })
                           .sort((a: any, b: any) => {
-                            const dateA =
-                              a.createdAt?.toDate?.() ||
-                              new Date(a.createdAt || 0);
-                            const dateB =
-                              b.createdAt?.toDate?.() ||
-                              new Date(b.createdAt || 0);
+                            const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+                            const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
                             return dateB.getTime() - dateA.getTime();
                           })
                           .map((r: any) => (
@@ -3745,118 +3562,90 @@ export default function AdminDashboard() {
                               key={r.id}
                               layout
                               onClick={() => setSelectedRequestId(r.id)}
-                              className="group hover:bg-slate-800/30 transition-all cursor-pointer border-l-4 border-transparent hover:border-primary-500"
+                              className="group hover:bg-slate-800/40 transition-all cursor-pointer border-r-4 border-transparent hover:border-primary-500"
                             >
-                              <td className="px-8 py-6">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    {r.requestType === "bulk" && (
-                                      <Package className="w-3.5 h-3.5 text-amber-500" />
-                                    )}
-                                    <p className="font-black text-white text-sm group-hover:text-primary-400 transition-colors">
+                              <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input type="checkbox" className="w-4 h-4 rounded border-slate-700 bg-slate-800/50 text-primary-500 focus:ring-primary-500 focus:ring-offset-slate-900 cursor-pointer" />
+                              </td>
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-2">
+                                    {r.requestType === "bulk" && <Package className="w-4 h-4 text-amber-500" />}
+                                    <p className="font-bold text-white text-sm group-hover:text-primary-400 transition-colors">
                                       {r.productName}
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[9px] font-black text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                      ID: {r.id.slice(-6)}
+                                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-[#030712] px-2 py-0.5 rounded border border-slate-800 uppercase tracking-widest">
+                                      #{r.id.slice(-6)}
                                     </span>
                                     {r.requestType === "bulk" && r.items && (
-                                      <span className="text-[9px] font-bold text-amber-500/80 italic">
-                                        سلة تحتوي ({r.items.length}) منتجات
+                                      <span className="text-[10px] font-bold text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/10">
+                                        سلة ({r.items.length})
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-8 py-6">
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                              <td className="px-6 py-5">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                       <Users size={12} />
+                                    </div>
                                     <span className="text-xs font-bold text-slate-200">
                                       {r.buyerName || "مشتري مجهول"}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className={`w-1.5 h-1.5 rounded-full ${r.supplierId ? "bg-emerald-500" : "bg-slate-700"}`}
-                                    />
-                                    <span
-                                      className={`text-[11px] font-medium ${r.supplierId ? "text-slate-400" : "text-slate-600 italic"}`}
-                                    >
-                                      {r.supplierName || "بانتظار مورد"}
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-6 h-6 rounded flex items-center justify-center ${r.supplierId ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-500'}`}>
+                                       <Store size={12} />
+                                    </div>
+                                    <span className={`text-[11px] font-bold ${r.supplierId ? "text-slate-300" : "text-slate-600"}`}>
+                                      {r.supplierName || "بانتظار الموافقة.."}
                                     </span>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-8 py-6">
+                              <td className="px-6 py-5">
                                 <div className="flex flex-col">
-                                  <span className="font-black text-primary-500 text-lg leading-tight">
-                                    {(
-                                      r.totalAmount ||
-                                      r.price ||
-                                      0
-                                    ).toLocaleString()}
+                                  <span className="font-mono font-black text-white text-base">
+                                    {(r.totalAmount || r.price || 0).toLocaleString()} <span className="text-[10px] text-slate-500 uppercase tracking-widest font-sans ml-1">EGP</span>
                                   </span>
-                                  <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest leading-none">
-                                    جنية مصري
-                                  </span>
+                                  {r.price && <span className="text-[10px] text-emerald-400 font-bold mt-1 inline-flex items-center gap-1"><Check size={10}/> تم التسعير</span>}
                                 </div>
                               </td>
-                              <td className="px-8 py-6">
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                                    <Calendar
-                                      size={12}
-                                      className="text-slate-600"
-                                    />
-                                    {r.createdAt
-                                      ? (r.createdAt.toDate
-                                          ? r.createdAt.toDate()
-                                          : new Date(r.createdAt)
-                                        ).toLocaleDateString("ar-EG")
-                                      : "-"}
+                              <td className="px-6 py-5">
+                                <div className="flex flex-col gap-1.5">
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+                                    <Calendar size={12} className="text-slate-500" />
+                                    {r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)).toLocaleDateString("ar-EG") : "-"}
                                   </div>
-                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-600 font-medium">
-                                    <Clock size={10} />
-                                    {r.createdAt
-                                      ? (r.createdAt.toDate
-                                          ? r.createdAt.toDate()
-                                          : new Date(r.createdAt)
-                                        ).toLocaleTimeString("ar-EG", {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })
-                                      : ""}
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                                    <Clock size={12} className="text-slate-600" />
+                                    {r.createdAt ? (r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt)).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }) : ""}
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-8 py-6">
-                                <span
-                                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm ${getStatusStyle(r.status)}`}
-                                >
+                              <td className="px-6 py-5">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-sm ${getStatusStyle(r.status)}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-75" />
                                   {getStatusLabel(r.status)}
                                 </span>
                               </td>
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                              <td className="px-6 py-5 text-left">
+                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedRequestId(r.id);
-                                    }}
-                                    className="p-2.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-xl hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all"
-                                    title="عرض التفاصيل"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedRequestId(r.id); }}
+                                    className="p-2 bg-[#030712] text-slate-400 border border-slate-700/50 rounded-lg hover:bg-primary-500 hover:border-primary-500 hover:text-white transition-all shadow-sm"
+                                    title="عرض التفاصيل العميقة"
                                   >
                                     <Eye size={16} />
                                   </button>
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteItem("requests", r.id);
-                                    }}
-                                    className="p-2.5 bg-slate-800 text-slate-400 border border-slate-700 rounded-xl hover:bg-red-500 hover:border-red-500 hover:text-white transition-all shadow-lg"
-                                    title="حذف السجل"
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteItem("requests", r.id); }}
+                                    className="p-2 bg-[#030712] text-slate-400 border border-slate-700/50 rounded-lg hover:bg-rose-500 hover:border-rose-500 hover:text-white transition-all shadow-sm"
+                                    title="حذف السجل (Admin Only)"
                                   >
                                     <Trash2 size={16} />
                                   </button>
@@ -3866,25 +3655,36 @@ export default function AdminDashboard() {
                           ))}
                       </tbody>
                     </table>
+                    
                     {requests.filter((r) => {
-                      if (requestFilter === "bulk")
-                        return r.requestType === "bulk";
+                      if (requestFilter === "bulk") return r.requestType === "bulk";
                       if (requestFilter === "offer") return !!r.offerId;
                       return r.requestType !== "bulk" && !r.offerId;
                     }).length === 0 && (
-                      <div className="p-24 text-center">
-                        <div className="bg-slate-800/50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <div className="flex flex-col items-center justify-center p-24 text-center h-full">
+                        <div className="bg-slate-800/30 w-24 h-24 rounded-3xl flex items-center justify-center mb-6 border border-slate-800">
                           <Archive className="w-10 h-10 text-slate-600" />
                         </div>
-                        <h4 className="text-white font-black text-lg mb-1">
-                          لا توجد سجلات
+                        <h4 className="text-white font-black text-xl mb-2">
+                          قاعدة البيانات فارغة
                         </h4>
-                        <p className="text-slate-500 text-sm">
-                          لم يتم العثور على أي عمليات تتوافق مع معايير البحث
-                          الحالية
+                        <p className="text-slate-500 font-medium max-w-sm">
+                          لم يتم العثور على أي عمليات تتوافق مع معايير البحث الحالية في السجلات. جرب تعديل الفلاتر.
                         </p>
                       </div>
                     )}
+                  </div>
+
+                  {/* Table Footer / Pagination Placeholder */}
+                  <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between rounded-b-3xl">
+                     <p className="text-xs text-slate-500 font-bold">يعرض 50 من أصل {requests.length} سجل</p>
+                     <div className="flex items-center gap-2">
+                        <button className="px-3 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-white disabled:opacity-50">السابق</button>
+                        <span className="text-xs text-white font-bold px-2">1</span>
+                        <span className="text-xs text-slate-500 font-bold px-1">...</span>
+                        <span className="text-xs text-slate-400 font-bold px-2 hover:text-white cursor-pointer">4</span>
+                        <button className="px-3 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-slate-400 hover:text-white disabled:opacity-50">التالي</button>
+                     </div>
                   </div>
                 </div>
               </motion.div>
@@ -3978,239 +3778,288 @@ export default function AdminDashboard() {
                 key="broadcast"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-4xl mx-auto space-y-10"
+                className="max-w-6xl mx-auto space-y-10"
               >
-                <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-12 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-80 h-80 bg-primary-600/5 blur-[100px] -mr-40 -mt-40 rounded-full" />
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left/Main Column - Form */}
+                  <div className="lg:col-span-8 space-y-8">
+                    <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-80 h-80 bg-primary-600/5 blur-[100px] -mr-40 -mt-40 rounded-full" />
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary-500/50 to-transparent opacity-50" />
 
-                  <div className="relative">
-                    <div className="flex items-center justify-between mb-10 border-b border-slate-800 pb-8">
-                      <div className="flex items-center gap-6">
-                        <div className="p-5 bg-primary-500/10 rounded-3xl border border-primary-500/20">
-                          <Mail className="w-10 h-10 text-primary-500" />
-                        </div>
-                        <div>
-                          <h3 className="text-3xl font-black text-white tracking-tight">
-                            {editingBroadcastId
-                              ? "تعديل الإشعار الذكي"
-                              : "مركز البث الإخباري"}
-                          </h3>
-                          <p className="text-slate-500 font-medium">
-                            أرسل رسالة فورية إلى جميع المستخدمين أو فئات مختارة
-                          </p>
-                        </div>
-                      </div>
-                      {editingBroadcastId && (
-                        <button
-                          onClick={() => {
-                            setEditingBroadcastId(null);
-                            setBroadcast({
-                              title: "",
-                              message: "",
-                              target: "all",
-                            });
-                          }}
-                          className="px-6 py-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white rounded-xl transition-all font-black text-xs uppercase tracking-widest"
-                        >
-                          إلغاء التعديل
-                        </button>
-                      )}
-                    </div>
-
-                    <form onSubmit={handleBroadcast} className="space-y-10">
-                      <div>
-                        <label className="block text-xs font-black text-slate-500 mb-4 uppercase tracking-[0.2em]">
-                          الجمهور المستهدف
-                        </label>
-                        <div className="grid grid-cols-3 gap-4">
-                          {[
-                            {
-                              id: "all",
-                              label: "كافة المستخدمين",
-                              icon: <Users size={14} />,
-                            },
-                            {
-                              id: "buyer",
-                              label: "المطاعم فقط",
-                              icon: <Store size={14} />,
-                            },
-                            {
-                              id: "supplier",
-                              label: "الموردين فقط",
-                              icon: <ShoppingBag size={14} />,
-                            },
-                          ].map((t) => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() =>
-                                setBroadcast({
-                                  ...broadcast,
-                                  target: t.id as any,
-                                })
-                              }
-                              className={`flex items-center justify-center gap-3 py-4 rounded-2xl border font-black text-xs transition-all duration-300 ${
-                                broadcast.target === t.id
-                                  ? "bg-primary-600 border-primary-500 text-white shadow-xl shadow-primary-500/20 translate-y-[-2px]"
-                                  : "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-600 hover:text-slate-300"
-                              }`}
-                            >
-                              {t.icon}
-                              {t.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-8">
-                        <div className="group/field">
-                          <label className="block text-xs font-black text-slate-500 mb-3 uppercase tracking-[0.2em]">
-                            عنوان الإشعار
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={broadcast.title}
-                            onChange={(e) =>
-                              setBroadcast({
-                                ...broadcast,
-                                title: e.target.value,
-                              })
-                            }
-                            className="w-full bg-slate-800/50 border border-slate-700/50 text-white rounded-2xl px-6 py-5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none transition-all placeholder:text-slate-700 font-bold text-lg"
-                            placeholder="مثال: تحديثات هامة في عمولات الجمعة..."
-                          />
-                        </div>
-
-                        <div className="group/field">
-                          <label className="block text-xs font-black text-slate-500 mb-3 uppercase tracking-[0.2em]">
-                            المحتوى التفصيلي
-                          </label>
-                          <textarea
-                            required
-                            rows={5}
-                            value={broadcast.message}
-                            onChange={(e) =>
-                              setBroadcast({
-                                ...broadcast,
-                                message: e.target.value,
-                              })
-                            }
-                            className="w-full bg-slate-800/50 border border-slate-700/50 text-white rounded-2xl px-6 py-5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500/50 outline-none transition-all placeholder:text-slate-700 font-medium resize-none leading-relaxed"
-                            placeholder="اكتب رسالتك بوضوح هنا، سيستلمها المستخدمون كإشعار فوري..."
-                          ></textarea>
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={isSendingBroadcast}
-                        className="w-full py-6 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 disabled:opacity-50 text-white font-black rounded-3xl transition-all shadow-2xl shadow-primary-500/30 flex items-center justify-center gap-3 text-lg group active:scale-[0.98]"
-                      >
-                        {isSendingBroadcast ? (
-                          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <Zap className="group-hover:animate-pulse" />
-                            {editingBroadcastId
-                              ? "تحديث ونشر الإشعار"
-                              : "إرسال البث الآن"}
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  </div>
-                </div>
-
-                {/* Broadcast History */}
-                <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                  <div className="p-8 border-b border-slate-800 bg-slate-800/30 flex items-center justify-between">
-                    <div>
-                      <h3 className="font-black text-xl text-white tracking-tight">
-                        سجل البث التاريخي
-                      </h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest">
-                        تتبع كافة الرسائل الجماعية المرسلة مسبقاً
-                      </p>
-                    </div>
-                    <div className="p-2.5 bg-slate-800 rounded-xl border border-slate-700">
-                      <Activity size={18} className="text-primary-500" />
-                    </div>
-                  </div>
-                  <div className="divide-y divide-slate-800/50">
-                    {broadcasts.length === 0 ? (
-                      <div className="p-20 text-center text-slate-600 italic font-medium">
-                        لم يتم إرسال أي بث حتى الآن
-                      </div>
-                    ) : (
-                      broadcasts.map((b) => (
-                        <div
-                          key={b.id}
-                          className="p-8 hover:bg-slate-800/20 transition-all group"
-                        >
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-3">
-                              <span
-                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                                  b.target === "all"
-                                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                    : b.target === "supplier"
-                                      ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                                      : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                }`}
-                              >
-                                FOR:{" "}
-                                {b.target === "all"
-                                  ? "EVERYONE"
-                                  : b.target === "supplier"
-                                    ? "SUPPLIERS"
-                                    : "RESTAURANTS"}
-                              </span>
-                              <span className="text-[10px] text-slate-600 font-bold flex items-center gap-1.5">
-                                <Clock size={12} />
-                                {b.createdAt
-                                  ? (b.createdAt.toDate
-                                      ? b.createdAt.toDate()
-                                      : new Date(b.createdAt)
-                                    ).toLocaleString("ar-EG")
-                                  : ""}
-                              </span>
+                      <div className="relative">
+                        <div className="flex flex-col md:flex-row items-start justify-between gap-6 mb-10 border-b border-slate-800/80 pb-8">
+                          <div className="flex items-center gap-6">
+                            <div className="p-4 bg-primary-500/10 rounded-[1.5rem] border border-primary-500/20 shadow-inner">
+                              <Mail className="w-8 h-8 text-primary-500" />
                             </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                              <button
-                                onClick={() => {
-                                  setEditingBroadcastId(b.id);
-                                  setBroadcast({
-                                    title: b.title,
-                                    message: b.message,
-                                    target: b.target,
-                                  });
-                                  window.scrollTo({
-                                    top: 0,
-                                    behavior: "smooth",
-                                  });
-                                }}
-                                className="p-2 bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-700 transition-colors"
-                              >
-                                <Edit size={14} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteBroadcast(b.id)}
-                                className="p-2 bg-slate-800 text-slate-400 hover:text-rose-500 rounded-lg border border-slate-700 transition-colors"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                            <div>
+                              <h3 className="text-2xl font-black text-white tracking-tight">
+                                {editingBroadcastId
+                                  ? "تعديل الإشعار الذكي"
+                                  : "مركز البث المباشر للإشعارات (Live Broadcast)"}
+                              </h3>
+                              <p className="text-slate-400 font-medium mt-1">
+                                أرسل معلومات حرجة، رسائل تسويقية، أو إشعارات نظام إلى الجمهور المستهدف.
+                              </p>
                             </div>
                           </div>
-                          <h4 className="font-black text-white text-lg group-hover:text-primary-400 transition-colors">
-                            {b.title}
-                          </h4>
-                          <p className="text-slate-400 text-sm mt-2 leading-relaxed line-clamp-2 mt-3">
-                            {b.message}
+                          {editingBroadcastId && (
+                            <button
+                              onClick={() => {
+                                setEditingBroadcastId(null);
+                                setBroadcast({
+                                  title: "",
+                                  message: "",
+                                  target: "all",
+                                });
+                              }}
+                              className="px-6 py-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white rounded-xl transition-all font-black text-xs uppercase tracking-widest shrink-0"
+                            >
+                              إلغاء التعديل
+                            </button>
+                          )}
+                        </div>
+
+                        <form onSubmit={handleBroadcast} className="space-y-10">
+                          <div className="bg-[#030712]/30 p-6 rounded-3xl border border-slate-800/60">
+                            <label className="block text-[11px] font-black text-slate-500 mb-4 uppercase tracking-widest flex items-center justify-between">
+                              <span>تحديد نطاق البث (Target Audience)</span>
+                              <span className="text-primary-500/80 font-mono">STEP 1</span>
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {[
+                                {
+                                  id: "all",
+                                  label: "الجميع (Global)",
+                                  icon: <Users size={16} />,
+                                  desc: "إشعار بكافة أنحاء المنصة"
+                                },
+                                {
+                                  id: "buyer",
+                                  label: "المشترين / المطاعم",
+                                  icon: <Store size={16} />,
+                                  desc: "استهداف جهات الشراء"
+                                },
+                                {
+                                  id: "supplier",
+                                  label: "شبكة الموردين",
+                                  icon: <ShoppingBag size={16} />,
+                                  desc: "توجيه لمقدمي العروض"
+                                },
+                              ].map((t) => (
+                                <button
+                                  key={t.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setBroadcast({
+                                      ...broadcast,
+                                      target: t.id as any,
+                                    })
+                                  }
+                                  className={`flex flex-col items-start gap-3 p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${
+                                    broadcast.target === t.id
+                                      ? "bg-primary-600/10 border-primary-500 text-white shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]"
+                                      : "bg-slate-800/40 border-slate-700/50 text-slate-500 hover:border-slate-600 hover:text-slate-300 hover:bg-slate-800/60"
+                                  }`}
+                                >
+                                  {broadcast.target === t.id && (
+                                     <div className="absolute top-0 right-0 w-16 h-16 bg-primary-500/20 blur-xl rounded-full" />
+                                  )}
+                                  <div className={`p-2 rounded-xl flex items-center justify-center ${broadcast.target === t.id ? 'bg-primary-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                     {t.icon}
+                                  </div>
+                                  <div className="text-right flex flex-col items-start w-full relative z-10">
+                                      <span className="font-black text-sm whitespace-nowrap">{t.label}</span>
+                                      <span className={`text-[10px] mt-1 font-bold ${broadcast.target === t.id ? 'text-primary-200' : 'text-slate-500'}`}>{t.desc}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="bg-[#030712]/30 p-6 flex flex-col gap-8 rounded-3xl border border-slate-800/60">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                                المحتوى (Message Payload)
+                              </label>
+                              <span className="text-primary-500/80 font-mono text-[11px] font-black uppercase tracking-widest">Step 2</span>
+                            </div>
+                            
+                            <div className="group/field relative">
+                              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-hover-focus/field:text-primary-500 transition-colors pointer-events-none">
+                                 <Zap size={18} />
+                              </div>
+                              <input
+                                type="text"
+                                required
+                                value={broadcast.title}
+                                onChange={(e) =>
+                                  setBroadcast({
+                                    ...broadcast,
+                                    title: e.target.value,
+                                  })
+                                }
+                                className="w-full bg-slate-900/50 border border-slate-700/80 text-white rounded-2xl pr-12 pl-6 py-4 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all placeholder:text-slate-600 font-bold text-lg shadow-inner"
+                                placeholder="عنوان الإشعار الرئيسي (مثال: عطلة رسمية)"
+                              />
+                            </div>
+
+                            <div className="group/field relative">
+                              <textarea
+                                required
+                                rows={6}
+                                value={broadcast.message}
+                                onChange={(e) =>
+                                  setBroadcast({
+                                    ...broadcast,
+                                    message: e.target.value,
+                                  })
+                                }
+                                className="w-full bg-slate-900/50 border border-slate-700/80 text-white rounded-2xl px-6 py-5 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all placeholder:text-slate-600 font-medium resize-none leading-relaxed shadow-inner font-mono text-sm"
+                                placeholder="اكتب صياغة الرسالة بكل وضوح وتفصيل هنا. سيتم تسليمها كرسالة مباشرة لمركز إشعارات المستخدمين المستهدفين."
+                              ></textarea>
+                              <div className="absolute bottom-4 left-4 text-xs font-mono font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                                 Lines: {broadcast.message.split('\n').length} | Chars: {broadcast.message.length}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={isSendingBroadcast || !broadcast.title || !broadcast.message}
+                            className="w-full h-16 bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-black rounded-2xl transition-all shadow-xl shadow-primary-500/20 flex items-center justify-center gap-3 text-lg group active:scale-[0.98] border-b-4 border-primary-800 hover:border-primary-700 disabled:border-slate-900"
+                          >
+                            {isSendingBroadcast ? (
+                              <div className="flex items-center gap-3">
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>يتم المعالجة والإرسال للخوادم...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <Activity className="group-hover:animate-pulse" />
+                                {editingBroadcastId
+                                  ? "تحديث الإشعار في قواعد البيانات"
+                                  : "تنفيذ البث المباشر (Execute Broadcast)"}
+                              </>
+                            )}
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Status & History */}
+                  <div className="lg:col-span-4 flex flex-col gap-6">
+                     {/* System Status Component */}
+                     <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-xl w-full">
+                       <h3 className="text-sm font-black text-white tracking-widest uppercase mb-6 flex items-center gap-2">
+                         <Globe className="text-emerald-500 w-4 h-4 animate-spin-slow" />
+                         حالة خدمة البث
+                       </h3>
+                       <div className="space-y-4">
+                           <div className="flex items-center justify-between p-3 rounded-xl bg-[#030712] border border-slate-800/80">
+                               <div className="flex items-center gap-2">
+                                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                                   <span className="text-xs font-bold text-slate-400">اتصال الخادم</span>
+                               </div>
+                               <span className="text-emerald-400 text-xs font-mono font-bold">ONLINE</span>
+                           </div>
+                           <div className="flex items-center justify-between p-3 rounded-xl bg-[#030712] border border-slate-800/80">
+                               <div className="flex items-center gap-2">
+                                   <Zap className="w-3 h-3 text-amber-500" />
+                                   <span className="text-xs font-bold text-slate-400">قدرة التوصيل</span>
+                               </div>
+                               <span className="text-amber-500 text-xs font-mono font-bold">99.8%</span>
+                           </div>
+                       </div>
+                     </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-[2rem] flex flex-col overflow-hidden shadow-2xl flex-1 max-h-[600px]">
+                      <div className="p-6 border-b border-slate-800 bg-slate-800/30 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
+                        <div>
+                          <h3 className="font-black text-base text-white tracking-tight">
+                            سجل العمليات
+                          </h3>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest font-mono">
+                            Recent Broadcasts Audit
                           </p>
                         </div>
-                      ))
-                    )}
+                      </div>
+                      <div className="divide-y divide-slate-800/50 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-700">
+                        {broadcasts.length === 0 ? (
+                          <div className="h-full flex items-center justify-center p-12 text-center text-slate-600 italic font-medium">
+                            لاتوجد عمليات بث سابقة
+                          </div>
+                        ) : (
+                          broadcasts.map((b) => (
+                            <div
+                              key={b.id}
+                              className="p-5 hover:bg-slate-800/20 transition-all group flex flex-col gap-3"
+                            >
+                              <div className="flex justify-between items-start">
+                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                    <button
+                                      onClick={() => {
+                                        setEditingBroadcastId(b.id);
+                                        setBroadcast({
+                                          title: b.title,
+                                          message: b.message,
+                                          target: b.target,
+                                        });
+                                        window.scrollTo({
+                                          top: 0,
+                                          behavior: "smooth",
+                                        });
+                                      }}
+                                      className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-700 transition-colors tooltip"
+                                      title="تعديل الإشعار"
+                                    >
+                                      <Edit size={12} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteBroadcast(b.id)}
+                                      className="p-1.5 bg-slate-800 text-slate-400 hover:text-rose-500 rounded-lg border border-slate-700 transition-colors tooltip"
+                                      title="حذف نهائي"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2 text-left w-full justify-end">
+                                       <span
+                                        className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${
+                                          b.target === "all"
+                                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                                            : b.target === "supplier"
+                                              ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                                              : "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                                        }`}
+                                      >
+                                        TARGET: {b.target.toUpperCase()}
+                                      </span>
+                                      <span className="text-[9px] text-slate-600 font-bold font-mono">
+                                        {b.createdAt
+                                          ? (b.createdAt.toDate
+                                              ? b.createdAt.toDate()
+                                              : new Date(b.createdAt)
+                                            ).toLocaleString("en-US", { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+                                          : ""}
+                                      </span>
+                                  </div>
+                              </div>
+                              <div>
+                                 <h4 className="font-black text-white text-sm group-hover:text-primary-400 transition-colors line-clamp-1" title={b.title}>
+                                   {b.title}
+                                 </h4>
+                                 <p className="text-slate-400 text-xs mt-1.5 leading-relaxed line-clamp-2" title={b.message}>
+                                   {b.message}
+                                 </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -5348,169 +5197,168 @@ export default function AdminDashboard() {
                 key="settings"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-4xl mx-auto space-y-10"
+                className="max-w-5xl mx-auto space-y-10"
               >
-                <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-12 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
+                <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 md:p-14 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/[0.04] blur-[100px] -mr-32 -mt-32 rounded-full" />
+                  <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/[0.04] blur-[100px] -ml-32 -mb-32 rounded-full" />
 
-                  <div className="relative">
-                    <div className="flex items-center gap-4 mb-10 border-b border-slate-800 pb-8">
-                      <div className="bg-primary-500/10 p-4 rounded-2xl">
-                        <Settings className="w-10 h-10 text-primary-500" />
+                  <div className="relative z-10">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 border-b border-slate-800/80 pb-8">
+                      <div className="flex items-center gap-5">
+                        <div className="bg-primary-500/10 p-5 rounded-3xl border border-primary-500/20 shadow-inner">
+                          <Settings className="w-10 h-10 text-primary-500" />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-3xl text-white tracking-tight leading-tight">
+                            محرك التحكم والسياسات
+                          </h3>
+                          <p className="text-slate-400 font-medium text-sm mt-1">
+                            ضبط قواعد الأعمال ومعدلات الخصم التلقائية للمنصة
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-black text-3xl text-white tracking-tight">
-                          غرفة التحكم والسياسات
-                        </h3>
-                        <p className="text-slate-500 font-medium">
-                          تعديل نسب العمولات وقواعد احتساب أرباح الموردين
-                        </p>
+                      
+                      <div className="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-xs font-mono font-bold text-slate-300">System Live</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                      <div className="space-y-10">
-                        <div className="group/field">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                              <Zap size={14} className="text-emerald-500" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
+                      {/* Fast Delivery Rate */}
+                      <div className="group/field bg-slate-800/20 border border-slate-800 p-8 rounded-3xl hover:border-slate-700 transition-colors">
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                                <Zap size={20} className="text-emerald-500" />
+                              </div>
+                              <div>
+                                 <label className="block text-base font-black text-white uppercase tracking-wider">
+                                    الطلبات الفورية (On-Demand)
+                                 </label>
+                                 <p className="text-[11px] text-slate-500 font-bold mt-1">معدل العمولة المحتسب</p>
+                              </div>
                             </div>
-                            <label className="block text-sm font-black text-white uppercase tracking-wider">
-                              عمولة الطلبات السريعة
-                            </label>
-                          </div>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={rates.fast}
-                              onChange={(e) =>
-                                setRates((prev) => ({
-                                  ...prev,
-                                  fast: Number(e.target.value),
-                                }))
-                              }
-                              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl px-6 py-4 text-xl font-black text-emerald-400 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 transition-all placeholder:text-slate-700"
-                              placeholder="0"
-                            />
-                            <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600">
-                              %
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
-                            الطلبات الفورية (On-Demand) تقتطع من إجمالي الفاتورة
-                            المدفوعة من المطعم.
-                          </p>
-                          <button
-                            onClick={() => updateCommission("fast", rates.fast)}
-                            className="mt-4 w-full bg-slate-800 border border-slate-700 hover:bg-emerald-500 hover:border-emerald-400 text-white py-3 rounded-2xl font-black text-xs transition-all active:scale-95 shadow-lg group-hover/field:border-emerald-500/30"
-                          >
-                            تثبيت النسبة الجديدة
-                          </button>
                         </div>
-
-                        <div className="group/field pt-10 border-t border-slate-800/50">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                              <Layers size={14} className="text-amber-500" />
-                            </div>
-                            <label className="block text-sm font-black text-white uppercase tracking-wider">
-                              عمولة مناقصات الجملة
-                            </label>
-                          </div>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={rates.bulk}
-                              onChange={(e) =>
-                                setRates((prev) => ({
-                                  ...prev,
-                                  bulk: Number(e.target.value),
-                                }))
-                              }
-                              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl px-6 py-4 text-xl font-black text-amber-500 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500/50 transition-all placeholder:text-slate-700"
-                              placeholder="0"
-                            />
-                            <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600">
-                              %
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
-                            الطلبات الضخمة (Bulk) تتميز بعمولات أقل لتشجيع
-                            التداول السعري العالي.
-                          </p>
-                          <button
-                            onClick={() => updateCommission("bulk", rates.bulk)}
-                            className="mt-4 w-full bg-slate-800 border border-slate-700 hover:bg-amber-500 hover:border-amber-400 text-white py-3 rounded-2xl font-black text-xs transition-all active:scale-95 shadow-lg group-hover/field:border-amber-500/30"
-                          >
-                            حفظ الإعدادات
-                          </button>
+                        <div className="relative mb-6">
+                          <input
+                            type="number"
+                            value={rates.fast}
+                            onChange={(e) => setRates((prev) => ({ ...prev, fast: Number(e.target.value) }))}
+                            className="w-full bg-[#030712]/50 border border-slate-700/80 rounded-2xl px-6 py-5 text-2xl font-black text-emerald-400 outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/50 transition-all font-mono"
+                            placeholder="0.00"
+                          />
+                          <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-500 text-xl">%</span>
                         </div>
+                        <p className="text-xs text-slate-400 mb-6 leading-relaxed font-medium">
+                          تطبق هذه النسبة تلقائياً على كافة الطلبات السريعة والفورية. يتم استقطاعها من إجمالي الفاتورة المدفوعة قبل تسويتها بحساب المورد.
+                        </p>
+                        <button
+                          onClick={() => updateCommission("fast", rates.fast)}
+                          className="w-full bg-slate-800/80 border border-slate-700 hover:bg-emerald-500 hover:border-emerald-400 hover:text-[#030712] text-white py-4 rounded-xl font-black text-xs transition-all active:scale-[0.98] shadow-lg group-hover/field:border-emerald-500/30"
+                        >
+                          تثبيت قاعدة احتساب الطلبات الفورية
+                        </button>
                       </div>
 
-                      <div className="space-y-10">
-                        <div className="group/field">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                              <Tag size={14} className="text-purple-500" />
+                      {/* Bulk Rate */}
+                      <div className="group/field bg-slate-800/20 border border-slate-800 p-8 rounded-3xl hover:border-slate-700 transition-colors">
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-inner">
+                                <Layers size={20} className="text-amber-500" />
+                              </div>
+                              <div>
+                                 <label className="block text-base font-black text-white uppercase tracking-wider">
+                                    عقود ومناقصات الجملة
+                                 </label>
+                                 <p className="text-[11px] text-slate-500 font-bold mt-1">معدل العمولة المحتسب</p>
+                              </div>
                             </div>
-                            <label className="block text-sm font-black text-white uppercase tracking-wider">
-                              عمولة عروض الموردين
-                            </label>
-                          </div>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={rates.offer}
-                              onChange={(e) =>
-                                setRates((prev) => ({
-                                  ...prev,
-                                  offer: Number(e.target.value),
-                                }))
-                              }
-                              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl px-6 py-4 text-xl font-black text-purple-400 outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500/50 transition-all placeholder:text-slate-700"
-                              placeholder="0"
-                            />
-                            <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-600">
-                              %
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
-                            العروض الحصرية (Sales Offers) المرفوعة يدوياً من
-                            لوحة تحكم المورد.
-                          </p>
-                          <button
-                            onClick={() =>
-                              updateCommission("offer", rates.offer)
-                            }
-                            className="mt-4 w-full bg-slate-800 border border-slate-700 hover:bg-purple-600 hover:border-purple-500 text-white py-3 rounded-2xl font-black text-xs transition-all active:scale-95 shadow-lg group-hover/field:border-purple-500/30"
-                          >
-                            تطبيق التحديث
-                          </button>
                         </div>
+                        <div className="relative mb-6">
+                          <input
+                            type="number"
+                            value={rates.bulk}
+                            onChange={(e) => setRates((prev) => ({ ...prev, bulk: Number(e.target.value) }))}
+                            className="w-full bg-[#030712]/50 border border-slate-700/80 rounded-2xl px-6 py-5 text-2xl font-black text-amber-500 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500/50 transition-all font-mono"
+                            placeholder="0.00"
+                          />
+                          <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-500 text-xl">%</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mb-6 leading-relaxed font-medium">
+                           يُنصح بإبقاء هذه النسبة منخفضة (Lower Margin) لتشجيع عمليات التداول السعري العالي والكميات الضخمة بين الشركات.
+                        </p>
+                        <button
+                          onClick={() => updateCommission("bulk", rates.bulk)}
+                          className="w-full bg-slate-800/80 border border-slate-700 hover:bg-amber-500 hover:border-amber-400 hover:text-[#030712] text-white py-4 rounded-xl font-black text-xs transition-all active:scale-[0.98] shadow-lg group-hover/field:border-amber-500/30"
+                        >
+                          تثبيت قاعدة مناقصات الجملة
+                        </button>
+                      </div>
 
-                        <div className="bg-slate-800/30 border border-slate-800 rounded-3xl p-8 mt-6">
-                          <div className="flex items-center gap-3 mb-4">
-                            <ShieldCheck
-                              className="text-primary-500"
-                              size={20}
-                            />
-                            <h4 className="text-sm font-black text-white">
-                              ملاحظات الأمان
-                            </h4>
-                          </div>
-                          <ul className="space-y-3 text-[10px] text-slate-400 font-medium">
-                            <li className="flex items-start gap-2">
-                              <div className="w-1 h-1 rounded-full bg-primary-500 mt-1.5 shrink-0" />
-                              تغيير العمولات يؤثر فوراً على جميع العمليات
-                              المالية "قيد الانتظار" والجديدة.
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <div className="w-1 h-1 rounded-full bg-primary-500 mt-1.5 shrink-0" />
-                              يتم تسجيل كل عملية تغيير في سجلات النظام (Log)
-                              باسم المدير الحالي.
-                            </li>
-                          </ul>
+                      {/* Offer Rate */}
+                      <div className="group/field bg-slate-800/20 border border-slate-800 p-8 rounded-3xl hover:border-slate-700 transition-colors">
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-inner">
+                                <Tag size={20} className="text-purple-500" />
+                              </div>
+                              <div>
+                                 <label className="block text-base font-black text-white uppercase tracking-wider">
+                                    عروض التوفير الحصرية
+                                 </label>
+                                 <p className="text-[11px] text-slate-500 font-bold mt-1">معدل العمولة المحتسب</p>
+                              </div>
+                            </div>
                         </div>
+                        <div className="relative mb-6">
+                          <input
+                            type="number"
+                            value={rates.offer}
+                            onChange={(e) => setRates((prev) => ({ ...prev, offer: Number(e.target.value) }))}
+                            className="w-full bg-[#030712]/50 border border-slate-700/80 rounded-2xl px-6 py-5 text-2xl font-black text-purple-400 outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500/50 transition-all font-mono"
+                            placeholder="0.00"
+                          />
+                          <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-slate-500 text-xl">%</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mb-6 leading-relaxed font-medium">
+                          العروض الاستثنائية التي يُطلقها الموردين للتصفية أو الخصومات الحصرية للمنصة. تدعم هذه النسبة عمليات التسويق المستمر.
+                        </p>
+                        <button
+                          onClick={() => updateCommission("offer", rates.offer)}
+                          className="w-full bg-slate-800/80 border border-slate-700 hover:bg-purple-500 hover:border-purple-400 hover:text-[#030712] text-white py-4 rounded-xl font-black text-xs transition-all active:scale-[0.98] shadow-lg group-hover/field:border-purple-500/30"
+                        >
+                          تثبيت قاعدة احتساب العروض
+                        </button>
+                      </div>
+
+                      {/* Security Notes */}
+                      <div className="bg-blue-500/[0.03] border border-blue-500/10 rounded-3xl p-8 flex flex-col justify-center">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+                             <ShieldCheck size={24} />
+                          </div>
+                          <div>
+                             <h4 className="text-base font-black text-white">ضوابط أمان النظام</h4>
+                             <p className="text-[10px] text-blue-400/60 font-mono mt-0.5 uppercase tracking-widest">System Integrity</p>
+                          </div>
+                        </div>
+                        <ul className="space-y-4 text-xs text-slate-400 font-medium">
+                          <li className="flex items-start gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                            <span className="leading-relaxed">تغيير مُعدلات العمولات يتم تطبيقه فورياً (Real-time) وبصورة يدوّية لا رجعة فيها على جميع الطلبات والعروض التي <strong>لم تُسجّل أو تُطلب بعد</strong>.</span>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                            <span className="leading-relaxed">العمليات السابقة، المدفوعة، أو "قيد التنفيذ" حالياً تحتفظ بنسبة العمولة السارية وقت نشأتها لحماية حسابات الموردين والأرصدة.</span>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                            <span className="leading-relaxed">يتم تسجيل كل تعديل (Audit Trail) ضمن سجلات النظام المركزية تحت اسم ومعرّف مدير النظام الحالي للأغراض المحاسبية.</span>
+                          </li>
+                        </ul>
                       </div>
                     </div>
                   </div>
@@ -5754,6 +5602,19 @@ export default function AdminDashboard() {
         </div>
       </main>
       </div>
+    </div>
+  );
+}
+
+function NavGroup({ title, children }: any) {
+  return (
+    <div className="mb-6">
+      <h3 className="px-4 text-[10px] font-black tracking-[0.2em] uppercase text-slate-500 mb-3 ml-2 flex items-center pr-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-slate-700 mr-2 ml-2" />
+        {title}
+        <div className="flex-1 border-t border-slate-800 ml-4 mr-2" />
+      </h3>
+      <div className="space-y-1">{children}</div>
     </div>
   );
 }

@@ -404,13 +404,17 @@ export default function BuyerHome() {
                   <div className="flex justify-between items-end mt-6">
                     <div>
                       <span className="text-rose-500 font-black text-2xl">{offer.offerPrice} <span className="text-xs">جم</span></span>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1">الكمية المتوفرة: {offer.stock || 0} {offer.unit || 'قطعة'}</p>
                     </div>
                     <button 
-                      onClick={() => { setSelectedOffer(offer); setShowOrderModal(true); requestLocation(); }}
-                      className="bg-slate-900 text-white text-sm font-black px-6 py-3 rounded-2xl hover:bg-[var(--color-primary)] transition-all flex items-center gap-2"
+                      onClick={() => { setSelectedOffer(offer); setShowOrderModal(offer.stock > 0 ? true : false); if(offer.stock > 0) requestLocation(); else toast.error('عذراً، هذا العرض غير متوفر حالياً'); }}
+                      className={cn(
+                        "bg-slate-900 text-white text-sm font-black px-6 py-3 rounded-2xl transition-all flex items-center gap-2",
+                        offer.stock <= 0 ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--color-primary)]"
+                      )}
                     >
                       <ShoppingBag size={18} />
-                      اطلب الآن
+                      {offer.stock > 0 ? 'اطلب الآن' : 'نفذت الكمية'}
                     </button>
                   </div>
                 </div>
@@ -443,6 +447,7 @@ export default function BuyerHome() {
                  <div className="flex-1">
                    <h3 className="font-bold text-slate-800">{selectedOffer.title}</h3>
                    <p className="text-xs text-green-700 font-bold mt-1">السعر: {selectedOffer.offerPrice} ج.م</p>
+                   <p className="text-[10px] text-slate-500 font-bold">الكمية المتاحة: {selectedOffer.stock || 0} {selectedOffer.unit || 'قطعة'}</p>
                  </div>
                </div>
                

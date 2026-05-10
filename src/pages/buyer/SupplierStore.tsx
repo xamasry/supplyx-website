@@ -81,6 +81,13 @@ export default function SupplierStore() {
       const current = prev[product.id] || { product, quantity: 0 };
       const newQty = Math.max(0, current.quantity + delta);
       
+      // Check stock limit if stock info exists
+      const availableStock = product.stock !== undefined ? product.stock : 999999;
+      if (delta > 0 && newQty > availableStock) {
+        toast.error(`عذراً، الكمية المتوفرة هي ${availableStock} فقط`);
+        return prev;
+      }
+
       if (newQty === 0) {
         const { [product.id]: _, ...rest } = prev;
         return rest;
@@ -287,40 +294,37 @@ export default function SupplierStore() {
           
           <div className="flex flex-nowrap overflow-x-auto gap-4 pb-4 snap-x pr-1 scrollbar-none">
             {offers.map((offer) => (
-              <motion.div 
-                key={offer.id}
-                whileHover={{ y: -5 }}
-                className="min-w-[280px] bg-slate-900 rounded-[2rem] p-5 relative overflow-hidden group snap-start border border-white/10"
-              >
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[var(--color-accent)] blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity" />
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                  <div>
-                    <span className="text-[10px] font-black text-[var(--color-accent)] uppercase tracking-[0.2em] mb-1 block">عرض خاص</span>
-                    <h4 className="text-white font-bold text-lg leading-tight mb-2">{offer.title}</h4>
-                    <p className="text-slate-400 text-xs line-clamp-2">{offer.description || 'عرض حصري لهذا اليوم'}</p>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-4">
-                    <div className="flex items-end justify-between">
+                  <div key={offer.id} className="min-w-[280px] bg-slate-900 rounded-[2rem] p-5 relative overflow-hidden group snap-start border border-white/10">
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-[var(--color-accent)] blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity" />
+                    <div className="relative z-10 flex flex-col h-full justify-between">
                       <div>
-                        <p className="text-slate-500 text-[10px] font-bold line-through">{offer.originalPrice} ج.م</p>
-                        <p className="text-white text-xl font-display font-black leading-none">{offer.offerPrice} <span className="text-xs">ج.م</span></p>
+                        <span className="text-[10px] font-black text-[var(--color-accent)] uppercase tracking-[0.2em] mb-1 block">عرض خاص</span>
+                        <h4 className="text-white font-bold text-lg leading-tight mb-2">{offer.title}</h4>
+                        <p className="text-slate-400 text-xs line-clamp-2">{offer.description || 'عرض حصري لهذا اليوم'}</p>
+                        <p className="text-[10px] text-slate-500 font-bold mt-2">المخزون المتاح: {offer.stock || 0} {offer.unit}</p>
                       </div>
-                      <div className="bg-[var(--color-accent)] text-slate-900 px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-[var(--color-accent)]/20">
-                        وفر {Math.round((1 - offer.offerPrice / offer.originalPrice) * 100)}%
+                      <div className="mt-4 flex flex-col gap-4">
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p className="text-slate-500 text-[10px] font-bold line-through">{offer.originalPrice} ج.م</p>
+                            <p className="text-white text-xl font-display font-black leading-none">{offer.offerPrice} <span className="text-xs">ج.م</span></p>
+                          </div>
+                          <div className="bg-[var(--color-accent)] text-slate-900 px-3 py-1.5 rounded-xl font-black text-xs shadow-lg shadow-[var(--color-accent)]/20">
+                            وفر {Math.round((1 - offer.offerPrice / offer.originalPrice) * 100)}%
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={() => handleOfferOrder(offer)}
+                          disabled={loading || offer.stock <= 0}
+                          className="w-full bg-white text-slate-900 hover:bg-[var(--color-accent)] transition-colors py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                        >
+                          <ShoppingBag size={18} />
+                          {offer.stock > 0 ? 'طلب العرض الآن' : 'نفذت الكمية'}
+                        </button>
                       </div>
                     </div>
-                    
-                    <button 
-                      onClick={() => handleOfferOrder(offer)}
-                      disabled={loading}
-                      className="w-full bg-white text-slate-900 hover:bg-[var(--color-accent)] transition-colors py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                    >
-                      <ShoppingBag size={18} />
-                      طلب العرض الآن
-                    </button>
                   </div>
-                </div>
-              </motion.div>
             ))}
           </div>
         </section>
@@ -392,12 +396,20 @@ export default function SupplierStore() {
                     </div>
                     <div className="p-3">
                       <h3 className="font-bold text-slate-900 text-sm line-clamp-1">{product.name}</h3>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">/ {product.unit}</p>
+                      <div className="flex justify-between items-center mt-0.5">
+                        <p className="text-[10px] text-slate-400 font-semibold">/ {product.unit}</p>
+                        <p className="text-[9px] text-slate-400 font-bold">المخزون: {product.stock || 0}</p>
+                      </div>
                       
                       <div className="mt-3 flex items-center justify-between">
-                         <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                           {product.price}ج
-                         </span>
+                         <div className="flex flex-col">
+                           {product.variants && product.variants.length > 0 && (
+                               <span className="text-[8px] text-[var(--color-primary)] font-bold mb-0.5">متاح تعبئة وكميات</span>
+                           )}
+                           <span className="text-[var(--color-primary)] font-display font-black text-sm">
+                             {product.price}ج
+                           </span>
+                         </div>
                          
                          <div className="flex items-center bg-slate-50 rounded-xl p-0.5">
                             {cart[product.id] ? (
@@ -411,7 +423,8 @@ export default function SupplierStore() {
                                 <span className="w-6 text-center text-xs font-bold text-slate-900">{cart[product.id].quantity}</span>
                                 <button 
                                   onClick={() => updateCart(product, 1)}
-                                  className="w-6 h-6 flex items-center justify-center text-[var(--color-primary)]"
+                                  disabled={product.stock !== undefined && cart[product.id].quantity >= product.stock}
+                                  className="w-6 h-6 flex items-center justify-center text-[var(--color-primary)] disabled:opacity-20"
                                 >
                                   <Plus size={14} />
                                 </button>
@@ -419,7 +432,8 @@ export default function SupplierStore() {
                             ) : (
                               <button 
                                 onClick={() => updateCart(product, 1)}
-                                className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                                disabled={product.stock === 0}
+                                className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 hover:bg-[var(--color-primary)] hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                               >
                                 <Plus size={18} />
                               </button>

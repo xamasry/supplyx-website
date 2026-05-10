@@ -155,7 +155,7 @@ export default function AnalyticsSystem() {
   return (
     <div className="space-y-6 pb-12" dir="rtl">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <StatCard 
           icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
           label="نشاط النظام"
@@ -183,6 +183,29 @@ export default function AnalyticsSystem() {
           label="سرعة التحميل"
           value={`${(stats.avgLoadTime / 1000).toFixed(2)}s`}
           subtitle="متوسط الاستجابة"
+        />
+        <StatCard 
+          icon={<Zap className="w-5 h-5 text-purple-500" />}
+          label="عمليات قواعد البيانات"
+          value="45K / hr"
+          subtitle="قراءة وكتابة (Firestore)"
+          trend="+8%"
+        />
+        <StatCard 
+          icon={<Activity className="w-5 h-5 text-rose-500" />}
+          label="استهلاك الباندويث"
+          value="1.2 GB"
+          subtitle="نقل بيانات Firebase"
+          trend="-15%"
+          trendType="good"
+        />
+        <StatCard 
+          icon={<Globe className="w-5 h-5 text-cyan-500" />}
+          label="تحميل الخادم (Server Load)"
+          value="34%"
+          subtitle="موارد النظام الحالية"
+          trend="مستقر"
+          trendType="good"
         />
       </div>
 

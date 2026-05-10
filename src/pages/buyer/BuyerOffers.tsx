@@ -367,6 +367,7 @@ export default function BuyerOffers() {
                 <div>
                   <h3 className="font-black text-slate-800 leading-tight">{selectedOffer.title}</h3>
                   <p className="text-xs text-slate-500 font-bold mt-1">السعر: {selectedOffer.offerPrice} ج.م / {selectedOffer.quantity} {selectedOffer.unit}</p>
+                  <p className="text-[10px] text-primary-600 font-black mt-0.5">الكمية المتوفرة: {selectedOffer.stock || 0} {selectedOffer.unit}</p>
                 </div>
               </div>
 
@@ -525,13 +526,16 @@ function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any
                 <span className="text-[11px] font-bold text-slate-500">/ {offer.quantity || 1} {offer.unit}</span>
               )}
             </div>
+            <p className="text-[10px] font-bold text-slate-400 mt-1">المخزون: {offer.stock || 0} {offer.unit}</p>
           </div>
           <button 
-            disabled={!!isOrdering}
+            disabled={!!isOrdering || offer.stock <= 0}
             onClick={() => handleOrder()}
             className={cn(
               "px-4 py-2 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2",
-              "bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
+              offer.stock <= 0 
+                ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                : "bg-[var(--color-primary)]/10 text-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-white"
             )}
           >
             {isOrdering === offer.id ? (
@@ -539,7 +543,7 @@ function OfferCard({ offer, isOrdering, userProfile, handleOrder }: { offer: any
             ) : (
               <Flame className="w-4 h-4" />
             )}
-            {isOrdering === offer.id ? 'جاري الطلب...' : 'طلب الآن'}
+            {isOrdering === offer.id ? 'جاري الطلب...' : offer.stock > 0 ? 'طلب الآن' : 'نفذت'}
           </button>
         </div>
       </div>

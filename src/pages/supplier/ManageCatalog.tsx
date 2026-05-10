@@ -7,6 +7,7 @@ import { SupplierStoreProduct } from '../../types';
 import toast from 'react-hot-toast';
 import { cn, getCategoryImageUrl } from '../../lib/utils';
 import SubscriptionModal from '../../components/SubscriptionModal';
+import ProductFormModal from '../../components/supplier/ProductFormModal';
 import ImageUpload from '../../components/ui/ImageUpload';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -38,6 +39,7 @@ export default function ManageCatalog() {
     name: '',
     description: '',
     price: '',
+    stock: '',
     unit: 'كجم',
     category: CATEGORIES[0],
     available: true,
@@ -49,6 +51,7 @@ export default function ManageCatalog() {
     description: '',
     discountedPrice: '',
     originalPrice: '',
+    stock: '',
     validUntil: '',
     productId: '',
     image: ''
@@ -133,6 +136,7 @@ export default function ManageCatalog() {
       description: offerFormData.description.trim(),
       offerPrice: parseFloat(offerFormData.discountedPrice),
       originalPrice: parseFloat(offerFormData.originalPrice),
+      stock: parseFloat(offerFormData.stock) || 0,
       supplierId: auth.currentUser.uid,
       supplierName: userData?.businessName || 'مورد',
       image: offerFormData.image.trim() || null,
@@ -163,8 +167,7 @@ export default function ManageCatalog() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleProductSubmit = async (formData: any, variants: any[]) => {
     if (!auth.currentUser) return;
 
     // Check for Premium status
@@ -176,10 +179,28 @@ export default function ManageCatalog() {
 
     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
     const supplierName = userDoc.exists() ? userDoc.data().businessName : auth.currentUser.displayName;
+    
+    // Map default variant to root fields for backwards compatibility
+    let price = parseFloat(formData.price) || 0;
+    let stock = parseFloat(formData.stock) || 0;
+    let unit = formData.unit;
+    
+    if (variants.length > 0) {
+       const defaultVariant = variants.find(v => v.isDefault) || variants[0];
+       if (defaultVariant) {
+          price = defaultVariant.price;
+          stock = defaultVariant.stock;
+          const { generateVariantName } = await import('../../lib/inventoryUnits');
+          unit = generateVariantName(defaultVariant) || defaultVariant.baseUnit;
+       }
+    }
 
     const productData = {
       ...formData,
-      price: parseFloat(formData.price),
+      price,
+      stock,
+      unit,
+      variants, // new field
       supplierId: auth.currentUser.uid,
       supplierName: supplierName || 'مورد',
       updatedAt: new Date().toISOString(),
@@ -220,6 +241,7 @@ export default function ManageCatalog() {
         name: product.name,
         description: product.description,
         price: product.price.toString(),
+        stock: (product.stock || 0).toString(),
         unit: product.unit,
         category: product.category,
         available: product.available,
@@ -231,6 +253,7 @@ export default function ManageCatalog() {
         name: '',
         description: '',
         price: '',
+        stock: '',
         unit: 'كجم',
         category: CATEGORIES[0],
         available: true,
@@ -253,6 +276,7 @@ export default function ManageCatalog() {
         description: offer.description,
         discountedPrice: (offer.offerPrice || 0).toString(),
         originalPrice: (offer.originalPrice || 0).toString(),
+        stock: (offer.stock || 0).toString(),
         validUntil: offer.validUntil || '',
         productId: offer.productId || '',
         image: offer.image || ''
@@ -264,6 +288,7 @@ export default function ManageCatalog() {
         description: '',
         discountedPrice: '',
         originalPrice: '',
+        stock: '',
         validUntil: '',
         productId: '',
         image: ''
@@ -448,16 +473,32 @@ export default function ManageCatalog() {
                       </div>
                       <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{product.description || 'لا يوجد وصف للمنتج'}</p>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                       <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                         {product.price} ج.م <span className="text-[10px] text-slate-400">/ {product.unit}</span>
-                       </span>
-                       <span className={cn(
-                         "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                         product.available ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                       )}>
-                         {product.available ? 'متوفر' : 'غير متوفر'}
-                       </span>
+                    <div className="flex flex-col gap-1 mt-2">
+                       {product.variants && product.variants.length > 0 ? (
+                         <div className="flex flex-col bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/10 p-2 rounded-xl">
+                            <span className="text-[10px] font-bold text-[var(--color-primary)]">
+                               نظام متقدم ({product.variants.length} وحدات/تعبئة)
+                            </span>
+                            <div className="flex items-center justify-between mt-1">
+                                <span className="text-[10px] text-slate-500">يبدأ من:</span>
+                                <span className="text-[var(--color-primary)] font-display font-black text-sm">
+                                   {Math.min(...product.variants.map((v: any) => v.price))} ج.م
+                                </span>
+                            </div>
+                         </div>
+                       ) : (
+                         <div className="flex items-center justify-between">
+                            <span className="text-[var(--color-primary)] font-display font-black text-sm">
+                              {product.price} ج.م <span className="text-[10px] text-slate-400">/ {product.unit}</span>
+                            </span>
+                            <span className={cn(
+                              "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                              product.available ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                            )}>
+                              {product.available ? 'متوفر' : 'غير متوفر'}
+                            </span>
+                         </div>
+                       )}
                     </div>
                   </div>
                 </div>
@@ -541,6 +582,7 @@ export default function ManageCatalog() {
                     <div className="space-y-4">
                       <div className="flex items-end justify-between">
                         <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate-400 text-right mb-1">متوفر: {offer.stock || 0}</span>
                           <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{offer.originalPrice} ج.م</span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-xl font-black text-emerald-600 font-display">{offer.offerPrice}</span>
@@ -661,6 +703,17 @@ export default function ManageCatalog() {
                   </div>
 
                   <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">الكمية المتوفرة</label>
+                    <input 
+                      required
+                      type="number"
+                      value={offerFormData.stock}
+                      onChange={(e) => setOfferFormData({...offerFormData, stock: e.target.value})}
+                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">رابط صورة العرض (اختياري)</label>
                     <input 
                       type="url"
@@ -716,161 +769,12 @@ export default function ManageCatalog() {
         )}
       </AnimatePresence>
 
-      {/* Modal Tooltip Replacement (Simple React Modal logic) */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeModal}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              className="relative w-full max-w-lg bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl p-6 sm:p-8"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-display font-bold text-slate-900">
-                  {editingProduct ? 'تعديل المنتج' : 'إضافة منتج جديد'}
-                </h2>
-                <button onClick={closeModal} className="p-2 bg-slate-100 text-slate-500 rounded-2xl">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 pr-2 scrollbar-thin">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">اسم المنتج</label>
-                    <input 
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">وصف المنتج (اختياري)</label>
-                    <textarea 
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">السعر</label>
-                      <input 
-                        required
-                        type="number"
-                        step="0.01"
-                        value={formData.price}
-                        onChange={(e) => setFormData({...formData, price: e.target.value})}
-                        className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">الوحدة</label>
-                      <select 
-                        value={formData.unit}
-                        onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                        className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
-                      >
-                        <option value="كجم">كيلو جرام</option>
-                        <option value="جرام">جرام</option>
-                        <option value="قطعة">قطعة</option>
-                        <option value="كرتونة">كرتونة</option>
-                        <option value="شوال">شوال</option>
-                        <option value="لتر">لتر</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 mr-1">التصنيف</label>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                       {APP_CATEGORIES.map((cat) => (
-                         <button
-                           key={cat.name}
-                           type="button"
-                           onClick={() => setFormData({ ...formData, category: cat.name })}
-                           className={cn(
-                             "flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all gap-1.5",
-                             formData.category === cat.name
-                               ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/20"
-                               : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100"
-                           )}
-                         >
-                           <span className="text-xl">{cat.icon}</span>
-                           <span className="text-[10px] font-bold truncate w-full text-center">{cat.name}</span>
-                         </button>
-                       ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">صورة المنتج</label>
-                    <ImageUpload 
-                      value={formData.image}
-                      onChange={(val) => setFormData({...formData, image: val})}
-                      onRemove={() => setFormData({...formData, image: ''})}
-                    />
-                    <input 
-                      type="url"
-                      placeholder="أو رابط صورة خارجي (https://...)"
-                      value={formData.image}
-                      onChange={(e) => setFormData({...formData, image: e.target.value})}
-                      className="w-full bg-slate-50 border-none rounded-2xl px-5 py-3 text-[10px] font-bold text-slate-400 focus:ring-1 focus:ring-[var(--color-primary)]"
-                    />
-                  </div>
-
-                  <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer">
-                    <div className={cn(
-                      "w-10 h-5 rounded-full relative transition-colors",
-                      formData.available ? "bg-[var(--color-success)]" : "bg-slate-300"
-                    )}>
-                      <div className={cn(
-                        "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform",
-                        formData.available ? "translate-x-5" : ""
-                      )} />
-                    </div>
-                    <input 
-                      type="checkbox"
-                      className="hidden"
-                      checked={formData.available}
-                      onChange={(e) => setFormData({...formData, available: e.target.checked})}
-                    />
-                    <span className="text-sm font-bold text-slate-700">المنتج متوفر للطلب الآتي</span>
-                  </label>
-                </div>
-
-                <div className="flex gap-3 pt-4 border-t border-slate-100">
-                  <button 
-                    type="button"
-                    onClick={closeModal}
-                    className="flex-1 py-4 text-slate-500 font-bold border-2 border-slate-100 rounded-2xl hover:bg-slate-50 transition-colors"
-                  >
-                    إلغاء
-                  </button>
-                  <button 
-                    type="submit"
-                    className="flex-[2] py-4 bg-[var(--color-primary)] text-white font-bold rounded-2xl shadow-xl shadow-[var(--color-primary)]/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                  >
-                    {editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ProductFormModal 
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onSubmit={handleProductSubmit}
+        product={editingProduct}
+      />
 
       <SubscriptionModal
         isOpen={isSubscriptionModalOpen}

@@ -107,6 +107,7 @@ export interface SupplierStoreProduct {
   available: boolean;
   createdAt: string;
   updatedAt: string;
+  variants?: any[]; // For advanced inventory
 }
 
 export interface Notification {
