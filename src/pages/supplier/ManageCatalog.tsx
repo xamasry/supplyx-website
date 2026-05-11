@@ -21,7 +21,11 @@ export default function ManageCatalog() {
   const [products, setProducts] = useState<SupplierStoreProduct[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [exclusiveOffers, setExclusiveOffers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingOffers, setLoadingOffers] = useState(true);
+  const [loadingUnits, setLoadingUnits] = useState(true);
+  
+  const loading = loadingProducts || loadingOffers || loadingUnits;
   const [activeTab, setActiveTab] = useState<'products' | 'exclusive_offers'>('products');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -80,8 +84,10 @@ export default function ManageCatalog() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupplierStoreProduct[];
       setProducts(data);
+      setLoadingProducts(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
+      setLoadingProducts(false);
     });
 
     const qOffers = query(
@@ -100,8 +106,10 @@ export default function ManageCatalog() {
         const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
         return timeB - timeA;
       }));
+      setLoadingOffers(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'offers');
+      setLoadingOffers(false);
     });
 
     const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
@@ -110,6 +118,10 @@ export default function ManageCatalog() {
       if (u.length > 0 && !formData.baseUnitId) {
         setFormData(prev => ({ ...prev, baseUnitId: u[0].id }));
       }
+      setLoadingUnits(false);
+    }, (err) => {
+       handleFirestoreError(err, OperationType.LIST, 'units');
+       setLoadingUnits(false);
     });
 
     return () => {

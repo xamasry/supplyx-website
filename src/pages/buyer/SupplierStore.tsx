@@ -19,15 +19,19 @@ export default function SupplierStore() {
   const [products, setProducts] = useState<SupplierStoreProduct[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingSupplier, setLoadingSupplier] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  
+  const loading = loadingSupplier || loadingProducts;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { cart, addItem, removeItem, updateQuantity } = useCart();
+  const { cart, addItem, updateQuantity } = useCart();
   const [isAdding, setIsAdding] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supplierId) return;
 
+    setLoadingSupplier(true);
     // Fetch Supplier Details
     const fetchSupplier = async () => {
       try {
@@ -37,27 +41,34 @@ export default function SupplierStore() {
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.GET, `users/${supplierId}`);
+      } finally {
+        setLoadingSupplier(false);
       }
     };
 
     fetchSupplier();
+  }, [supplierId]);
+
+  useEffect(() => {
+    if (!supplierId) return;
+
+    setLoadingProducts(true);
 
     // Fetch Products
     const qProducts = query(
       collection(db, 'products'),
       where('supplierId', '==', supplierId),
-      where('available', '==', true)
+      where('available', '==', true),
+      limit(50)
     );
 
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
-      // Only set products if supplier is premium
-      if (supplier && supplier.subscriptionTier !== 'premium') {
-        setProducts([]);
-        return;
-      }
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupplierStoreProduct[];
       setProducts(data);
-      setLoading(false);
+      setLoadingProducts(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'products');
+      setLoadingProducts(false);
     });
 
     // Fetch Offers
@@ -70,9 +81,11 @@ export default function SupplierStore() {
     const unsubOffers = onSnapshot(qOffers, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setOffers(data);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'offers');
     });
 
-    // Fetch Units
+    // Fetch Units - We can optimize this by only fetching if not already loaded or keeping it simple for now
     const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Unit[];
       setUnits(data);
@@ -83,7 +96,26 @@ export default function SupplierStore() {
       unsubOffers();
       unsubUnits();
     };
-  }, [supplierId, supplier?.subscriptionTier]);
+  }, [supplierId]);
+
+  // Derived state to avoid premium check in the listener and handle filtering efficiently
+  const isPremium = supplier?.subscriptionTier === 'premium';
+  
+  const filteredProducts = isPremium ? products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = !selectedCategory || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  }) : [];
+
+  const groupedProducts = React.useMemo(() => {
+    return CATEGORIES.reduce((acc, cat) => {
+      const catProducts = filteredProducts.filter(p => p.category === cat);
+      if (catProducts.length > 0) {
+        acc[cat] = catProducts;
+      }
+      return acc;
+    }, {} as Record<string, SupplierStoreProduct[]>);
+  }, [filteredProducts, searchTerm, selectedCategory]);
 
   const handleAddToCart = async (product: SupplierStoreProduct, levelIndex: number = -1) => {
     if (!auth.currentUser) {
@@ -127,7 +159,7 @@ export default function SupplierStore() {
     
     if (!window.confirm(`هل أنت متأكد من طلب "${offer.title}" بسعر ${offer.offerPrice} ج.م؟`)) return;
 
-    setLoading(true);
+    setLoadingProducts(true);
     try {
       const buyerDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
       const buyerData = buyerDoc.data();
@@ -175,23 +207,9 @@ export default function SupplierStore() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'orders');
     } finally {
-      setLoading(false);
+      setLoadingProducts(false);
     }
   };
-
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const groupedProducts = CATEGORIES.reduce((acc, cat) => {
-    const catProducts = filteredProducts.filter(p => p.category === cat);
-    if (catProducts.length > 0) {
-      acc[cat] = catProducts;
-    }
-    return acc;
-  }, {} as Record<string, SupplierStoreProduct[]>);
 
   if (loading) {
     return (

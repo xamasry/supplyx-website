@@ -85,7 +85,8 @@ export default function CategoryProducts() {
 
     const qProducts = query(
       collection(db, 'products'),
-      where('category', '==', categoryName)
+      where('category', '==', categoryName),
+      limit(50)
     );
     unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
@@ -93,11 +94,14 @@ export default function CategoryProducts() {
       setProducts(availableProducts);
       setLoadingProducts(false);
     }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'products');
       setLoadingProducts(false);
     });
 
     const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
       setUnits(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Unit[]);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'units');
     });
 
     return () => {
