@@ -78,7 +78,9 @@ import {
   Menu,
   Server,
   Target,
-  Globe
+  Globe,
+  Scale,
+  RefreshCw
 } from "lucide-react";
 import { CATEGORIES } from "../../constants";
 import AnalyticsSystem from "./AnalyticsSystem";
@@ -113,11 +115,13 @@ type Tab =
   | "broadcast"
   | "categories"
   | "ordering"
-  | "catalog";
+  | "catalog"
+  | "units";
 
 import UserDetailsModal from "./UserDetailsModal";
 import RequestDetailsAdminModal from "./RequestDetailsAdminModal";
 import CatalogManager from "./CatalogManager";
+import UnitsManagement from "./UnitsManagement";
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -1620,6 +1624,12 @@ export default function AdminDashboard() {
                   onClick={() => { setActiveTab("catalog"); setIsSidebarOpen(false); }}
                 />
                 <NavItem
+                  icon={<Scale className="w-5 h-5" />}
+                  label="إدارة الوحدات"
+                  active={activeTab === "units"}
+                  onClick={() => { setActiveTab("units"); setIsSidebarOpen(false); }}
+                />
+                <NavItem
                   icon={<Tag className="w-5 h-5" />}
                   label="الأقسام والتصنيفات"
                   active={activeTab === "categories"}
@@ -2391,6 +2401,16 @@ export default function AdminDashboard() {
                   products={products}
                   offers={offers}
                 />
+              </motion.div>
+            )}
+
+            {activeTab === "units" && (
+              <motion.div
+                key="units"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <UnitsManagement />
               </motion.div>
             )}
 

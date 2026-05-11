@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { CATEGORIES } from '../../constants';
+import { Unit } from '../../types';
 
 export default function CategoryProducts() {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,7 @@ export default function CategoryProducts() {
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
@@ -94,10 +96,15 @@ export default function CategoryProducts() {
       setLoadingProducts(false);
     });
 
+    const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
+      setUnits(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Unit[]);
+    });
+
     return () => {
       if (unsubSuppliers) unsubSuppliers();
       if (unsubOffers) unsubOffers();
       if (unsubProducts) unsubProducts();
+      unsubUnits();
     };
   }, [categoryName]);
 
@@ -285,7 +292,9 @@ export default function CategoryProducts() {
                   <div>
                     <h3 className="font-black text-slate-900 text-sm line-clamp-1 group-hover:text-[var(--color-primary)] transition-colors">{product.name}</h3>
                     <div className="flex items-center gap-1.5 mt-2">
-                      <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">{product.unit}</span>
+                      <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
+                        {units.find(u => u.id === product.baseUnitId)?.abbreviation || 'وحدة'}
+                      </span>
                     </div>
                     <p className="text-[10px] text-slate-400 font-bold mt-2 flex items-center gap-1">
                       <Store size={10} className="text-slate-300" />
@@ -297,7 +306,7 @@ export default function CategoryProducts() {
                      <div className="flex flex-col gap-1 items-start">
                        <div className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
                          <span className="text-[var(--color-primary)] font-display font-black text-base">
-                           {product.price}<span className="text-[10px] mr-0.5">ج.م</span>
+                           {product.basePrice}<span className="text-[10px] mr-0.5">ج.م</span>
                          </span>
                        </div>
                        <span className="text-[10px] text-slate-400 font-bold mr-1">المخزون: {product.stock || 0}</span>

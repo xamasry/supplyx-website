@@ -37,7 +37,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && 
         (
-          (request.auth.token.keys().contains('email') && request.auth.token.email.lower() == 'masriboro@gmail.com') ||
+          (request.auth.token.email != null && request.auth.token.email.lower() == 'masriboro@gmail.com') ||
           request.auth.uid == 'NiDR1AAMDuTGXqbYXfIs4TTijRk2'
         );
     }
@@ -57,23 +57,12 @@ service cloud.firestore {
 
     // -- VALIDATION HELPERS --
 
-    function isValidRequest(data) {
-      return data.keys().hasAll(['buyerId', 'productName', 'quantity', 'status', 'createdAt'])
-        && data.buyerId == request.auth.uid
-        && data.productName is string && data.productName.size() <= 200
-        && data.quantity is string && data.quantity.size() <= 100
-        && data.status in ['active', 'accepted', 'preparing', 'shipped', 'delivered', 'cancelled', 'rejected', 'pending']
-        && (data.price == null || data.price is number)
-        && (data.totalAmount == null || data.totalAmount is number);
-    }
-
     function isValidNotification(data) {
       return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt'])
         && data.userId is string
         && data.title is string && data.title.size() <= 100
         && data.message is string && data.message.size() <= 1500
-        && data.read is bool
-        && (data.broadcastId == null || data.broadcastId is string);
+        && data.read is bool;
     }
 
     function isValidBroadcast(data) {
@@ -93,7 +82,59 @@ service cloud.firestore {
         && (data.unit == null || data.unit is string);
     }
 
+    function isValidUnit(data) {
+      return data.keys().hasAll(['name', 'abbreviation', 'type', 'isStandard']) &&
+             data.name is string && data.type in ['mass', 'volume', 'count', 'other'];
+    }
+
+    function isValidConversion(data) {
+      return data.keys().hasAll(['fromUnitId', 'toUnitId', 'multiplier']) &&
+             data.fromUnitId is string && data.toUnitId is string && data.multiplier is number;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['supplierId', 'supplierName', 'name', 'basePrice', 'baseUnitId', 'category']) &&
+             (isAdmin() || data.supplierId == request.auth.uid) &&
+             data.name is string && data.name.size() <= 200 &&
+             data.basePrice is number && data.basePrice >= 0 &&
+             data.baseUnitId is string &&
+             (data.stock == null || data.stock is number);
+    }
+
+    function isValidCart(data) {
+      return data.keys().hasAll(['items', 'updatedAt']) &&
+             data.items is list;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['buyerId', 'totalAmount', 'status', 'createdAt']) &&
+             data.buyerId == request.auth.uid &&
+             data.totalAmount is number &&
+             data.status in ['pending', 'confirmed', 'processing', 'preparing', 'shipped', 'delivered', 'cancelled', 'rejected', 'partially_fulfilled'];
+    }
+
+    function isValidSupplierOrder(data) {
+      return data.keys().hasAll(['parentOrderId', 'supplierId', 'total', 'status']) &&
+             data.total is number &&
+             data.status in ['pending', 'confirmed', 'processing', 'preparing', 'shipped', 'delivered', 'cancelled', 'rejected', 'partially_fulfilled'];
+    }
+
     // -- COLLECTIONS --
+
+    match /units/{unitId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /conversions/{convId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
 
     match /admins/{adminId} {
       allow read: if isSignedIn();
@@ -101,13 +142,27 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow list: if true;
-      allow get: if true;
-      allow create, update, delete: if isOwner(userId) || isAdmin();
-      
+      allow read: if true;
+      allow create, update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
       match /payment_methods/{methodId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+    }
+
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /supplier_orders/{sOrderId} {
+      allow read: if isSignedIn() && (
+        resource.data.get('supplierId', '') == request.auth.uid || 
+        resource.data.get('buyerId', '') == request.auth.uid || 
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (resource.data.get('supplierId', '') == request.auth.uid || isAdmin());
     }
 
     match /products/{productId} {
@@ -115,18 +170,6 @@ service cloud.firestore {
       allow create: if isSignedIn() && (isSupplier() || isAdmin()) && isValidId(productId) && isValidProduct(incoming());
       allow update: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid)) && isValidProduct(incoming());
       allow delete: if isSignedIn() && (isAdmin() || (isSupplier() && resource.data.supplierId == request.auth.uid));
-    }
-
-    // --- Validation Helpers ---
-
-    function isValidProduct(data) {
-      return data.keys().hasAll(['supplierId', 'supplierName', 'name', 'price', 'category']) &&
-             (isAdmin() || data.supplierId == request.auth.uid) &&
-             data.name is string && data.name.size() <= 200 &&
-             data.price is number && data.price >= 0 &&
-             data.category is string &&
-             (data.stock == null || data.stock is number) &&
-             (data.unit == null || data.unit is string);
     }
 
     match /offers/{offerId} {
@@ -158,11 +201,12 @@ service cloud.firestore {
     }
 
     match /requests/{requestId} {
-      allow list: if resource.data.status == 'active' || isAdmin() || (isSignedIn() && (
+      allow list: if resource.data.status == 'active' || (isSignedIn() && (
         resource.data.buyerId == request.auth.uid || 
-        resource.data.supplierId == request.auth.uid
+        resource.data.supplierId == request.auth.uid ||
+        isAdmin()
       ));
-      allow get: if isAdmin() || isSignedIn();
+      allow get: if true;
       allow create: if isSignedIn() && isValidId(requestId) && incoming().buyerId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.buyerId == request.auth.uid || 
@@ -178,19 +222,15 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow list: if isSignedIn() && (
-        resource.data.buyerId == request.auth.uid || 
-        resource.data.supplierId == request.auth.uid
-      );
-      allow get: if isSignedIn() && (
-        resource.data.buyerId == request.auth.uid || 
-        resource.data.supplierId == request.auth.uid ||
+      allow read: if isSignedIn() && (
+        resource.data.get('buyerId', '') == request.auth.uid || 
+        resource.data.get('supplierId', '') == request.auth.uid ||
+        resource.data.get('supplierOrders', []).size() > 0 || 
         isAdmin()
       );
       allow create: if isSignedIn() && isValidId(orderId);
       allow update: if isSignedIn() && (
         resource.data.buyerId == request.auth.uid || 
-        resource.data.supplierId == request.auth.uid ||
         isAdmin()
       );
       allow delete: if isAdmin();
@@ -202,8 +242,7 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn(); 
       allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']));
       allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);

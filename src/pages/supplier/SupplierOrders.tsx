@@ -30,8 +30,8 @@ export default function SupplierOrders() {
         collection(db, 'requests'),
         where('supplierId', '==', user.uid)
       );
-      const qOrders = query(
-        collection(db, 'orders'),
+      const qSupplierOrders = query(
+        collection(db, 'supplier_orders'),
         where('supplierId', '==', user.uid)
       );
 
@@ -49,10 +49,10 @@ export default function SupplierOrders() {
       };
 
       let requestsData: any[] = [];
-      let ordersData: any[] = [];
+      let sOrdersData: any[] = [];
 
       const updateAllData = () => {
-        const allData = [...requestsData, ...ordersData];
+        const allData = [...requestsData, ...sOrdersData];
         allData.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
         setRequests(allData.filter(req => !isRequestExpired(req)));
         setLoading(false);
@@ -67,12 +67,12 @@ export default function SupplierOrders() {
         setLoading(false);
       });
 
-      const unsubOrder = onSnapshot(qOrders, (snapshot) => {
-        ordersData = handleData(snapshot);
+      const unsubOrder = onSnapshot(qSupplierOrders, (snapshot) => {
+        sOrdersData = handleData(snapshot);
         updateAllData();
       }, (error) => {
-        console.error('Orders listener error:', error);
-        handleFirestoreError(error, OperationType.LIST, 'orders');
+        console.error('Supplier Orders listener error:', error);
+        handleFirestoreError(error, OperationType.LIST, 'supplier_orders');
         setLoading(false);
       });
 

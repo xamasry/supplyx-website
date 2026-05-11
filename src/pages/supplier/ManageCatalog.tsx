@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag, Eye, Settings2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, LayoutGrid, List, ChevronRight, X, Loader2, Image as ImageIcon, Send, Clock, Tag, Eye, Settings2, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDoc, orderBy } from 'firebase/firestore';
-import { SupplierStoreProduct } from '../../types';
+import { SupplierStoreProduct, Unit, PackagingLevel } from '../../types';
 import toast from 'react-hot-toast';
 import { cn, getCategoryImageUrl } from '../../lib/utils';
 import SubscriptionModal from '../../components/SubscriptionModal';
@@ -19,6 +19,7 @@ const CATEGORIES = APP_CATEGORIES.map(c => c.name);
 export default function ManageCatalog() {
   const navigate = useNavigate();
   const [products, setProducts] = useState<SupplierStoreProduct[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [exclusiveOffers, setExclusiveOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'products' | 'exclusive_offers'>('products');
@@ -37,12 +38,14 @@ export default function ManageCatalog() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    price: '',
+    basePrice: '',
     stock: '',
-    unit: 'كجم',
+    baseUnitId: '',
     category: CATEGORIES[0],
     available: true,
-    image: ''
+    image: '',
+    moq: '1',
+    packagingLevels: [] as PackagingLevel[]
   });
 
   const [offerFormData, setOfferFormData] = useState({
@@ -97,15 +100,22 @@ export default function ManageCatalog() {
         const timeB = b.createdAt?.toMillis?.() || b.createdAt || 0;
         return timeB - timeA;
       }));
-      setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'offers');
-      setLoading(false);
+    });
+
+    const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
+      const u = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Unit[];
+      setUnits(u);
+      if (u.length > 0 && !formData.baseUnitId) {
+        setFormData(prev => ({ ...prev, baseUnitId: u[0].id }));
+      }
     });
 
     return () => {
       unsubscribe();
       unsubOffers();
+      unsubUnits();
     };
   }, []);
 
@@ -181,9 +191,16 @@ export default function ManageCatalog() {
     const supplierName = userDoc.exists() ? userDoc.data().businessName : auth.currentUser.displayName;
 
     const productData = {
-      ...formData,
-      price: parseFloat(formData.price),
+      name: formData.name,
+      description: formData.description,
+      basePrice: parseFloat(formData.basePrice),
       stock: parseFloat(formData.stock) || 0,
+      baseUnitId: formData.baseUnitId,
+      category: formData.category,
+      available: formData.available,
+      image: formData.image,
+      moq: parseFloat(formData.moq) || 1,
+      packagingLevels: formData.packagingLevels,
       supplierId: auth.currentUser.uid,
       supplierName: supplierName || 'مورد',
       updatedAt: new Date().toISOString(),
@@ -223,24 +240,28 @@ export default function ManageCatalog() {
       setFormData({
         name: product.name,
         description: product.description,
-        price: product.price.toString(),
+        basePrice: (product.basePrice || 0).toString(),
         stock: (product.stock || 0).toString(),
-        unit: product.unit,
+        baseUnitId: product.baseUnitId || '',
         category: product.category,
         available: product.available,
-        image: product.image || ''
+        image: product.image || '',
+        moq: (product.moq || 1).toString(),
+        packagingLevels: product.packagingLevels || []
       });
     } else {
       setEditingProduct(null);
       setFormData({
         name: '',
         description: '',
-        price: '',
+        basePrice: '',
         stock: '',
-        unit: 'كجم',
+        baseUnitId: units[0]?.id || '',
         category: CATEGORIES[0],
         available: true,
-        image: ''
+        image: '',
+        moq: '1',
+        packagingLevels: []
       });
     }
     setIsModalOpen(true);
@@ -458,14 +479,19 @@ export default function ManageCatalog() {
                     </div>
                     <div className="flex items-center justify-between mt-2">
                        <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                         {product.price} ج.م <span className="text-[10px] text-slate-400">/ {product.unit}</span>
+                         {product.basePrice} ج.م <span className="text-[10px] text-slate-400">/ {units.find(u => u.id === product.baseUnitId)?.abbreviation || 'وحدة'}</span>
                        </span>
-                       <span className={cn(
-                         "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                         product.available ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                       )}>
-                         {product.available ? 'متوفر' : 'غير متوفر'}
-                       </span>
+                       <div className="flex flex-col items-end">
+                         <span className={cn(
+                           "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                           product.available ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                         )}>
+                           {product.available ? 'متوفر' : 'غير متوفر'}
+                         </span>
+                         {product.packagingLevels?.length > 0 && (
+                           <span className="text-[8px] text-slate-400 font-bold mt-1">+{product.packagingLevels.length} خيارات تعبئة</span>
+                         )}
+                       </div>
                     </div>
                   </div>
                 </div>
@@ -784,20 +810,21 @@ export default function ManageCatalog() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">السعر</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="sm:col-span-1">
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">السعر الأساسي</label>
                       <input 
                         required
                         type="number"
                         step="0.01"
-                        value={formData.price}
-                        onChange={(e) => setFormData({...formData, price: e.target.value})}
+                        value={formData.basePrice}
+                        onChange={(e) => setFormData({...formData, basePrice: e.target.value})}
                         className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
+                        placeholder="السعر لكل وحدة"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">الكمية</label>
+                    <div className="sm:col-span-1">
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">المخزون (بالوحدة)</label>
                       <input 
                         required
                         type="number"
@@ -806,21 +833,128 @@ export default function ManageCatalog() {
                         className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">الوحدة</label>
+                    <div className="sm:col-span-1">
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">الوحدة الأساسية</label>
                       <select 
-                        value={formData.unit}
-                        onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                        required
+                        value={formData.baseUnitId}
+                        onChange={(e) => setFormData({...formData, baseUnitId: e.target.value})}
                         className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
                       >
-                        <option value="كجم">كيلو جرام</option>
-                        <option value="جرام">جرام</option>
-                        <option value="قطعة">قطعة</option>
-                        <option value="كرتونة">كرتونة</option>
-                        <option value="شوال">شوال</option>
-                        <option value="لتر">لتر</option>
+                        {units.map(unit => (
+                          <option key={unit.id} value={unit.id}>{unit.name} ({unit.abbreviation})</option>
+                        ))}
                       </select>
                     </div>
+                    <div className="sm:col-span-1">
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">أقل كمية (MOQ)</label>
+                      <input 
+                        required
+                        type="number"
+                        value={formData.moq}
+                        onChange={(e) => setFormData({...formData, moq: e.target.value})}
+                        className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[var(--color-primary)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Packaging Levels Section */}
+                  <div className="space-y-3 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                       <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                         <Layers size={14} className="text-[var(--color-primary)]" />
+                         مستويات التعبئة والتغليف (اختياري)
+                       </h4>
+                       <button 
+                         type="button"
+                         onClick={() => setFormData({
+                           ...formData, 
+                           packagingLevels: [
+                             ...formData.packagingLevels, 
+                             { id: Math.random().toString(36).substr(2, 9), name: '', unitId: formData.baseUnitId, quantityInBaseUnit: 1, price: 0 }
+                           ]
+                         })}
+                         className="text-[10px] font-black text-[var(--color-primary)] hover:underline"
+                       >
+                         + إضافة مستوى تعبئة
+                       </button>
+                    </div>
+                    
+                    {formData.packagingLevels.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 italic">يتم البيع بالوحدة الأساسية فقط حالياً</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {formData.packagingLevels.map((level, index) => (
+                          <div key={level.id} className="grid grid-cols-12 gap-2 bg-white p-3 rounded-xl border border-slate-200">
+                            <div className="col-span-4">
+                              <input 
+                                placeholder="اسم المستوى (كرتونة 24)"
+                                value={level.name}
+                                onChange={(e) => {
+                                  const newLevels = [...formData.packagingLevels];
+                                  newLevels[index].name = e.target.value;
+                                  setFormData({...formData, packagingLevels: newLevels});
+                                }}
+                                className="w-full text-xs font-bold bg-slate-50 border-none rounded-lg px-3 py-2"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <input 
+                                type="number"
+                                placeholder="الكمية"
+                                value={level.quantityInBaseUnit}
+                                onChange={(e) => {
+                                  const newLevels = [...formData.packagingLevels];
+                                  newLevels[index].quantityInBaseUnit = parseFloat(e.target.value) || 1;
+                                  setFormData({...formData, packagingLevels: newLevels});
+                                }}
+                                className="w-full text-xs font-bold bg-slate-50 border-none rounded-lg px-3 py-2"
+                              />
+                            </div>
+                            <div className="col-span-3">
+                              <input 
+                                type="number"
+                                placeholder="السعر"
+                                value={level.price}
+                                onChange={(e) => {
+                                  const newLevels = [...formData.packagingLevels];
+                                  newLevels[index].price = parseFloat(e.target.value) || 0;
+                                  setFormData({...formData, packagingLevels: newLevels});
+                                }}
+                                className="w-full text-xs font-bold bg-slate-50 border-none rounded-lg px-3 py-2"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                               <select 
+                                value={level.unitId}
+                                onChange={(e) => {
+                                  const newLevels = [...formData.packagingLevels];
+                                  newLevels[index].unitId = e.target.value;
+                                  setFormData({...formData, packagingLevels: newLevels});
+                                }}
+                                className="w-full text-[10px] font-bold bg-slate-50 border-none rounded-lg px-2 py-2"
+                              >
+                                {units.map(unit => (
+                                  <option key={unit.id} value={unit.id}>{unit.abbreviation}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-span-1 flex items-center justify-center">
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  const newLevels = formData.packagingLevels.filter((_, i) => i !== index);
+                                  setFormData({...formData, packagingLevels: newLevels});
+                                }}
+                                className="text-red-400 hover:text-red-600"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>

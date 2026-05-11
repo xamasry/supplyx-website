@@ -4,9 +4,10 @@ import { Search, Package, MapPin, Star, Phone, ChevronLeft, ShoppingBag, Plus, M
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, OperationType, handleFirestoreError } from '../../lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, limit, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { SupplierStoreProduct, User } from '../../types';
+import { SupplierStoreProduct, User, Unit } from '../../types';
 import { cn, getCategoryImageUrl } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { useCart } from '../../context/CartContext';
 
 import { CATEGORIES as APP_CATEGORIES } from '../../constants';
 
@@ -16,12 +17,13 @@ export default function SupplierStore() {
   const { id: supplierId } = useParams<{ id: string }>();
   const [supplier, setSupplier] = useState<User | null>(null);
   const [products, setProducts] = useState<SupplierStoreProduct[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [cart, setCart] = useState<Record<string, { product: SupplierStoreProduct, quantity: number }>>({});
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { cart, addItem, removeItem, updateQuantity } = useCart();
+  const [isAdding, setIsAdding] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supplierId) return;
@@ -55,6 +57,7 @@ export default function SupplierStore() {
       }
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SupplierStoreProduct[];
       setProducts(data);
+      setLoading(false);
     });
 
     // Fetch Offers
@@ -67,91 +70,56 @@ export default function SupplierStore() {
     const unsubOffers = onSnapshot(qOffers, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setOffers(data);
-      setLoading(false);
+    });
+
+    // Fetch Units
+    const unsubUnits = onSnapshot(collection(db, 'units'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Unit[];
+      setUnits(data);
     });
 
     return () => {
       unsubProducts();
       unsubOffers();
+      unsubUnits();
     };
-  }, [supplierId]);
+  }, [supplierId, supplier?.subscriptionTier]);
 
-  const updateCart = (product: SupplierStoreProduct, delta: number) => {
-    setCart(prev => {
-      const current = prev[product.id] || { product, quantity: 0 };
-      const newQty = Math.max(0, current.quantity + delta);
-      
-      // Check stock limit if stock info exists
-      const availableStock = product.stock !== undefined ? product.stock : 999999;
-      if (delta > 0 && newQty > availableStock) {
-        toast.error(`عذراً، الكمية المتوفرة هي ${availableStock} فقط`);
-        return prev;
-      }
+  const handleAddToCart = async (product: SupplierStoreProduct, levelIndex: number = -1) => {
+    if (!auth.currentUser) {
+      toast.error('يرجى تسجيل الدخول أولاً');
+      return;
+    }
 
-      if (newQty === 0) {
-        const { [product.id]: _, ...rest } = prev;
-        return rest;
-      }
-      
-      return {
-        ...prev,
-        [product.id]: { ...current, quantity: newQty }
-      };
-    });
+    const level = levelIndex === -1 
+      ? null 
+      : product.packagingLevels?.[levelIndex];
+
+    const itemDocId = `${product.id}-${level ? level.id : 'base'}`;
+    setIsAdding(itemDocId);
+
+    try {
+      await addItem({
+        productId: product.id,
+        supplierId: product.supplierId,
+        productName: product.name,
+        image: product.image,
+        packagingLevelId: level ? level.id : 'base',
+        packagingLevelName: level ? level.name : 'الوحدة الأساسية',
+        unitId: level ? level.unitId : product.baseUnitId,
+        price: level ? level.price : product.basePrice,
+        quantity: 1
+      });
+      toast.success(`تم إضافة ${product.name} للسلة`);
+    } catch (err) {
+      toast.error('فشل إضافة المنتج للسلة');
+    } finally {
+      setIsAdding(null);
+    }
   };
 
-  const cartTotal = Object.values(cart).reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-  const cartItemsCount = Object.values(cart).reduce((acc, item) => acc + item.quantity, 0);
-
-  const handleCheckout = async () => {
-    if (!auth.currentUser || cartItemsCount === 0) return;
-    
-    setLoading(true);
-    try {
-      const buyerDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-      const buyerData = buyerDoc.data();
-
-      const orderData = {
-        buyerId: auth.currentUser.uid,
-        buyerName: buyerData?.businessName || auth.currentUser.displayName,
-        buyerPhone: buyerData?.phoneNumber || '',
-        supplierId: supplierId,
-        supplierName: supplier.businessName,
-        items: Object.values(cart).map(item => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.quantity,
-          unit: item.product.unit,
-          price: item.product.price
-        })),
-        totalAmount: cartTotal,
-        status: 'pending',
-        type: 'direct_catalog_order',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      const orderRef = await addDoc(collection(db, 'orders'), orderData);
-      
-      // Notify Supplier
-      await addDoc(collection(db, 'notifications'), {
-        userId: supplierId,
-        title: 'طلب شراء جديد',
-        message: `وصلك طلب شراء مباشر من ${orderData.buyerName} بقيمة ${cartTotal} ج.م`,
-        type: 'product_order',
-        read: false,
-        createdAt: serverTimestamp(),
-        link: `/supplier/orders/${orderRef.id}`
-      });
-
-      toast.success('تم إرسال طلبك للمورد بنجاح!');
-      setCart({});
-      setIsCartOpen(false);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'orders');
-    } finally {
-      setLoading(false);
-    }
+  const getItemInCart = (productId: string, levelId: string = 'base') => {
+    return cart?.items.find(i => i.productId === productId && i.packagingLevelId === levelId);
   };
 
   const handleOfferOrder = async (offer: any) => {
@@ -397,43 +365,87 @@ export default function SupplierStore() {
                     <div className="p-3">
                       <h3 className="font-bold text-slate-900 text-sm line-clamp-1">{product.name}</h3>
                       <div className="flex justify-between items-center mt-0.5">
-                        <p className="text-[10px] text-slate-400 font-semibold">/ {product.unit}</p>
+                        <p className="text-[10px] text-slate-400 font-semibold">/ {units.find(u => u.id === product.baseUnitId)?.abbreviation || 'وحدة'}</p>
                         <p className="text-[9px] text-slate-400 font-bold">المخزون: {product.stock || 0}</p>
                       </div>
                       
-                      <div className="mt-3 flex items-center justify-between">
-                         <span className="text-[var(--color-primary)] font-display font-black text-sm">
-                           {product.price}ج
-                         </span>
-                         
-                         <div className="flex items-center bg-slate-50 rounded-xl p-0.5">
-                            {cart[product.id] ? (
-                              <>
+                      <div className="mt-3 space-y-2">
+                        {/* Base Unit Pricing */}
+                        <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl">
+                          <div className="flex flex-col">
+                            <span className="text-[var(--color-primary)] font-display font-black text-xs">
+                              {product.basePrice}ج <span className="text-[8px] text-slate-400">/ {units.find(u => u.id === product.baseUnitId)?.abbreviation || 'وحدة'}</span>
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1">
+                            {getItemInCart(product.id, 'base') ? (
+                              <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5">
                                 <button 
-                                  onClick={() => updateCart(product, -1)}
-                                  className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-500"
+                                  onClick={() => updateQuantity(getItemInCart(product.id, 'base')!.id, Math.max(1, getItemInCart(product.id, 'base')!.quantity - 1))}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-400"
                                 >
-                                  <Minus size={14} />
+                                  <Minus size={12} />
                                 </button>
-                                <span className="w-6 text-center text-xs font-bold text-slate-900">{cart[product.id].quantity}</span>
+                                <span className="w-5 text-center text-[10px] font-bold">{getItemInCart(product.id, 'base')!.quantity}</span>
                                 <button 
-                                  onClick={() => updateCart(product, 1)}
-                                  disabled={product.stock !== undefined && cart[product.id].quantity >= product.stock}
-                                  className="w-6 h-6 flex items-center justify-center text-[var(--color-primary)] disabled:opacity-20"
+                                  onClick={() => updateQuantity(getItemInCart(product.id, 'base')!.id, getItemInCart(product.id, 'base')!.quantity + 1)}
+                                  className="w-5 h-5 flex items-center justify-center text-primary-500"
                                 >
-                                  <Plus size={14} />
+                                  <Plus size={12} />
                                 </button>
-                              </>
+                              </div>
                             ) : (
                               <button 
-                                onClick={() => updateCart(product, 1)}
-                                disabled={product.stock === 0}
-                                className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 hover:bg-[var(--color-primary)] hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                onClick={() => handleAddToCart(product)}
+                                disabled={isAdding === `${product.id}-base`}
+                                className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-600 hover:border-primary-500 hover:text-primary-500 transition-all"
                               >
-                                <Plus size={18} />
+                                {isAdding === `${product.id}-base` ? <Loader2 size={12} className="animate-spin" /> : <Plus size={14} />}
                               </button>
                             )}
-                         </div>
+                          </div>
+                        </div>
+
+                        {/* Packaging Levels Pricing */}
+                        {product.packagingLevels?.map((level, idx) => (
+                          <div key={level.id} className="flex items-center justify-between bg-slate-100/50 p-2 rounded-xl border border-slate-100">
+                            <div className="flex flex-col">
+                              <span className="text-slate-700 font-bold text-[10px]">{level.name}</span>
+                              <span className="text-[var(--color-primary)] font-black text-[10px]">
+                                {level.price}ج
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              {getItemInCart(product.id, level.id) ? (
+                                <div className="flex items-center bg-white rounded-lg border border-slate-200 p-0.5">
+                                  <button 
+                                    onClick={() => updateQuantity(getItemInCart(product.id, level.id)!.id, Math.max(1, getItemInCart(product.id, level.id)!.quantity - 1))}
+                                    className="w-5 h-5 flex items-center justify-center text-slate-400"
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                  <span className="w-5 text-center text-[10px] font-bold">{getItemInCart(product.id, level.id)!.quantity}</span>
+                                  <button 
+                                    onClick={() => updateQuantity(getItemInCart(product.id, level.id)!.id, getItemInCart(product.id, level.id)!.quantity + 1)}
+                                    className="w-5 h-5 flex items-center justify-center text-primary-500"
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => handleAddToCart(product, idx)}
+                                  disabled={isAdding === `${product.id}-${level.id}`}
+                                  className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-600 hover:border-primary-500 hover:text-primary-500 transition-all font-bold"
+                                >
+                                  {isAdding === `${product.id}-${level.id}` ? <Loader2 size={12} className="animate-spin" /> : <Plus size={14} />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -445,31 +457,6 @@ export default function SupplierStore() {
           <div className="text-center py-20 text-slate-400 italic">لا توجد منتجات متاحة حالياً</div>
         )}
       </div>
-
-      {/* Cart Summary Header/Button */}
-      {cartItemsCount > 0 && (
-        <div className="fixed bottom-24 left-4 right-4 z-40 bg-slate-900 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[var(--color-primary)] rounded-xl flex items-center justify-center relative">
-              <ShoppingBag size={20} />
-              <span className="absolute -top-1.5 -right-1.5 bg-white text-slate-900 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
-                {cartItemsCount}
-              </span>
-            </div>
-            <div>
-              <p className="text-xs font-black text-slate-400 leading-none">إجمالي السلة</p>
-              <p className="text-lg font-display font-black leading-tight mt-1">{cartTotal.toLocaleString()} ج.م</p>
-            </div>
-          </div>
-          <button 
-            onClick={handleCheckout}
-            disabled={loading}
-            className="bg-[var(--color-primary)] text-white px-6 py-2.5 rounded-xl font-black text-sm shadow-lg shadow-[var(--color-primary)]/20 active:scale-95 transition-transform disabled:opacity-50"
-          >
-            {loading ? 'جاري الإرسال...' : 'إرسال طلبك'}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

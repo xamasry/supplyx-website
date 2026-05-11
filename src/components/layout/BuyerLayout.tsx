@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../ui/Logo';
 import { useNotifications } from '../../hooks/useNotifications';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { CartProvider } from '../../context/CartContext';
+import CartOverlay from './CartOverlay';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -74,8 +76,10 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
   const isActive = (p: string) => path === p || path.startsWith(p + '/');
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans pb-24 md:pb-0">
-      {/* Desktop Navigation Side - Optional, but keeping current top header for consistency */}
+    <CartProvider>
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans pb-24 md:pb-0">
+        <CartOverlay />
+        {/* Desktop Navigation Side - Optional, but keeping current top header for consistency */}
       <header className="h-16 md:h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-4">
           <Logo size="sm" />
@@ -184,6 +188,7 @@ export default function BuyerLayout({ children }: { children?: React.ReactNode }
         </div>
       </footer>
     </div>
+    </CartProvider>
   );
 }
 

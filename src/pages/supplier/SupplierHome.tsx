@@ -26,11 +26,14 @@ export default function SupplierHome() {
     let unsubRequests: (() => void) | null = null;
     let unsubOrders: (() => void) | null = null;
     let unsubProfile: (() => void) | null = null;
+    let unsubCatalog: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, (user) => {
+      // Clear previous listeners
       if (unsubRequests) unsubRequests();
       if (unsubOrders) unsubOrders();
       if (unsubProfile) unsubProfile();
+      if (unsubCatalog) unsubCatalog();
 
       if (!user) {
         setRequests([]);
@@ -78,14 +81,28 @@ export default function SupplierHome() {
         handleFirestoreError(error, OperationType.LIST, 'requests');
       });
 
-      // Query 2: Fetch supplier's own orders (accepted, preparing, etc.)
+      // Query 2: Fetch supplier's own orders (from requests)
       const qOrders = query(collection(db, 'requests'), where('supplierId', '==', user.uid));
       unsubOrders = onSnapshot(qOrders, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        data.sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
-        setOrders(data.filter(req => !isRequestExpired(req)));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _source: 'requests' })) as any[];
+        setOrders(prev => {
+          const others = prev.filter(o => o._source !== 'requests');
+          return [...others, ...data].sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+        });
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'requests_supplier_orders');
+      });
+
+      // Query 3: Fetch supplier's catalog orders (from supplier_orders)
+      const qCatalogOrders = query(collection(db, 'supplier_orders'), where('supplierId', '==', user.uid));
+      unsubCatalog = onSnapshot(qCatalogOrders, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), _source: 'supplier_orders' })) as any[];
+        setOrders(prev => {
+          const others = prev.filter(o => o._source !== 'supplier_orders');
+          return [...others, ...data].sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0));
+        });
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'supplier_orders');
       });
     });
 
@@ -94,11 +111,12 @@ export default function SupplierHome() {
       if (unsubRequests) unsubRequests();
       if (unsubOrders) unsubOrders();
       if (unsubProfile) unsubProfile();
+      if (unsubCatalog) unsubCatalog();
     };
   }, [supplierLocation]);
 
   // Active orders for the supplier
-  const activeOrders = orders.filter(r => ['accepted', 'preparing', 'shipped'].includes(r.status));
+  const activeOrders = orders.filter(r => ['accepted', 'pending', 'preparing', 'shipped'].includes(r.status) && !isRequestExpired(r));
 
   // Stats aggregation
   const today = new Date();
@@ -113,7 +131,7 @@ export default function SupplierHome() {
   const weeklyProfit = orders.filter(o => {
     const oDate = o.createdAt?.toDate?.() || new Date(o.createdAt);
     return oDate >= startOfWeek && o.status === 'delivered';
-  }).reduce((acc, curr) => acc + (curr.price || 0), 0);
+  }).reduce((acc, curr) => acc + (curr.totalAmount || curr.total || curr.price || 0), 0);
 
   return (
     <div className="space-y-6 pb-24 font-sans max-w-lg mx-auto px-1">
@@ -305,10 +323,18 @@ export default function SupplierHome() {
             {activeOrders.map((req) => (
               <Link key={req.id} to={`/supplier/orders/${req.id}`} className="block bg-white rounded-2xl shadow-sm border border-slate-200 p-5 group">
                 <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-bold text-slate-900 group-hover:text-green-600 transition-colors">{req.productName}</h3>
-                    <span className="bg-amber-50 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-100">بانتظار العرض</span>
+                    <h3 className="font-bold text-slate-900 group-hover:text-green-600 transition-colors">
+                      {req._source === 'supplier_orders' ? `طلب شراء مباشر (${req.items?.length || 0} أصناف)` : req.productName}
+                    </h3>
+                    <span className="bg-amber-50 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-100">
+                      {req.status === 'pending' ? 'بانتظار القبول' : 'قيد التنفيذ'}
+                    </span>
                 </div>
-                <p className="text-xs text-slate-500 font-bold mb-4">الكمية: {req.quantity} | السعر: {req.price} ج.م</p>
+                <p className="text-xs text-slate-500 font-bold mb-4">
+                  {req._source === 'supplier_orders' 
+                    ? `الإجمالي: ${req.total} ج.م` 
+                    : `الكمية: ${req.quantity} | السعر: ${req.price} ج.م`}
+                </p>
                 <div className="flex items-center justify-between border-t border-slate-50 pt-4">
                   <span className="text-[10px] text-slate-400 font-mono">#{req.id.slice(0,8)}</span>
                   <span className="text-[10px] font-bold text-green-600 flex items-center gap-1">متابعة الآن <ChevronLeft size={12} /></span>
