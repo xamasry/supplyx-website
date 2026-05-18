@@ -6,6 +6,7 @@ import { CATEGORIES } from '../constants';
 
 import FeaturedSuppliers from '../components/guest/FeaturedSuppliers';
 import FeaturedOffers from '../components/guest/FeaturedOffers';
+import ShowcaseSection from '../components/landing/ShowcaseSection';
 
 export default function LandingPage() {
   return (
@@ -158,6 +159,8 @@ export default function LandingPage() {
             </motion.div>
           </div>
         </section>
+
+        <ShowcaseSection />
 
         {/* Branding Banner */}
         <section className="bg-[#0B1D2A] py-16 md:py-20 px-4 md:px-6 overflow-hidden relative">
