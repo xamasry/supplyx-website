@@ -6,7 +6,7 @@ const FEATURES = {
   buyer: {
     title: 'للمطاعم والكافيهات',
     subtitle: 'كل احتياجات مطعمك في مكان واحد، بضغطة زر.',
-    video: 'https://drive.google.com/uc?export=download&id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Google Drive Direct Link
+    video: 'https://docs.google.com/uc?id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Standard streamable link format
     points: [
       'تصفح آلاف المنتجات من كبار الموردين',
       'مقارنة الأسعار والحصول على أفضل العروض',
@@ -181,14 +181,20 @@ export default function ShowcaseSection() {
                     </div>
                   ) : (
                     <video
+                      key={current.video}
                       autoPlay
                       muted
                       loop
                       playsInline
                       className="w-full h-full object-cover"
                       src={current.video}
-                      poster="https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&q=80&w=600"
-                    />
+                      onError={(e) => {
+                        console.error("Video failed to load", e);
+                        // Fallback logic or notification could go here
+                      }}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
                   )}
                   
                   {/* Status Bar UI */}
