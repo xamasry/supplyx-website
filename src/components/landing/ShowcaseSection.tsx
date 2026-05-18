@@ -6,7 +6,7 @@ const FEATURES = {
   buyer: {
     title: 'للمطاعم والكافيهات',
     subtitle: 'كل احتياجات مطعمك في مكان واحد، بضغطة زر.',
-    video: 'https://drive.google.com/uc?export=download&id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Proper direct link
+    video: '/SupplyX_V3-2.mp4', // Local video file from public directory
     points: [
       'تصفح آلاف المنتجات من كبار الموردين',
       'مقارنة الأسعار والحصول على أفضل العروض',
