@@ -50,9 +50,14 @@ export default function ShowcaseSection() {
 
   // Reset play state when tab changes
   React.useEffect(() => {
-    setIsPlaying(true);
     if (videoRef.current) {
       videoRef.current.load();
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((error) => {
+        console.log("Autoplay with sound blocked, waiting for interaction", error);
+        setIsPlaying(false);
+      });
     }
   }, [activeTab]);
 
@@ -209,7 +214,6 @@ export default function ShowcaseSection() {
                         ref={videoRef}
                         key={current.video}
                         autoPlay
-                        muted
                         loop
                         playsInline
                         className="w-full h-full object-cover"
