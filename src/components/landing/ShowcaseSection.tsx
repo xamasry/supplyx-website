@@ -6,7 +6,7 @@ const FEATURES = {
   buyer: {
     title: 'للمطاعم والكافيهات',
     subtitle: 'كل احتياجات مطعمك في مكان واحد، بضغطة زر.',
-    video: 'https://docs.google.com/uc?id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Standard streamable link format
+    video: 'https://drive.google.com/uc?export=download&id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Proper direct link
     points: [
       'تصفح آلاف المنتجات من كبار الموردين',
       'مقارنة الأسعار والحصول على أفضل العروض',
@@ -33,7 +33,28 @@ const FEATURES = {
 
 export default function ShowcaseSection() {
   const [activeTab, setActiveTab] = useState<'buyer' | 'supplier'>('buyer');
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
   const current = FEATURES[activeTab];
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Reset play state when tab changes
+  React.useEffect(() => {
+    setIsPlaying(true);
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [activeTab]);
 
   return (
     <section id="showcase" className="py-24 px-6 bg-white relative overflow-hidden">
@@ -157,7 +178,10 @@ export default function ShowcaseSection() {
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-[#0B1D2A] rounded-b-3xl z-30" />
                 
                 {/* Screen Content */}
-                <div className="w-full h-full rounded-[2.5rem] overflow-hidden relative bg-slate-900">
+                <div 
+                  className="w-full h-full rounded-[2.5rem] overflow-hidden relative bg-slate-900 cursor-pointer"
+                  onClick={togglePlay}
+                >
                   {current.isComingSoon || !current.video ? (
                     <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-gradient-to-b from-[#0B1D2A] to-slate-900">
                       <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl">
@@ -180,21 +204,39 @@ export default function ShowcaseSection() {
                       </div>
                     </div>
                   ) : (
-                    <video
-                      key={current.video}
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="w-full h-full object-cover"
-                      src={current.video}
-                      onError={(e) => {
-                        console.error("Video failed to load", e);
-                        // Fallback logic or notification could go here
-                      }}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
+                    <>
+                      <video
+                        ref={videoRef}
+                        key={current.video}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full h-full object-cover"
+                        src={current.video}
+                        onError={(e) => {
+                          console.error("Video failed to load", e);
+                        }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+
+                      {/* Manual Play/Pause Overlay */}
+                      <AnimatePresence>
+                        {!isPlaying && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-40 transition-opacity"
+                          >
+                            <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shadow-2xl">
+                              <Play className="text-white fill-current translate-x-1" size={40} />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
                   )}
                   
                   {/* Status Bar UI */}
