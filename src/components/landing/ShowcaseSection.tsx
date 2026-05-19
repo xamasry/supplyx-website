@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Store, Truck, Play, CheckCircle2, ShoppingBag, BarChart3, Clock, Zap } from 'lucide-react';
+import { Store, Truck, Play, CheckCircle2, ShoppingBag, BarChart3, Clock, Zap, Volume2, VolumeX } from 'lucide-react';
 
 const FEATURES = {
   buyer: {
@@ -34,6 +34,7 @@ const FEATURES = {
 export default function ShowcaseSection() {
   const [activeTab, setActiveTab] = useState<'buyer' | 'supplier'>('buyer');
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const current = FEATURES[activeTab];
 
@@ -48,14 +49,30 @@ export default function ShowcaseSection() {
     }
   };
 
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+      // Play if it was paused by browser block
+      if (!isPlaying) {
+        videoRef.current.play().then(() => setIsPlaying(true));
+      }
+    }
+  };
+
   // Reset play state when tab changes
   React.useEffect(() => {
     if (videoRef.current) {
       videoRef.current.load();
+      // Start muted for guaranteed mobile autoplay
+      videoRef.current.muted = true;
+      setIsMuted(true);
+      
       videoRef.current.play().then(() => {
         setIsPlaying(true);
       }).catch((error) => {
-        console.log("Autoplay with sound blocked, waiting for interaction", error);
+        console.log("Autoplay blocked even if muted", error);
         setIsPlaying(false);
       });
     }
@@ -214,8 +231,10 @@ export default function ShowcaseSection() {
                         ref={videoRef}
                         key={current.video}
                         autoPlay
+                        muted
                         loop
                         playsInline
+                        webkit-playsinline="true"
                         className="w-full h-full object-cover"
                         src={current.video}
                         onError={(e) => {
@@ -224,6 +243,18 @@ export default function ShowcaseSection() {
                       >
                         Your browser does not support the video tag.
                       </video>
+
+                      {/* Volume Control Overlay */}
+                      <div className="absolute bottom-6 left-6 z-50">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={toggleMute}
+                          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white"
+                        >
+                          {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </motion.button>
+                      </div>
 
                       {/* Manual Play/Pause Overlay */}
                       <AnimatePresence>
