@@ -15,6 +15,47 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
+  // Video proxy endpoint to bypass iOS / Safari Intelligent Tracking Prevention (ITP) and CORS for Google Drive videos
+  app.get('/api/video/buyer', async (req, res) => {
+    const videoUrl = 'https://drive.google.com/uc?export=download&id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob';
+    const rangeHeader = req.headers.range;
+
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
+    if (rangeHeader) {
+      headers['Range'] = rangeHeader;
+    }
+
+    try {
+      const response = await fetch(videoUrl, { headers });
+      
+      // Set appropriate video streaming/caching headers
+      res.setHeader('Content-Type', 'video/mp4');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      
+      const contentRange = response.headers.get('content-range');
+      if (contentRange) res.setHeader('Content-Range', contentRange);
+      
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+
+      res.status(response.status);
+
+      if (response.body) {
+        const { Readable } = await import('stream');
+        Readable.fromWeb(response.body as any).pipe(res);
+      } else {
+        res.end();
+      }
+    } catch (err) {
+      console.error('Error proxying video stream:', err);
+      // Fallback redirect if proxying fails
+      res.redirect(videoUrl);
+    }
+  });
+
   const whatsappRouter = (await import('./server/whatsapp/webhook')).default;
   const { notifyNearbySuppliers } = await import('./server/triggers/onNewRequest');
   const { db } = await import('./src/lib/firebase');
