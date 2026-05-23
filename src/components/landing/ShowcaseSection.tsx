@@ -19,7 +19,7 @@ const FEATURES = {
   supplier: {
     title: 'للموردين وتجار الجملة',
     subtitle: 'نمّي تجارتك ووصل لآلاف العملاء الجدد بسهولة.',
-    video: null, // No video yet
+    video: '/SupplyX_SuppliersV2 (1) (1) (1).mp4', // Local video file
     points: [
       'عرض منتجاتك لآلاف المطاعم والمقاهي',
       'إدارة المخزون والطلبات بذكاء',
@@ -27,7 +27,7 @@ const FEATURES = {
       'تحصيل مالي سريع وآمن'
     ],
     accent: '#3B82F6',
-    isComingSoon: true
+    isComingSoon: false
   }
 };
 
