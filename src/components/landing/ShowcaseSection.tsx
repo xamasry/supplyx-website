@@ -6,7 +6,7 @@ const FEATURES = {
   buyer: {
     title: 'للمطاعم والكافيهات',
     subtitle: 'كل احتياجات مطعمك في مكان واحد، بضغطة زر.',
-    video: '/SupplyX_V3-2.mp4', // Local video file from public directory
+    video: 'https://drive.google.com/uc?export=download&id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob', // Remote fallback link (local file was deleted)
     points: [
       'تصفح آلاف المنتجات من كبار الموردين',
       'مقارنة الأسعار والحصول على أفضل العروض',
@@ -35,6 +35,7 @@ export default function ShowcaseSection() {
   const [activeTab, setActiveTab] = useState<'buyer' | 'supplier'>('buyer');
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const current = FEATURES[activeTab];
 
@@ -42,39 +43,61 @@ export default function ShowcaseSection() {
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
+        setIsPlaying(false);
       } else {
-        videoRef.current.play();
+        videoRef.current.play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            console.log("Play failed, attempting muted play", err);
+            // Fallback: try muted play
+            if (videoRef.current) {
+              videoRef.current.muted = true;
+              setIsMuted(true);
+              videoRef.current.play().then(() => setIsPlaying(true));
+            }
+          });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-      // Play if it was paused by browser block
+      const nextMuteState = !isMuted;
+      videoRef.current.muted = nextMuteState;
+      setIsMuted(nextMuteState);
+      
+      // Auto resume playback if browser paused or unmuted
       if (!isPlaying) {
-        videoRef.current.play().then(() => setIsPlaying(true));
+        videoRef.current.play()
+          .then(() => setIsPlaying(true))
+          .catch(err => console.log("Failed to play on volume toggle", err));
       }
     }
   };
 
-  // Reset play state when tab changes
+  // Reset play state and load new video on tab switch
   React.useEffect(() => {
+    setIsVideoLoading(true);
+    setIsPlaying(true);
+    setIsMuted(true);
+    
     if (videoRef.current) {
       videoRef.current.load();
-      // Start muted for guaranteed mobile autoplay
+      // Guarantees autoplay success on iOS & Chrome Mobile
       videoRef.current.muted = true;
-      setIsMuted(true);
       
-      videoRef.current.play().then(() => {
-        setIsPlaying(true);
-      }).catch((error) => {
-        console.log("Autoplay blocked even if muted", error);
-        setIsPlaying(false);
-      });
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((error) => {
+            console.log("Autoplay failed, requiring gesture action", error);
+            setIsPlaying(false);
+          });
+      }
     }
   }, [activeTab]);
 
@@ -227,18 +250,33 @@ export default function ShowcaseSection() {
                     </div>
                   ) : (
                     <>
+                      {/* Interactive Loading Skeleton */}
+                      {isVideoLoading && (
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#0B1D2A] to-slate-900 flex flex-col items-center justify-center p-8 z-30">
+                          <div className="w-12 h-12 rounded-full border-[3px] border-dashed animate-spin mb-4" style={{ borderColor: `${current.accent}80`, borderTopColor: 'transparent' }} />
+                          <div className="space-y-3 w-4/5 text-center">
+                            <div className="h-3 bg-white/10 rounded-full animate-pulse w-3/4 mx-auto" />
+                            <div className="h-2.5 bg-white/5 rounded-full animate-pulse w-1/2 mx-auto" />
+                          </div>
+                        </div>
+                      )}
+
                       <video
                         ref={videoRef}
                         key={current.video}
                         autoPlay
-                        muted
+                        muted={isMuted}
                         loop
                         playsInline
-                        webkit-playsinline="true"
                         className="w-full h-full object-cover"
                         src={current.video}
+                        onLoadedData={() => setIsVideoLoading(false)}
+                        onCanPlay={() => setIsVideoLoading(false)}
+                        onWaiting={() => setIsVideoLoading(true)}
+                        onPlaying={() => setIsVideoLoading(false)}
                         onError={(e) => {
                           console.error("Video failed to load", e);
+                          setIsVideoLoading(false);
                         }}
                       >
                         Your browser does not support the video tag.
