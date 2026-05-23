@@ -252,7 +252,7 @@ export default function ShowcaseSection() {
                     <>
                       {/* Interactive Loading Skeleton */}
                       {isVideoLoading && (
-                        <div className="absolute inset-0 bg-gradient-to-b from-[#0B1D2A] to-slate-900 flex flex-col items-center justify-center p-8 z-30">
+                        <div className="absolute inset-0 bg-gradient-to-b from-[#0B1D2A]/80 to-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 z-30 pointer-events-none">
                           <div className="w-12 h-12 rounded-full border-[3px] border-dashed animate-spin mb-4" style={{ borderColor: `${current.accent}80`, borderTopColor: 'transparent' }} />
                           <div className="space-y-3 w-4/5 text-center">
                             <div className="h-3 bg-white/10 rounded-full animate-pulse w-3/4 mx-auto" />
