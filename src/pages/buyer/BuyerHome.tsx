@@ -369,7 +369,7 @@ export default function BuyerHome() {
          </div>
          <div className="flex overflow-x-auto gap-4 pb-6 hide-scrollbar">
            {CATEGORIES.map(c => (
-             <Link key={c.id} to={`/buyer/products?cat=${c.id}`} className="min-w-[110px] bg-white border border-slate-100 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center shadow-sm hover:border-[var(--color-primary)] transition-all group">
+             <Link key={c.id} to={`/buyer/products?cat=${c.id}`} className="min-w-[110px] shrink-0 bg-white border border-slate-100 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center shadow-sm hover:border-[var(--color-primary)] transition-all group">
                <span className="text-4xl mb-3 group-hover:scale-125 transition-transform">{c.icon}</span>
                <span className="text-xs font-black text-slate-700 whitespace-nowrap">{c.name}</span>
              </Link>

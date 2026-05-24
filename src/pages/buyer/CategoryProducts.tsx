@@ -161,7 +161,7 @@ export default function CategoryProducts() {
              </div>
            ) : suppliers.length > 0 ? (
              suppliers.map(s => (
-               <Link key={s.id} to={`/buyer/supplier/${s.id}`} className="flex flex-col items-center min-w-[120px] group/item">
+               <Link key={s.id} to={`/buyer/supplier/${s.id}`} className="flex flex-col items-center min-w-[120px] shrink-0 group/item">
                  <div className="w-20 h-20 rounded-3xl bg-white border border-slate-100 flex items-center justify-center p-3 group-hover/item:border-emerald-500 group-hover/item:shadow-xl group-hover/item:shadow-emerald-500/10 group-hover/item:-translate-y-1 transition-all relative">
                    <img 
                     src={s.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.businessName || 'S')}&background=22C55E&color=fff`} 

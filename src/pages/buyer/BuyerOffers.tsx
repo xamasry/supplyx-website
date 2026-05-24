@@ -205,7 +205,7 @@ export default function BuyerOffers() {
         <button
           onClick={() => setSelectedCategory('all')}
           className={cn(
-            "px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all border shadow-sm",
+            "px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all border shadow-sm shrink-0",
             selectedCategory === 'all' 
               ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] scale-105" 
               : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
@@ -218,7 +218,7 @@ export default function BuyerOffers() {
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
             className={cn(
-              "px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all border shadow-sm flex items-center gap-2",
+              "px-6 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all border shadow-sm flex items-center gap-2 shrink-0",
               selectedCategory === cat.id 
                 ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] scale-105" 
                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"

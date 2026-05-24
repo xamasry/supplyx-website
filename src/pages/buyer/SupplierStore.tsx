@@ -333,7 +333,7 @@ export default function SupplierStore() {
           <button 
             onClick={() => setSelectedCategory(null)}
             className={cn(
-              "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+              "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0",
               !selectedCategory ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-100"
             )}
           >
@@ -344,7 +344,7 @@ export default function SupplierStore() {
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border shrink-0",
                 selectedCategory === cat ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-500 border-slate-100"
               )}
             >
