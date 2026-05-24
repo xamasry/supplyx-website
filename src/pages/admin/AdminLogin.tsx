@@ -23,6 +23,7 @@ export default function AdminLogin() {
       if (user) {
         const adminDoc = await getDoc(doc(db, 'admins', user.uid));
         if (adminDoc.exists()) {
+          localStorage.setItem('supplyx_user_role', 'admin');
           navigate('/admin/dashboard', { replace: true });
         }
       }
@@ -35,6 +36,7 @@ export default function AdminLogin() {
       const adminDoc = await getDoc(doc(db, 'admins', user.uid));
       
       if (adminDoc.exists()) {
+        localStorage.setItem('supplyx_user_role', 'admin');
         navigate('/admin/dashboard');
         return;
       }
@@ -48,8 +50,10 @@ export default function AdminLogin() {
           isSuperAdmin: true,
           role: 'super_admin'
         }, { merge: true });
+        localStorage.setItem('supplyx_user_role', 'admin');
         navigate('/admin/dashboard');
       } else {
+        localStorage.removeItem('supplyx_user_role');
         await auth.signOut();
         setError('عذراً، هذا الحساب ليس لديه صلاحيات مدير النظام.');
       }

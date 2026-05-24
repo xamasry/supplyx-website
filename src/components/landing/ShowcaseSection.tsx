@@ -6,7 +6,7 @@ const FEATURES = {
   buyer: {
     title: 'للمطاعم والكافيهات',
     subtitle: 'كل احتياجات مطعمك في مكان واحد، بضغطة زر.',
-    video: '/api/video/buyer', // Streamed via same-origin proxy to ensure 100% compatibility on iOS/Safari & Android PWA
+    video: '/SupplyX_V3-2.mp4', // Local high-performance static video file
     points: [
       'تصفح آلاف المنتجات من كبار الموردين',
       'مقارنة الأسعار والحصول على أفضل العروض',

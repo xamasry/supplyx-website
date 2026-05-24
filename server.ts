@@ -15,10 +15,9 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // Video proxy endpoint to bypass iOS / Safari Intelligent Tracking Prevention (ITP) and CORS for Google Drive videos
+  // Video proxy endpoint directed to the high-performance local static file
   app.get('/api/video/buyer', (req, res) => {
-    const directVideoUrl = 'https://drive.usercontent.google.com/download?id=17ob9XEwK3ICjetbZqS2DD0gpUMVgJuob&export=download';
-    res.redirect(307, directVideoUrl);
+    res.redirect(301, '/SupplyX_V3-2.mp4');
   });
 
   const whatsappRouter = (await import('./server/whatsapp/webhook')).default;

@@ -19,15 +19,29 @@ export default function LoginPage() {
   React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const role = userDoc.data().role;
-          if (role === 'supplier') navigate('/supplier/home', { replace: true });
-          else if (role === 'buyer') navigate('/buyer/home', { replace: true });
-        } else {
-          // Check for admin
-          const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-          if (adminDoc.exists()) navigate('/admin/dashboard', { replace: true });
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData.status === 'pending' || userData.status === 'rejected' || userData.disabled) {
+              await auth.signOut();
+              localStorage.removeItem('supplyx_user_role');
+              return;
+            }
+            const role = userData.role;
+            localStorage.setItem('supplyx_user_role', role);
+            if (role === 'supplier') navigate('/supplier/home', { replace: true });
+            else if (role === 'buyer') navigate('/buyer/home', { replace: true });
+          } else {
+            // Check for admin
+            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+            if (adminDoc.exists()) {
+              localStorage.setItem('supplyx_user_role', 'admin');
+              navigate('/admin/dashboard', { replace: true });
+            }
+          }
+        } catch (err) {
+          console.error("Error checking user in auth listener:", err);
         }
       }
     });
@@ -43,6 +57,7 @@ export default function LoginPage() {
       
       const adminDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
       if (adminDoc.exists()) {
+        localStorage.setItem('supplyx_user_role', 'admin');
         navigate('/admin/dashboard');
         return;
       }
@@ -60,6 +75,7 @@ export default function LoginPage() {
         } catch (err) {
           console.error("Bootstrap failed but continuing:", err);
         }
+        localStorage.setItem('supplyx_user_role', 'admin');
         navigate('/admin/dashboard');
         return;
       }
@@ -84,11 +100,14 @@ export default function LoginPage() {
         }
         if (userData.role === 'supplier') {
           trackEvent('login', { method: 'email', role: 'supplier' });
+          localStorage.setItem('supplyx_user_role', 'supplier');
           navigate('/supplier/home');
         } else if (userData.role === 'admin') {
+          localStorage.setItem('supplyx_user_role', 'admin');
           navigate('/admin/dashboard');
         } else {
           trackEvent('login', { method: 'email', role: 'buyer' });
+          localStorage.setItem('supplyx_user_role', 'buyer');
           navigate('/buyer/home');
         }
       } else {
