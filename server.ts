@@ -102,7 +102,12 @@ async function startServer() {
     res.json({ success: true, message: 'Mock registration successful' });
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  // Robust production flag check: handles cases where NODE_ENV is not set explicitly in Cloud Run
+  const isProd = process.env.NODE_ENV === 'production' || 
+                 process.argv[1]?.includes('dist') || 
+                 !fs.existsSync(path.resolve(process.cwd(), 'server.ts'));
+
+  if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -167,7 +172,7 @@ async function startServer() {
     res.status(500).json({
       error: 'Internal Server Error',
       message: err.message,
-      stack: process.env.NODE_ENV === 'production' ? null : err.stack
+      stack: isProd ? null : err.stack
     });
   });
 

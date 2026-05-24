@@ -225,31 +225,31 @@ export default function BuyerHome() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden group border border-slate-800"
+        className="bg-slate-900 text-white rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-xl relative overflow-hidden group border border-slate-800"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-primary-500/20 transition-all duration-700" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-[2rem] bg-slate-800 border-2 border-slate-700/50 flex items-center justify-center p-1 shadow-inner overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-right gap-4 sm:gap-8 w-full sm:w-auto flex-1 min-w-0">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[1.5rem] sm:rounded-[2.25rem] bg-slate-800 border-2 border-slate-700/50 flex items-center justify-center p-1.5 shadow-inner overflow-hidden flex-shrink-0">
               <img 
                 src={userProfile?.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || userProfile?.name || 'U')}&background=0F172A&color=fff`} 
-                className="w-full h-full object-cover rounded-[1.5rem]" 
+                className="w-full h-full object-cover rounded-[1.15rem] sm:rounded-[1.75rem]" 
                 alt="Profile"
               />
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight">{userProfile?.businessName || userProfile?.name || 'مرحباً بك'}</h1>
-              <div className="flex flex-wrap items-center gap-3 mt-2">
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-normal mb-2">{userProfile?.businessName || userProfile?.name || 'مرحباً بك'}</h1>
+              <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 sm:gap-3">
+                <span className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
                   <Phone size={12} className="text-primary-500" />
                   {userProfile?.phone || '---'}
                 </span>
-                <span className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
+                <span className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-slate-300">
                   <MapPin size={12} className="text-rose-500" />
                   {userProfile?.address || '---'}
                 </span>
                 {userProfile?.subscriptionTier === 'premium' && (
-                  <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-black text-amber-500">
+                  <span className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs font-black text-amber-500">
                     <Zap size={10} className="fill-current" />
                     بريميوم
                   </span>
@@ -257,8 +257,8 @@ export default function BuyerHome() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-              <Link to="/buyer/profile" className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-sm font-bold transition-all flex items-center gap-2">
+          <div className="flex items-center justify-center w-full md:w-auto flex-shrink-0">
+              <Link to="/buyer/profile" className="w-full sm:w-auto justify-center px-6 py-3.5 bg-white/15 hover:bg-white/25 border border-white/10 rounded-2xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg">
                 إعدادات الحساب
               </Link>
           </div>

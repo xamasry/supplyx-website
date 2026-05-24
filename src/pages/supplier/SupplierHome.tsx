@@ -134,36 +134,39 @@ export default function SupplierHome() {
   }).reduce((acc, curr) => acc + (curr.totalAmount || curr.total || curr.price || 0), 0);
 
   return (
-    <div className="space-y-6 pb-24 font-sans max-w-lg mx-auto px-1">
+    <div className="max-w-4xl mx-auto space-y-6 pb-24 font-sans px-2 md:px-0">
       
       {/* Tier Badge */}
       {userProfile && (
         <div className="space-y-4">
-          <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden group border border-slate-800">
+          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden group border border-slate-800">
             <div className="absolute top-0 right-0 w-48 h-48 bg-primary-500/10 rounded-full -mr-24 -mt-24 blur-2xl group-hover:bg-primary-500/15 transition-all duration-700" />
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-1 overflow-hidden shadow-inner flex-shrink-0">
-                 <img 
-                   src={userProfile?.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || userProfile?.name || 'S')}&background=1E293B&color=fff`} 
-                   className="w-full h-full object-cover rounded-xl" 
-                   alt="Supplier"
-                 />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 w-full">
+              <div className="flex flex-col sm:flex-row items-center sm:items-center text-center sm:text-right gap-4 w-full sm:flex-1 min-w-0">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center p-1.5 overflow-hidden shadow-inner flex-shrink-0">
+                   <img 
+                     src={userProfile?.profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile?.businessName || userProfile?.name || 'S')}&background=1E293B&color=fff`} 
+                     className="w-full h-full object-cover rounded-xl" 
+                     alt="Supplier"
+                   />
+                </div>
+                <div className="flex-1 min-w-0 w-full">
+                   <h2 className="text-xl sm:text-2xl font-black leading-normal">{userProfile?.businessName || userProfile?.name}</h2>
+                   <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4 mt-2">
+                      <div className="flex items-center gap-1.5 text-slate-350 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+                        <Phone size={12} className="text-[#22C55E]" />
+                        <span className="text-[11px] font-bold">{userProfile?.phone || '---'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-slate-350 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+                        <MapPin size={12} className="text-rose-500" />
+                        <span className="text-[11px] font-bold line-clamp-1">{userProfile?.address || '---'}</span>
+                      </div>
+                   </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                 <h2 className="text-xl font-black truncate">{userProfile?.businessName || userProfile?.name}</h2>
-                 <div className="flex flex-col gap-1.5 mt-2">
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <Phone size={12} className="text-primary-500" />
-                      <span className="text-[11px] font-bold">{userProfile?.phone || '---'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <MapPin size={12} className="text-rose-500" />
-                      <span className="text-[11px] font-bold line-clamp-1">{userProfile?.address || '---'}</span>
-                    </div>
-                 </div>
-              </div>
-              <Link to="/supplier/profile" className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all">
+              <Link to="/supplier/profile" className="p-3 bg-white/10 border border-white/10 rounded-xl hover:bg-white/20 transition-all w-full md:w-auto flex items-center justify-center gap-2 text-xs font-bold text-slate-300">
                 <Settings size={18} className="text-slate-400" />
+                <span>إعدادات الحساب</span>
               </Link>
             </div>
           </div>
