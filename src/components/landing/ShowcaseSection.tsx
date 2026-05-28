@@ -83,9 +83,10 @@ export default function ShowcaseSection() {
     setIsMuted(true);
     
     if (videoRef.current) {
-      videoRef.current.load();
       // Guarantees autoplay success on iOS & Chrome Mobile
+      videoRef.current.defaultMuted = true;
       videoRef.current.muted = true;
+      videoRef.current.load();
       
       const playPromise = videoRef.current.play();
       if (playPromise !== undefined) {
@@ -268,7 +269,7 @@ export default function ShowcaseSection() {
                         muted={isMuted}
                         loop
                         playsInline
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover animate-fade-in"
                         src={current.video}
                         onLoadedData={() => setIsVideoLoading(false)}
                         onCanPlay={() => setIsVideoLoading(false)}
